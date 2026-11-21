@@ -427,6 +427,12 @@
   decision's new front matter counted as a second home. Now allowed for a decision, when
   `superseded_by:` names the decision filed in the trial and nothing else changes. No task has a
   full replacement yet; step 6 adds one.
+- The owner then raised that a prose amend beside front-matter superseding could mix decisions up.
+  Agreed fix, for step 6: both marks in front matter with distinct meanings. Full replacement:
+  `status: superseded` + `superseded_by:`. Partial: status unchanged + `amended_by:` (new one gets
+  `amends:`), plus the dated line under the changed part. Lint checks `amended_by:` like
+  `superseded_by:`. Rejected: always superseding the whole decision and restating what stands; a
+  mostly valid decision would read as void to an agent skimming.
 - Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.

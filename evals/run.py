@@ -37,8 +37,16 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 BRAIN = Path.home() / "brain"
 HOST = "agents-vps"
+# A dropped connection fails in about two minutes instead of hanging the run.
+SSH = ["ssh", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=4"]
 HERS = "/home/agent/.hermes"
-PROFILE = f"{HERS}/profiles/eval"
+# The eval's own Hermes home, outside hers. Her gateway serves every profile under ~/.hermes and
+# keeps each session's file-write claims after it ends, so trials run there refused later trials'
+# writes, and its claims sat in her live gateway. Here the eval gets its own gateway, stopped after
+# every trial.
+EVAL_HOME = "/home/agent/eval/home"
+PROFILE = f"{EVAL_HOME}/profiles/eval"
+SEED = f"{HERS}/profiles/eval"  # the step-2 profile: the eval's .env (OpenRouter key, no Discord token)
 EVAL = "/home/agent/eval"
 WORK = f"{EVAL}/work/brain"
 MODEL = "deepseek/deepseek-v4.1-flash"
@@ -92,8 +100,13 @@ shutil.copy2(hers / "SOUL.md", prof / "SOUL.md")
 
 def vps(script, check=True):
     """Run a bash script on the VPS as `agent`, from stdin, so nothing needs quoting."""
-    r = subprocess.run(["ssh", HOST, "su - agent -c 'bash -s'"], input="set -euo pipefail\n"
-                       "export XDG_RUNTIME_DIR=/run/user/$(id -u)\n" + script,
+    r = subprocess.run([*SSH, HOST, "su - agent -c 'bash -s'"], input="set -euo pipefail\n"
+                       "export XDG_RUNTIME_DIR=/run/user/$(id -u)\n"
+                       f"export HERMES_HOME={EVAL_HOME} HERMES_GATEWAY_LOCK_DIR={EVAL}/locks\n"
+                       # The read-before-write guard checks paths on the host, where /home/agent/brain
+                       # is her live brain, not the copy mounted there: it refused new notes the live
+                       # brain already has. In production host and sandbox paths are the same brain.
+                       "export HERMES_DISABLE_FILE_STATE_GUARD=1\n" + script,
                        text=True, capture_output=True)
     if check and r.returncode:
         raise RuntimeError(f"VPS step failed ({r.returncode}): {r.stderr.strip()[-500:]}")
@@ -104,9 +117,42 @@ def remove_container():
     return "docker rm -f $(docker ps -aq --filter label=hermes-profile=eval) >/dev/null 2>&1 || true\n"
 
 
+# Stops the eval's gateway, so the next trial starts with no file-write claims. Only a process
+# whose own environment names the eval home: never her gateway, whatever a lock file says.
+STOP_GATEWAY = f"""python3 - <<'EOF_STOP'
+import json, os, signal, time
+pids = set()
+for lock in ("{EVAL_HOME}/gateway.lock", "{PROFILE}/gateway.lock"):
+    try:
+        pids.add(int(json.load(open(lock))["pid"]))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+for pid in pids:
+    try:
+        env = open(f"/proc/{{pid}}/environ", "rb").read().split(b"\\0")
+    except OSError:
+        continue
+    if not any(e == b"HERMES_HOME={EVAL_HOME}" or e.startswith(b"HERMES_HOME={EVAL_HOME}/") for e in env):
+        continue
+    os.kill(pid, signal.SIGTERM)
+    for _ in range(60):
+        if not os.path.exists(f"/proc/{{pid}}"):
+            break
+        time.sleep(0.5)
+    else:
+        os.kill(pid, signal.SIGKILL)
+EOF_STOP
+"""
+
+
 def sync_profile():
     """Her setup, copied into the eval profile; her memory and skills become each trial's start."""
-    vps(f"""python3 - {HERS} {PROFILE} {WORK} <<'EOF_SYNC'
+    # Seeded once from the step-2 profile: its .env, hooks allowlist and plugins, none of its state.
+    vps(STOP_GATEWAY + f"""mkdir -p {PROFILE} {EVAL}/locks
+[ -f {PROFILE}/.env ] || rsync -a --exclude 'state.db*' --exclude '*.lock' --exclude logs --exclude sessions \\
+  --exclude runtime --exclude cron --exclude cache --exclude backups --exclude sandboxes --exclude projects.db \\
+  {SEED}/ {PROFILE}/
+python3 - {HERS} {PROFILE} {WORK} <<'EOF_SYNC'
 {SYNC_PROFILE}
 EOF_SYNC
 hermes -p eval config set fallback_providers "[]" >/dev/null
@@ -286,7 +332,7 @@ def run_hermes(task, pages):
     else:
         turns = [TRIAGE_PROMPT]
         flags = "-t terminal,file,skills,todo -s triage,lint"
-    script = (f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt stderr.txt\n" + remove_container()
+    script = (STOP_GATEWAY + f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt stderr.txt\n" + remove_container()
               + f"rm -rf {EVAL}/tripwire && mkdir -p {EVAL}/tripwire\n")
     for n, turn in enumerate(turns):
         cmd = (f"cat > q{n}.txt <<'EOF_Q'\n{turn}\nEOF_Q\n"
@@ -299,6 +345,7 @@ def run_hermes(task, pages):
             # Turn 2 only after turn 1 finished: it continues that session.
             resume = "--resume \"$(python3 -c 'import json;print(json.load(open(\"usage0.json\"))[\"session_id\"])')\""
             script += f"if [ \"$(cat exit0.txt)\" = 0 ] && [ -f usage0.json ]; then\n{cmd.replace('{resume}', resume)}fi\n"
+    script += STOP_GATEWAY  # turn 2 resumes from the session store, so only after the last turn
     start = time.monotonic()
     vps(script)
     seconds = round(time.monotonic() - start)
@@ -385,7 +432,7 @@ def trial(task, k, pages, pinned, tmp, diffs):
         + "".join(f"mkdir -p {PROFILE}/{n} && rsync -a --delete {EVAL}/baseline/{n}/ {PROFILE}/{n}/\n" for n in ("memories", "skills")))
     # tar, not rsync: macOS rsync has no --chown, and the files must be agent's.
     pack = subprocess.Popen(["tar", "-C", str(local), "--no-mac-metadata", "-cf", "-", "."], stdout=subprocess.PIPE)
-    ssh = subprocess.Popen(["ssh", HOST, f"su - agent -c 'tar -C {WORK} -xf -'"], stdin=pack.stdout,
+    ssh = subprocess.Popen([*SSH, HOST, f"su - agent -c 'tar -C {WORK} -xf -'"], stdin=pack.stdout,
                            stderr=subprocess.PIPE, text=True)
     pack.stdout.close()  # so tar gets SIGPIPE if ssh dies, instead of blocking
     _, err = ssh.communicate()
@@ -397,7 +444,7 @@ def trial(task, k, pages, pinned, tmp, diffs):
     shutil.rmtree(local)
     try:
         pull_state(state / "after")
-        subprocess.run(["rsync", "-a", f"{HOST}:{WORK}/", f"{local}/"], capture_output=True, text=True, check=True)
+        subprocess.run(["rsync", "-a", "-e", " ".join(SSH), f"{HOST}:{WORK}/", f"{local}/"], capture_output=True, text=True, check=True)
     except subprocess.CalledProcessError as e:
         return {"task": task["id"], "trial": k, "status": "error", "cost_usd": cost, "seconds": seconds,
                 "why": f"pull-back failed: {(e.stderr or '').strip()[-300:]}"}
@@ -434,7 +481,7 @@ def trial(task, k, pages, pinned, tmp, diffs):
 def pull_state(dest):
     dest.mkdir(parents=True, exist_ok=True)
     for name in ("memories", "skills"):
-        subprocess.run(["rsync", "-a", "--delete", "--exclude", ".*", f"{HOST}:{PROFILE}/{name}/", f"{dest / name}/"],
+        subprocess.run(["rsync", "-a", "--delete", "-e", " ".join(SSH), "--exclude", ".*", f"{HOST}:{PROFILE}/{name}/", f"{dest / name}/"],
                        capture_output=True, text=True, check=True)
 
 
@@ -508,7 +555,7 @@ def main(argv=None):
     finally:
         shutil.rmtree(tmp, ignore_errors=True)  # the pinned copy of the real brain
         if started:
-            vps(remove_container() + f"rm -rf {WORK}\n", check=False)
+            vps(STOP_GATEWAY + remove_container() + f"rm -rf {WORK}\n", check=False)
 
 
 def run_all(tasks, trials, pages, tmp, stamp, out, private):

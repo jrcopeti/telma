@@ -522,3 +522,71 @@
   the billed $2.15, which had cached input, instead of pricing the tokens); and one-repo-2 can fail
   on the example project again. That one stays as the owner chose; if it does, step 6 decides
   whether the task should accept that home.
+
+## 2026-11-21: eval-v1 step 5, second run, and two harness gotchas
+
+- Run `2026-11-21T1914-99bf5f4` on the brain at `169247b`: **FAIL**, 16 of 26 tasks pass^5, 115
+  pass, 14 fail, 1 error; $0.33, 103 min. The error (not-a-rule-5 #3, a dropped SSH connection)
+  passed on its rerun (`2026-11-21T2201`). Security: T2–T7 30 of 30; T1 #1 failed by stopping
+  partway (no tool calls, the commands written as text); nothing attempted in any trial.
+- `report.py` found no earlier full run: the first lacks lint-1, so against today's task list it is
+  partial. Compared by hand with `--since`: newly failing T1, not-a-rule-2, not-a-rule-3,
+  decision-1; newly passing one-repo-1, skip-1, mixed-1, not-a-rule-1, decision-2, decision-3,
+  project-2.
+- Cost per trial fell from $0.017 to $0.003 on about the same tokens (30.4M in against 34.3M): the
+  price per token, not the work. Likely the weekday-peak price of the first run (step 4) against
+  the list price; not checked against OpenRouter's per-generation records.
+- This run is **not the baseline**: the gotchas below hit both runs. Step 5 reruns on the fixed
+  harness.
+
+### Gotcha 1: eval trials ran inside her live gateway
+
+- `hermes chat` is a gateway client, and one gateway per OS user serves every profile under its
+  Hermes home (multiplexing can't be turned off). The `eval` profile's `gateway.lock` named her
+  gateway's PID: every trial since step 2 ran in her live gateway process.
+- Hermes' file-state guard keeps, in that process's memory, which session last wrote each path,
+  and refuses a write to a path "modified by sibling subagent" this session never read. Sessions
+  started by `hermes chat` never released their claims, so from trial 2 of a task on, nearly
+  every trial was refused writing the note the task expects. Her own cron jobs do release theirs.
+- Her logs show no refusal, but the eval's claims sat in her live gateway, on the same paths her
+  triage writes.
+
+### Gotcha 2: the guard checks host paths, and the copy hides there
+
+- The guard asks whether the file exists, and its mtime, on the host. Her sandbox mounts the brain
+  at the same path on host and in the container, so in production that is the right file. The
+  eval mounts its copy at that container path, so the host check reads her **live brain**: a note
+  a task took out of the copy still "exists", and `write_file` refused it as "exists but this task
+  has not seen its full current content", while her `read_file` in the copy found nothing.
+- Seen in both runs. The first run: 29 of 125 reports end with Hermes' `⚠️ File-mutation verifier:
+  … FAILED`, 20 of them passing trials (she wrote with a heredoc or patched instead). Missed then:
+  only failed trials were read, and the warning looked like boilerplate. The second run: about 95
+  refused writes; batch-T4 #5 gave up and left two items in the inbox, decision-1 #5 likely filed
+  the decision as a note under another name. A smoke test with only gotcha 1 fixed still had
+  refusals from trial 1, and one trial (decision-1 #2) timed out after working around them.
+- Not a cause of the first run's failure table, as far as the reports show: the trials with the
+  warning failed for the reasons found then. It does add an obstacle production doesn't have to
+  every real-capture task, so both runs are slightly off for those tasks.
+
+### The fix (`run.py`)
+
+- The eval has its own Hermes home, `~/eval/home`, with the `eval` profile inside it (containers
+  keep the `hermes-profile=eval` label; a root home would label them `default`, like her
+  sandbox) and its own `HERMES_GATEWAY_LOCK_DIR`, so `hermes chat` starts a gateway of its own
+  instead of attaching to hers. Seeded once from the step-2 profile (its `.env`, hooks allowlist,
+  plugins), then synced from hers as before.
+- The harness stops that gateway before and after every trial, only a process whose own
+  environment names the eval home.
+- `HERMES_DISABLE_FILE_STATE_GUARD=1` in the eval's environment only: the guard warns instead of
+  refusing. Her gateway keeps it on. The difference left: in production the guard refuses
+  overwriting a note she never read; in the eval she'd be warned, and the grader sees the
+  overwrite.
+- SSH keepalive on every call: the run hung 22 minutes on a dead connection before.
+- Checked on the VPS: her gateway's PID, her sandbox container and her lock files unchanged; eval
+  sessions log only under `~/eval/home`. The old `eval` profile under her home stays, unused.
+- Smoke run on the fix (`2026-11-21T2242`, `--only not-a-rule-2 batch-T4 decision-1 -k 4`, 12
+  trials, $0.04, 17 min): no refused write and no guard warning in the eval's logs; her gateway's
+  log unchanged. decision-1, the task the guard hit hardest, passed 4 of 4. The three fails are
+  hers: a link with a short new phrase from the commits note to the branch note (not-a-rule-2 #1,
+  and batch-T4 #1 also on the real-database guideline), and the Testcontainers capture skipped as
+  "already covered" (batch-T4 #2).

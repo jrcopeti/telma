@@ -389,4 +389,4 @@
   5. The contradictions lint keeps flagging get fixed in the brain, the owner choosing which side,
      and a new lint task keeps checking that lint catches one.
 - Next: the plan's eval-v1 follow-up. The trial copies are deleted after grading, so some causes above
-  rest on her reports alone; step 9 keeps each failed trial's diff.
+  rest on her reports alone; eval-v1 step 1 keeps each failed trial's diff.

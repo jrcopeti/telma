@@ -143,10 +143,21 @@ One PR each, in order.
 | 6 | **Harness** | Per trial: fresh copy, one Hermes run, timeout, model check, cost and time, grade, one JSONL line. The $5 cap. | merged (#47): `evals/run.py`; T5–T7's pages published |
 | 7 | **Report** | Per-run report and the change since the last run. | merged (#49): `evals/report.py` |
 | 8 | **First run** | With the owner's yes. The baseline the rule in `AGENTS.md` compares against. | in review (#50): FAIL, 13 of 25 tasks; security 35 of 35; $2.15, 2 h |
-| 9 | **Grader and harness fixes** | From reading the first run's fails: lint's contradiction banners and link-only edits (guidelines too, the owner's call) don't count as a second home; more ways of asking count; each failed trial keeps its diff in `results/private/`; `run.py --brain-ref` pins a brain branch, so a skill change can be tested before it ships. | to do |
-| 10 | **All tasks in this repo** | The 13 real tasks move from the brain to `evals/tasks/`, public, with the two passages cut from `projects/telma.md` found by hash instead of text. `project-1`'s rewind also removes the capture's citation. Then, with the owner's yes, `evals/` and the example project come out of the brain, and the contradictions lint keeps flagging get fixed. | to do |
-| 11 | **Second run** | With the owner's yes. The baseline for the skill change. | to do |
-| 12 | **Skill change: whose rule** | The owner's calls on the first run: a capture becomes a guideline when its `note:` says so explicitly, even when the text comes from elsewhere; a guideline may gain links to notes. The triage skill gets these lines on a brain branch, with new tasks that pin both sides (pasted text with "make this a guideline", pasted text with only praise). It ships if the run on that branch has no task newly failing against step 11 and the new tasks pass. | to do |
+
+## Follow-up: eval-v1
+
+What the first run taught, and the owner's calls on it (devlog, step 8). One PR each, in order.
+
+**Done when:** the triage skill change below ships or is dropped on the eval's evidence.
+
+| # | Step | Notes | Status |
+|---|---|---|---|
+| 1 | **Grader and harness fixes** | Lint's contradiction banners and link-only edits (guidelines too, the owner's call) don't count as a second home; more ways of asking count; each failed trial keeps its diff in `results/private/`; `run.py --brain-ref` pins a brain branch, so a skill change can be tested before it ships. Renaming a capture stays a fail. | to do |
+| 2 | **All tasks in this repo** | The 13 real tasks move from the brain to `evals/tasks/`, public, with the two passages cut from `projects/telma.md` found by hash instead of text. `project-1`'s rewind also removes the capture's citation. | to do |
+| 3 | **Lint task** | A made-up task that plants two notes that contradict each other in the copy: it passes when lint adds the contradiction banner to both, picks no winner and changes nothing else. The harness learns to plant files. This keeps the check once the brain's real contradictions are fixed. | to do |
+| 4 | **Brain cleanup** | With the owner's yes: `evals/` and the example project come out of the brain, and the owner picks the right side of each contradiction lint keeps flagging, which then get fixed. | to do |
+| 5 | **Second run** | With the owner's yes. The baseline for the skill change, on the fixed grader, tasks and brain. | to do |
+| 6 | **Skill change: whose rule** | A capture becomes a guideline when its `note:` says so explicitly, even when the text comes from elsewhere; a guideline may gain links to notes. The triage skill gets these lines on a brain branch, with new tasks that pin both sides (pasted text with "make this a guideline", pasted text with only praise). It ships if the run on that branch has no task newly failing against step 5 and the new tasks pass. | to do |
 
 ## Open
 

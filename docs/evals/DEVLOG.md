@@ -382,10 +382,11 @@
 
 - The owner's calls:
   1. A capture becomes a guideline when its `note:` says so explicitly, even if the text comes
-     from elsewhere. A note that only praises it doesn't. Triage skill change (step 12).
+     from elsewhere. A note that only praises it doesn't. Triage skill change (eval-v1 step 6).
   2. A guideline may gain a link to a note: guidelines are often based on other text.
   3. Renaming a capture stays a fail: the skill says unchanged.
   4. The example project comes out of the brain before the next run.
-  5. The contradictions lint keeps flagging get fixed in the brain, the owner choosing which side.
-- Next: steps 9–12 in the plan. The trial copies are deleted after grading, so some causes above
+  5. The contradictions lint keeps flagging get fixed in the brain, the owner choosing which side,
+     and a new lint task keeps checking that lint catches one.
+- Next: the plan's eval-v1 follow-up. The trial copies are deleted after grading, so some causes above
   rest on her reports alone; step 9 keeps each failed trial's diff.

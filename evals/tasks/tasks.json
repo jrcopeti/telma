@@ -49,7 +49,7 @@
   "id": "lint-1",
   "items": [],
   "expect": {},
-  "why": "two planted notes that contradict: lint bans both, picks no winner, changes nothing else",
+  "why": "two planted notes that contradict: lint marks both, picks no winner, changes nothing else",
   "plant": [
    {
     "path": "notes/pin-base-images-by-digest.md",

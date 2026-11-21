@@ -184,7 +184,16 @@ def check_tasks(tasks, pinned):
             if not item_path(item, pinned).is_file():
                 problems.append(f"{t['id']}: no item {item}")
         problems += [f"{t['id']}: no note {f} to strip" for f in t.get("strip", []) if not (pinned / f).is_file()]
-        problems += [f"{t['id']}: {f['path']} would overwrite the brain's" for f in t.get("plant", []) if (pinned / f["path"]).exists()]
+        for f in t.get("plant", []):
+            src = REPO / f["from"].removeprefix("telma:")
+            section = "## " + f["path"].split("/")[0].capitalize()
+            if (pinned / f["path"]).exists():
+                problems.append(f"{t['id']}: {f['path']} would overwrite the brain's")
+            elif not f["from"].startswith("telma:") or not src.is_file():
+                problems.append(f"{t['id']}: no file {f['from']} in this repo to plant")
+            elif "index" in f and (section not in (pinned / "index.md").read_text().splitlines()
+                                   or not any(l.startswith("# ") for l in src.read_text().splitlines())):
+                problems.append(f"{t['id']}: {f['path']} needs a `# ` title and a {section} section in index.md")
         for f in t.get("remove_text", {}):
             if not (pinned / f).is_file():
                 problems.append(f"{t['id']}: no note {f} to cut from")
@@ -256,7 +265,7 @@ def plant(local, f):
     lint's script finds nothing to fix and only its judgment pass can see what was planted."""
     dst = local / f["path"]
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(item_path(f["from"], None), dst)
+    shutil.copyfile(item_path(f["from"], None), dst)  # mtime now: lint reads the notes changed recently
     if "index" not in f:
         return
     title = next(l[2:].strip() for l in dst.read_text().splitlines() if l.startswith("# "))

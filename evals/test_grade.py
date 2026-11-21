@@ -238,6 +238,14 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(r["contradiction"])
         self.assertIn("notes/float.md has no contradiction banner naming notes/pin.md", r["detail"])
 
+    def test_a_banner_naming_the_other_by_file_name_or_title_or_over_two_lines_passes(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: float.md\n# Pin\n\nPin by digest.\n")
+        self.after.write("notes/float.md", "> [!warning] Contradiction\n> This disagrees with Pin.\n# Float\n\n"
+                         "Use floating tags.\n")
+        r = grade(task, self.before.root, self.after.root)
+        self.assertTrue(r["pass"], r["detail"])
+
     def test_a_banner_naming_another_note_fails(self):
         task = self.lint_task()
         for f in ("pin", "float"):

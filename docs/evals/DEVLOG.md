@@ -483,10 +483,16 @@
   adding index lines for notes. `check_tasks` stops a run if a planted path already exists in the
   brain.
 - New check `contradiction`: each of the pair still exists, has a `> [!warning] Contradiction`
-  line naming the other by link or path (the same reading `without_banners` makes, so a banner
-  that passes here is never counted as filing), and otherwise reads token for token as before. A
-  banner naming the other by title only fails: the grader can't tell it from prose. Banners on
-  real notes stay side edits, as in step 1.
+  callout naming the other (the same reading `without_banners` makes, so a banner that passes here
+  is never counted as filing), and otherwise reads token for token as before. Banners on real notes
+  stay side edits, as in step 1.
+- A review (default effort, no cap) found 10; 8 fixed. A banner now names the other note by link,
+  path (from the root or the note's folder) or title, as the skill's `<other note>` allows, and may
+  run over several `>` lines as long as each names a file, so it can't smuggle a new claim in; the
+  same reading decides what `without_banners` drops. Planted notes get the copy's time as their
+  mtime, since lint reads "the notes changed recently". `check_tasks` checks each planted file, its
+  title and its index section. Left: what a banner says isn't graded (one that takes a side
+  passes), and `plant` writes index lines itself rather than calling lint's script.
 - Checked on the brain at `f80fada`: the built copy lints clean and `git status` is clean.
 - 26 tasks, 130 trials a full run. The second run (step 5) is the first with lint-1, so it shows
   up there as a new task, not a newly failing one.

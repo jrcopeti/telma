@@ -369,13 +369,13 @@
 
   | Cause | Trials | Whose |
   |---|---|---|
-  | Lint's judgment pass added `[!warning] Contradiction` banners to two real notes that disagree (the model chain, the DeepSeek price). The lint skill says to; the grader counted them as a second home. | one-repo-1 #4, not-a-rule-4 #1, project-1 #5, project-2 #2 | grader |
+  | Lint's judgment pass added `[!warning] Contradiction` banners to real notes that disagree. The lint skill says to; the grader counted them as a second home. | one-repo-1 #4, not-a-rule-4 #1, project-1 #5, project-2 #2 | grader |
   | The rewind cut the project fact from `projects/telma.md` but left the capture's citation, so she read it as already filed. | project-1 #3, #4 | task |
-  | She asked ("your call: (a)…, (b)…"), with no `?` and no phrase the grader knows. | mixed-1 #5 | grader |
+  | She asked, by offering lettered options, with no `?` and no phrase the grader knows. | mixed-1 #5 | grader |
   | A link from an older note to the new one, which the triage skill allows ("link from the others only if the link is real"); seen in her reports, the diffs weren't kept. | decision-2 #1, #2, #5, not-a-rule-4 #4 | probably grader |
   | A "see also" link from the real-database guideline to the new Testcontainers note. The skill says a guideline changes only when the owner asks; the owner decided a link is fine. | not-a-rule-1 #1–3, batch-T4 #1–5 | allowed now |
-  | Filed the owner's KISS list as a note: "pasted text, not a rule in his own words", though the note said to make it a guideline. | own-rule-1 #1–4 | hers; the skill's wording invites it |
-  | Stopped partway: the whole report was a command or "triage is underway". | mixed-1 #4, decision-2 #4 | hers |
+  | Filed a pasted list as a note because it wasn't in the owner's own words, though the owner's note said to make it a guideline. | own-rule-1 #1–4 | hers; the skill's wording invites it |
+  | Stopped partway: her report was a single command or said triage was still under way. | mixed-1 #4, decision-2 #4 | hers |
   | Renamed the capture on its way to `sources/`; the skill says move it unchanged. | skip-1 #5, decision-3 #2 | hers |
   | Also put a gotcha from the decision into another note. | decision-3 #1 | hers |
   | Put the one-repo rule into `projects/example-app.md`, a sample project note in the brain. | one-repo-2 #5 | fair reading; the sample goes |

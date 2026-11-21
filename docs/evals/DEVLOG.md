@@ -358,7 +358,7 @@
     folder), so the report prints both and warns only on `SOUL.md`; `run.py` copies both fresh each
     run. The private rows still in history are the owner's call.
 
-## 2026-11-20: step 8, the first full run
+## 2026-11-20: step 8, the first full run (#50)
 
 - 125 trials, 2 h, $2.15 ($0.017 a trial against the spike's $0.023), no errors, no
   discarded trials. Run `2026-11-20T2028-4a466d8`, brain `a52de7d`. **FAIL**: 13 of 25 tasks pass^5,

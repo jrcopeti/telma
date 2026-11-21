@@ -123,7 +123,7 @@ def rsync(src, dst, *extra):
 
 def pin_brain(dest, ref=None):
     """The real brain at its current commit, or at `ref` (a branch with a skill change), without
-    history or the eval's answers (evals/)."""
+    history or an old copy of the eval's answers (evals/)."""
     git = ["git", "-C", str(BRAIN)]
     if ref is None and subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout.strip():
         sys.exit("~/brain has uncommitted changes: commit or sync them first, so the run pins one brain")
@@ -138,9 +138,36 @@ def pin_brain(dest, ref=None):
     archive.stdout.close()  # so archive gets SIGPIPE if tar dies, instead of blocking
     if untar.wait() or archive.wait():
         sys.exit("git archive of ~/brain failed")
-    tasks = json.loads((dest / "evals/triage/tasks.json").read_text())
-    shutil.rmtree(dest / "evals")
-    return commit, tasks
+    shutil.rmtree(dest / "evals", ignore_errors=True)
+    return commit
+
+
+def passage(text, spec):
+    """Where the passage with this hash and length sits in text: (start, end), or None unless it
+    is there exactly once. Tasks name real passages by hash, so their text stays out of this repo."""
+    n, found = spec["chars"], []
+    for i in range(len(text) - n + 1):
+        if hashlib.sha256(text[i:i + n].encode()).hexdigest() == spec["sha256"]:
+            found.append(i)
+    return (found[0], found[0] + n) if len(found) == 1 else None
+
+
+def check_tasks(tasks, pinned):
+    """Every real task fits the pinned brain, before a trial is paid for: its items, the notes it
+    strips and the passages it cuts are all there."""
+    problems = []
+    for t in tasks:
+        if t.get("chat"):
+            continue
+        for item in t["items"]:
+            if not item_path(item, pinned).is_file():
+                problems.append(f"{t['id']}: no item {item}")
+        problems += [f"{t['id']}: no note {f} to strip" for f in t.get("strip", []) if not (pinned / f).is_file()]
+        for f, specs in t.get("remove_text", {}).items():
+            text = (pinned / f).read_text() if (pinned / f).is_file() else ""
+            problems += [f"{t['id']}: passage {s['sha256'][:12]} not found once in {f}" for s in specs if not passage(text, s)]
+    if problems:
+        sys.exit("tasks don't fit this brain:\n  " + "\n  ".join(problems))
 
 
 def item_path(item, pinned):
@@ -170,10 +197,15 @@ def build_copy(task, local, pinned):
         for f in task.get("strip", []):
             (local / f).unlink()
             index.write_text("".join(l for l in index.read_text().splitlines(True) if f"({f})" not in l))
-        for f, text in task.get("remove_text", {}).items():
+        for f, specs in task.get("remove_text", {}).items():
             note = local / f
-            assert note.read_text().count(text) == 1, f"{task['id']}: passage not found once in {f}"
-            note.write_text(note.read_text().replace(text, "", 1))
+            text = note.read_text()
+            for spec in specs:
+                span = passage(text, spec)
+                if span is None:
+                    raise ValueError(f"{task['id']}: passage {spec['sha256'][:12]} not found once in {f}")
+                text = text[:span[0]] + text[span[1]:]
+            note.write_text(text)
         for item in task["items"]:
             src = item_path(item, pinned)
             shutil.copy2(src, local / "inbox" / src.name)
@@ -390,11 +422,12 @@ def main(argv=None):
     a = ap.parse_args(argv)
     tmp = Path(tempfile.mkdtemp())
     try:
-        brain_commit, real_tasks = pin_brain(tmp / "pinned", a.brain_ref)
-        tasks = json.loads((HERE / "tasks/public.json").read_text()) + real_tasks
+        brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
+        tasks = json.loads((HERE / "tasks/tasks.json").read_text())
         full = {t["id"] for t in tasks}
         if a.only:
             tasks = [t for t in tasks if t["id"] in a.only]
+        check_tasks(tasks, tmp / "pinned")
         pages_file = HERE / "tasks/pages.json"
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile()

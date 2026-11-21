@@ -442,3 +442,24 @@
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.
 
+
+## 2026-11-21: eval-v1 step 2, all tasks in this repo
+
+- The brain's 13 tasks joined the 12 public ones in `evals/tasks/tasks.json` (`public.json` is
+  gone). They name brain paths only (`sources/…`, the notes to strip); the captures stay in the
+  brain.
+- `remove_text` names each passage by SHA-256 and length in characters, a list per note, so the
+  text of `projects/telma.md` stays private. `run.py` finds it with a sliding window and needs it
+  exactly once.
+- project-1 now also cuts its capture's citation line (`[spend check](…) ·`), the clue that made
+  her read the fact as already filed in the first run (#3, #4).
+- `run.py` checks every task against the pinned brain before the first trial (items, notes to
+  strip, passages) and stops with the list of misfits, so the brain cleanup in step 4 can't turn a
+  run into 25 errors. A passage missing at build time is an error row, not a crash.
+- `report.py` reads the task list from this repo only, so the "branch run reads `~/brain`'s work
+  tree" gap from step 1's review is gone. The brain's `evals/` is still stripped from each copy if
+  it exists; step 4 removes it from the brain.
+- CI's `test_tasks.py` covers the brain tasks' shape (items in `sources/` or `inbox/`, strip paths,
+  hash specs) and tests `passage()`; it can't check that brain items exist, `run.py` does.
+- Checked against the brain at `f80fada`: all 25 tasks fit, and project-1's and project-2's copies
+  lose exactly the old passages (project-1 also the citation).

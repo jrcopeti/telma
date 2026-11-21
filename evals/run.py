@@ -2,21 +2,24 @@
 
     python3 evals/run.py                      # all tasks, k=5
     python3 evals/run.py --only T1 skip-1 -k 1 # a few tasks, one trial each
+    python3 evals/run.py --brain-ref skill-x   # the brain at a branch, to test a skill change first
 
 Runs on the local machine and drives the VPS over SSH as user `agent`; nothing is deployed there.
 At the start it copies her current setup (SOUL.md, config, skills, memory) into the `eval` profile,
 pointed at the trial folder, so the run tests the setup she has now. Each trial: a fresh brain copy
 (the real brain at one pinned commit, or the decoy for chat cases), her memory and skills reset to
 that start, one Hermes run, then the copy, her report and her tool calls come back here to be
-graded. One JSONL line per trial in evals/results/<date>-<commit>.jsonl, public: no report text, and
+graded. A failed trial's diff of the copy is kept in evals/results/private/<run>/. One JSONL line per trial in evals/results/<date>-<commit>.jsonl, public: no report text, and
 no grader details for tasks on the real brain. The full rows go to evals/results/private/, which
 git ignores. Stops at the cost cap; the rest are marked not_run. Ends with report.py's report,
 written beside each results file and printed from the private one.
 Every run needs the owner's yes (docs/evals/PLAN.md, Rules).
 """
 import argparse
+import difflib
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -118,12 +121,17 @@ def rsync(src, dst, *extra):
     subprocess.run(["rsync", "-a", "--delete", *extra, f"{src}/", f"{dst}/"], check=True)
 
 
-def pin_brain(dest):
-    """The real brain at its current commit, without history or the eval's answers (evals/)."""
+def pin_brain(dest, ref=None):
+    """The real brain at its current commit, or at `ref` (a branch with a skill change), without
+    history or the eval's answers (evals/)."""
     git = ["git", "-C", str(BRAIN)]
-    if subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout.strip():
+    if ref is None and subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout.strip():
         sys.exit("~/brain has uncommitted changes: commit or sync them first, so the run pins one brain")
-    commit = subprocess.run(git + ["rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+    r = subprocess.run(git + ["rev-parse", "--short", "--verify", "--end-of-options", f"{ref or 'HEAD'}^{{commit}}"],
+                       capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f"~/brain has no commit {ref or 'HEAD'}")
+    commit = r.stdout.strip()
     dest.mkdir(parents=True)
     archive = subprocess.Popen(git + ["archive", commit], stdout=subprocess.PIPE)
     untar = subprocess.Popen(["tar", "-x", "-C", str(dest)], stdin=archive.stdout)
@@ -254,7 +262,31 @@ def attempts(task, calls):
     return [t for t in task.get("targets", []) if any(flat(t)[1] in a for a in aimed)]
 
 
-def trial(task, k, pages, pinned, tmp):
+def tree(root):
+    """Every file under root but .git, as text; a symlink as its target, never followed."""
+    out = {}
+    for p in sorted(root.rglob("*")):
+        rel = p.relative_to(root)
+        if ".git" in rel.parts or p.is_dir() and not p.is_symlink():
+            continue
+        out[str(rel)] = (f"symlink -> {os.readlink(p)}\n" if p.is_symlink()
+                         else p.read_bytes().decode(errors="replace"))
+    return out
+
+
+def keep_diff(tmp, dest):
+    """The trial copy's changes, so a failure can be read later. Real brain text: private only."""
+    a, b = tree(tmp / "before"), tree(tmp / "brain")
+    lines = []
+    for k in sorted(a.keys() | b.keys()):
+        if a.get(k) != b.get(k):
+            lines += difflib.unified_diff((a.get(k) or "").splitlines(True), (b.get(k) or "").splitlines(True),
+                                          f"before/{k}" if k in a else "/dev/null", f"after/{k}" if k in b else "/dev/null")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text("".join(l if l.endswith("\n") else l + "\n" for l in lines))
+
+
+def trial(task, k, pages, pinned, tmp, diffs):
     local, before, state = tmp / "brain", tmp / "before", tmp / "state"
     for p in (local, before, state):
         shutil.rmtree(p, ignore_errors=True)
@@ -300,6 +332,12 @@ def trial(task, k, pages, pinned, tmp):
         row["checks"] = {k: v for k, v in g.items() if isinstance(v, bool) and k != "pass"}
     row["attempted"] = attempts(task, calls)
     row.update(status=status, why=why, report=report[-1500:])
+    if status == "fail":
+        try:
+            keep_diff(tmp, diffs / f"{task['id']}-{k}.diff")
+            row["diff"] = f"{diffs.name}/{task['id']}-{k}.diff"  # beside the private results file
+        except OSError as e:  # a lost diff must not turn her fail into an error
+            row["diff_error"] = f"{type(e).__name__}: {e}"[:200]
     if task.get("targets"):
         row["flagged"] = bool(FLAG.search(report))
     return row
@@ -340,17 +378,19 @@ def page_problem(task, pages):
 def public_row(row, chat):
     """Public rows carry no report text: her answers can quote real brain files. Grader details stay
     only for the chat cases, which run on the decoy, and for trials that never ran (the cap, a page)."""
-    return {k: v for k, v in row.items() if k != "report" and (chat or k != "why" or row["status"] == "not_run")}
+    return {k: v for k, v in row.items()
+            if k not in ("report", "diff", "diff_error") and (chat or k != "why" or row["status"] == "not_run")}
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*")
     ap.add_argument("-k", type=int, default=5)
+    ap.add_argument("--brain-ref", help="a brain branch or commit to pin instead of ~/brain's HEAD")
     a = ap.parse_args(argv)
     tmp = Path(tempfile.mkdtemp())
     try:
-        brain_commit, real_tasks = pin_brain(tmp / "pinned")
+        brain_commit, real_tasks = pin_brain(tmp / "pinned", a.brain_ref)
         tasks = json.loads((HERE / "tasks/public.json").read_text()) + real_tasks
         full = {t["id"] for t in tasks}
         if a.only:
@@ -359,6 +399,8 @@ def main(argv=None):
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile()
         stamp = setup_stamp(brain_commit)
+        if a.brain_ref:  # a branch run is never the baseline for the brain she has (report.previous)
+            stamp["brain_ref"] = a.brain_ref
         name = f"{datetime.now(timezone.utc):%Y-%m-%dT%H%M}-{stamp['telma_commit']}.jsonl"
         out, private = HERE / "results" / name, HERE / "results/private" / name
         private.parent.mkdir(parents=True, exist_ok=True)
@@ -388,7 +430,7 @@ def run_all(tasks, trials, pages, tmp, stamp, out, private):
                     row = {"task": task["id"], "trial": k, "status": "not_run", "why": f"cost cap ${CAP_USD} reached"}
                 else:
                     try:
-                        row = trial(task, k, pages, tmp / "pinned", tmp)
+                        row = trial(task, k, pages, tmp / "pinned", tmp, private.with_suffix(""))
                     except (RuntimeError, subprocess.CalledProcessError, OSError, ValueError) as e:
                         row = {"task": task["id"], "trial": k, "status": "error", "why": f"{type(e).__name__}: {e}"[:400]}
                     spent += row.get("cost_usd", 0)

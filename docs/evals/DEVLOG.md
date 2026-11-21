@@ -390,3 +390,30 @@
      and a new lint task keeps checking that lint catches one.
 - Next: the plan's eval-v1 follow-up. The trial copies are deleted after grading, so some causes above
   rest on her reports alone; eval-v1 step 1 keeps each failed trial's diff.
+
+## 2026-11-21: eval-v1 step 1, grader and harness fixes
+
+- `lint_fix` became `side_edit`: an edit to an existing note isn't filing when it only adds or
+  drops lint's `> [!warning] Contradiction` banner (one line, naming another file in the brain),
+  fixes a dead link the way lint does, or adds links to files in the brain. New words may only be
+  the linked note's file name or title and a few like "see also"; a link with a new sentence, in
+  the label or around it, is filing. Guidelines get the same exemption (the owner's call 2), so
+  `no_guideline` passes a guideline that gains a link. Compared token by token, case and marks
+  kept, after links become their labels: wrapping existing words in a link ("one showcase repo"
+  now points at the new decision) is a link-only edit; a recased line or a flattened table isn't.
+- `asks` also counts options offered as `(a) …, (b) … or (c) …` and phrases like "your call", "I
+  won't decide", "want me to". mixed-1 #5 would pass now.
+- A failed trial's unified diff of the copy goes to `results/private/<run>/<task>-<k>.diff` (made
+  in Python: symlinks shown by target, never followed); the private row and report link it, the
+  public row drops it. A diff that can't be written leaves the trial a fail, with `diff_error`.
+- `run.py --brain-ref <branch>` pins the brain at that commit (no clean-tree check: it never reads
+  the work tree), so step 6 can run the skill change on a branch. Those rows record `brain_ref`;
+  the report names the branch, and a branch run is never the "last full run" a later run compares
+  with.
+- A review (default effort, no cap) found 10; 9 fixed (the tightening above, the diff, the
+  baseline). Left: `report.py` run by hand reads the brain's task list from `~/brain`'s work tree,
+  not the branch; it goes away in step 2, when every task lives in this repo.
+- Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
+  copies are gone. Which of the "probably grader" link failures really were link-only shows in the
+  second run.
+

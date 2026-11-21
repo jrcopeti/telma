@@ -79,14 +79,15 @@ def summarize(rows, full):
 
 def previous(path, full):
     """The newest full run before this one in the same folder, with its summary, or (None, None).
-    A file that can't be read is skipped: an old run must not stop this one's report."""
+    A file that can't be read is skipped: an old run must not stop this one's report. A run on a
+    brain branch (`--brain-ref`) is skipped too: it tested a brain she doesn't have."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
             s = summarize(load(p), full)
         except (OSError, ValueError, KeyError, TypeError):
             continue
-        if not s["partial"]:
+        if not s["partial"] and not s["setup"].get("brain_ref"):
             return p, s
     return None, None
 
@@ -143,7 +144,8 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
         out += ["The eval profile's `SOUL.md` didn't match hers: this run didn't test her setup.", ""]
     if s:
         out += [f"Setup: `{s.get('model')}`, {s.get('hermes')}; telma `{s.get('telma_commit')}`, "
-                f"brain `{s.get('brain_commit')}`, `SOUL.md` `{s.get('soul_sha')}`, config `{s.get('config_sha')}` "
+                f"brain `{s.get('brain_commit')}`" + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
+                + f", `SOUL.md` `{s.get('soul_sha')}`, config `{s.get('config_sha')}` "
                 f"(eval copy `{s.get('eval_config_sha')}`).", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "
             f"{cur['tokens_in']:,} tokens in, {cur['tokens_out']:,} out.", "",
@@ -158,7 +160,8 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
                    + f" | {t.get('flagged', '—')} | {t.get('attempted', '—')} |")
     fails = [r for t in cur["tasks"].values() for r in t["rows"] if r["status"] == "fail"]
     out += ["", "## Failed trials", ""]
-    out += [f"- {r['task']} #{r['trial']}: {broke(r)}" for r in fails] or ["None."]
+    out += [f"- {r['task']} #{r['trial']}: {broke(r)}" + (f" ([diff]({r['diff']}))" if r.get("diff") else "")
+            for r in fails] or ["None."]
     reruns = [r for t in cur["tasks"].values() for r in t["rows"] if r["status"] in ("error", "discarded", "not_run")]
     if reruns:
         out += ["", "## To rerun", "", "Errors, discarded and not-run trials don't count against her.", ""]

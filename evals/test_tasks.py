@@ -5,6 +5,7 @@ Items in the brain (sources/x.md) can't be checked here: run.py checks them agai
 """
 import hashlib
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
 from run import passage  # noqa: E402
 
+HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (run.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
 TASKS = json.loads((REPO / "evals/tasks/tasks.json").read_text())
 
@@ -50,9 +52,11 @@ class TasksTest(unittest.TestCase):
                     self.assertTrue(t["items"])
                 for item in t.get("items", []):
                     # The brain's evals/ never reaches the copy, so an item from there would be missing.
-                    self.assertTrue(item.startswith("telma:") or item.startswith(("sources/", "inbox/")), item)
+                    self.assertTrue(item.startswith("telma:") or item.startswith(("sources/", "inbox/"))
+                                    or HASHED.fullmatch(item), item)
                 for f in t.get("strip", []):
-                    self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
+                    if not HASHED.fullmatch(f):
+                        self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
                 for f, specs in t.get("remove_text", {}).items():
                     self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
                     self.assertTrue(specs and all(set(s) == {"sha256", "chars"} and len(s["sha256"]) == 64

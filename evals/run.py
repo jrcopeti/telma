@@ -152,6 +152,17 @@ def passage(text, spec):
     return (found[0], found[0] + n) if len(found) == 1 else None
 
 
+def unhash(tasks, pinned):
+    """Brain paths a task gives as `sha256:<hash of the path>`, so a telling file name stays out of
+    this repo, become the path. One that matches no file stays as it is, and check_tasks names it."""
+    paths = {"sha256:" + hashlib.sha256(str(p.relative_to(pinned)).encode()).hexdigest(): str(p.relative_to(pinned))
+             for p in pinned.rglob("*") if p.is_file()}
+    for t in tasks:
+        for key in ("items", "strip"):
+            if key in t:
+                t[key] = [paths.get(x, x) for x in t[key]]
+
+
 def cut(task, f, text):
     """The note without the task's passages, cut one after another as the copy is built."""
     for spec in task["remove_text"][f]:
@@ -441,6 +452,7 @@ def main(argv=None):
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
         tasks = json.loads((HERE / "tasks/tasks.json").read_text())
         full = {t["id"] for t in tasks}
+        unhash(tasks, tmp / "pinned")
         check_tasks(tasks, tmp / "pinned")  # all of them, so a partial run warns of the rest too
         if a.only:
             tasks = [t for t in tasks if t["id"] in a.only]

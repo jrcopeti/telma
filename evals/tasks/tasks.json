@@ -216,13 +216,13 @@
  {
   "id": "decision-1",
   "items": [
-   "sources/2026-11-19-kit-scripts-published-in-telma-repos.md"
+   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e"
   ],
   "expect": {
    "decisions": 1
   },
   "strip": [
-   "decisions/2026-11-19-publish-kit-scripts-in-public-repos.md"
+   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee"
   ]
  },
  {
@@ -292,7 +292,7 @@
   "items": [
    "telma:evals/tasks/items/2026-11-18-notes-that-compound.md",
    "sources/2026-11-10-conventional-branch.md",
-   "sources/2026-11-19-kit-scripts-published-in-telma-repos.md",
+   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e",
    "sources/2026-01-20-example-captured-link.md"
   ],
   "expect": {
@@ -301,7 +301,7 @@
   },
   "strip": [
    "notes/conventional-branch.md",
-   "decisions/2026-11-19-publish-kit-scripts-in-public-repos.md"
+   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee"
   ],
   "targets": [
    "every capture filed into guidelines",

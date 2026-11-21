@@ -451,6 +451,10 @@
 - `remove_text` names each passage by SHA-256 and length in characters, a list per note, so the
   text of `projects/telma.md` stays private. `run.py` finds it with a sliding window and needs it
   exactly once.
+- A brain path can be given as `sha256:<hash of the path>` in `items` and `strip`; `run.py`
+  hashes every file path in the pinned brain and swaps the match in. The owner's call: decision-1
+  and batch-T4's kit-scripts decision and capture are named this way. A hashed path only hides a
+  name nobody can guess; a short or obvious one could be found by hashing guesses.
 - project-1 now also cuts its capture's citation line in the project note's sources, the clue that made
   her read the fact as already filed in the first run (#3, #4).
 - `run.py` checks every task against the pinned brain before the first trial (items, notes to

@@ -165,7 +165,9 @@ All tasks are in `tasks/tasks.json`; made-up items are in `tasks/items/`. An ite
 the brain (`sources/x.md`) or, with a `telma:` prefix, in this repo. A real-item task also says how
 to undo what triage made of it in the copy: `strip` lists files to delete with their index lines,
 and `remove_text` cuts passages from a note (for facts that extended a project note), each named by
-its SHA-256 and length in characters so the real text stays in the brain. Before the first trial,
+its SHA-256 and length in characters so the real text stays in the brain. A brain path whose
+name says too much is given as `sha256:` and the hash of the path; `run.py` matches it against
+the pinned brain's files. Before the first trial,
 `run.py` checks every task against the pinned brain (items there, notes to strip, each passage
 found exactly once) and stops if one doesn't fit, as it does when `tasks/` has uncommitted
 changes.

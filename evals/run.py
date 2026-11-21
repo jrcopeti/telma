@@ -119,10 +119,12 @@ def remove_container():
 
 # Stops the eval's gateway, so the next trial starts with no file-write claims. Only a process
 # whose own environment names the eval home: never her gateway, whatever a lock file says.
-STOP_GATEWAY = f"""python3 - <<'EOF_STOP'
+# Never fails the script: a stop that loses a race with the gateway's own exit must not throw away
+# a trial that already ran, or skip the cleanup after it.
+STOP_GATEWAY = f"""python3 - <<'EOF_STOP' || true
 import json, os, signal, time
 pids = set()
-for lock in ("{EVAL_HOME}/gateway.lock", "{PROFILE}/gateway.lock"):
+for lock in ("{EVAL_HOME}/gateway.lock", "{PROFILE}/gateway.lock", "{EVAL}/locks/host-gateway.json"):
     try:
         pids.add(int(json.load(open(lock))["pid"]))
     except (OSError, ValueError, KeyError, TypeError):
@@ -134,22 +136,27 @@ for pid in pids:
         continue
     if not any(e == b"HERMES_HOME={EVAL_HOME}" or e.startswith(b"HERMES_HOME={EVAL_HOME}/") for e in env):
         continue
-    os.kill(pid, signal.SIGTERM)
-    for _ in range(60):
+    for sig, wait in ((signal.SIGTERM, 60), (signal.SIGKILL, 20)):
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            break
+        for _ in range(wait):
+            if not os.path.exists(f"/proc/{{pid}}"):
+                break
+            time.sleep(0.5)
         if not os.path.exists(f"/proc/{{pid}}"):
             break
-        time.sleep(0.5)
-    else:
-        os.kill(pid, signal.SIGKILL)
 EOF_STOP
 """
 
 
 def sync_profile():
     """Her setup, copied into the eval profile; her memory and skills become each trial's start."""
-    # Seeded once from the step-2 profile: its .env, hooks allowlist and plugins, none of its state.
+    # Seeded from the step-2 profile every run (its .env, hooks allowlist and plugins, none of its
+    # state), so a rotated key or a half-finished first copy is repaired; then made hers below.
     vps(STOP_GATEWAY + f"""mkdir -p {PROFILE} {EVAL}/locks
-[ -f {PROFILE}/.env ] || rsync -a --exclude 'state.db*' --exclude '*.lock' --exclude logs --exclude sessions \\
+rsync -a --exclude 'state.db*' --exclude '*.lock' --exclude logs --exclude sessions \\
   --exclude runtime --exclude cron --exclude cache --exclude backups --exclude sandboxes --exclude projects.db \\
   {SEED}/ {PROFILE}/
 python3 - {HERS} {PROFILE} {WORK} <<'EOF_SYNC'

@@ -590,3 +590,14 @@
   hers: a link with a short new phrase from the commits note to the branch note (not-a-rule-2 #1,
   and batch-T4 #1 also on the real-database guideline), and the Testcontainers capture skipped as
   "already covered" (batch-T4 #2).
+- A review (default effort, no cap) found 10; 4 fixed: the gateway stop can't fail a trial that
+  already ran or skip the cleanup after it, waits after SIGKILL too, also reads the PID from the
+  lock dir's record; and the profile is reseeded every run, so a rotated key or a half-done first
+  copy is repaired. Not real: "the stop never finds or matches the gateway" (20 gateway starts and
+  20 stops logged, one per trial). Left: mounting the copy at the same host and container path to
+  keep the guard on (the trial prompt names `/home/agent/brain`, her live brain on the host), and
+  three cleanups with no failure today.
+- The rerun pins `--brain-ref 169247b`, the second run's brain. The brain's head has moved since:
+  three syncs on 2026-11-21 (a new decision on amending a partly replaced one, `decisions/README.md`,
+  the eval-design decision, the showcase intent), which look like part of step 6. A `--brain-ref`
+  run is a branch run, so step 6 compares with it by `--since`.

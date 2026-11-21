@@ -240,6 +240,20 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(side_edit("decisions/2026-11-17-split.md", o, n, new, new))
         self.assertFalse(side_edit("notes/split.md", o, amended.replace("](", "](../decisions/").encode(), {}, new))
 
+    def test_an_older_decision_marked_superseded_by_the_new_one_is_not_filing(self):
+        old = "---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nOne repo.\n"
+        new_file = {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        path = "decisions/2026-11-17-split.md"
+        for by in ("decisions/2026-11-19-repo-split.md", "2026-11-19-repo-split.md"):
+            with self.subTest(by=by):
+                new = old.replace("status: active", f"status: superseded\nsuperseded_by: {by}")
+                self.assertTrue(side_edit(path, old.encode(), new.encode(), {}, new_file))
+        new = old.replace("status: active", "status: superseded\nsuperseded_by: decisions/2026-11-19-repo-split.md")
+        self.assertFalse(side_edit(path, old.encode(), new.encode(), new_file, new_file))  # not filed in this trial
+        self.assertFalse(side_edit(path, old.encode(), new.replace("One repo.", "Two repos.").encode(), {}, new_file))
+        self.assertFalse(side_edit("notes/split.md", old.encode(), new.encode(), {}, new_file))
+        self.assertFalse(side_edit(path, old.encode(), new.replace("date: 2026-11-17", "date: 2026-11-18").encode(), {}, new_file))
+
     def test_a_link_with_new_words_around_it_is_filing(self):
         self.after.write("notes/old.md", "old\n\nSee [Testcontainers](testcontainers.md): it starts a real Postgres.\n")
         self.file_as_note()

@@ -117,16 +117,36 @@ def without_amendments(path, old, new, before, after):
     return "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par))
 
 
+def without_superseding(path, old, new, before, after):
+    """An older decision without the front matter triage's rule 6 sets when a decision filed in this
+    trial replaces it (decisions/README.md): `status: superseded` and `superseded_by:` naming it."""
+    def split(text):
+        m = re.match(r"---\n(.*?\n)---\n", text, re.S)
+        return (m.group(1).splitlines(), text[m.end():]) if m else ([], text)
+    fm, body = split(new)
+    field = lambda name: next((l.split(":", 1)[1].strip().strip("'\"") for l in fm if l.startswith(name + ":")), None)
+    by = field("superseded_by")
+    if not path.startswith("decisions/") or field("status") != "superseded" or not by:
+        return old, new
+    targets = {posixpath.normpath(by), posixpath.normpath(posixpath.join(posixpath.dirname(path), by))}
+    if not any(t.startswith("decisions/") and t in after and t not in before for t in targets):
+        return old, new
+    drop = lambda lines: "\n".join(l for l in lines if not l.startswith(("status:", "superseded_by:")))
+    ofm, obody = split(old)
+    return drop(ofm) + "\n" + obody, drop(fm) + "\n" + body
+
+
 def side_edit(path, old, new, before, after):
     """True when a note changed only in ways that aren't filing: lint's contradiction banners, a
     dead link removed or repointed at a file in the brain, a link added to a file in the brain
     (triage links an older note to the new one; a guideline may gain one too), or an older
-    decision's paragraph pointing at the decision that replaces it. New words may be only a few like
+    decision marked superseded by, or given a paragraph pointing at, the decision that replaces it. New words may be only a few like
     "see also" and the linked note's own name or title. Never a URL, never sources/."""
     if path.startswith("sources/"):
         return False
-    old = without_banners(old.decode(errors="replace"), path, after)
-    new = without_amendments(path, old, without_banners(new.decode(errors="replace"), path, after), before, after)
+    old, new = without_superseding(path, old.decode(errors="replace"), new.decode(errors="replace"), before, after)
+    old = without_banners(old, path, after)
+    new = without_amendments(path, old, without_banners(new, path, after), before, after)
     gone = Counter(LINK.findall(old)) - Counter(LINK.findall(new))
     came = Counter(LINK.findall(new)) - Counter(LINK.findall(old))
     for _, target in gone:

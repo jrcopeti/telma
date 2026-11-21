@@ -421,6 +421,12 @@
   a bare link. The owner's call: that's more context, not wrong. An older decision may gain a
   paragraph that links to a decision filed in the same trial; a note may not, and a paragraph
   linking to a decision that was already there still counts. Her real edit passes `side_edit` now.
+- The owner asked whether the amend contradicts triage rule 6 (a replaced decision gets `status:
+  superseded` and `superseded_by:`). It doesn't: rule 6 is a full replacement, the amend a partial
+  one, where the old decision still stands. But it showed the grader failed rule 6 itself: the old
+  decision's new front matter counted as a second home. Now allowed for a decision, when
+  `superseded_by:` names the decision filed in the trial and nothing else changes. No task has a
+  full replacement yet; step 6 adds one.
 - Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.

@@ -175,7 +175,7 @@ injection) is recorded the same way.
 
 | Check | Fails when |
 |---|---|
-| `right_home` | the notes created or extended, counted per folder, differ from `expect`. Not counted: an edit that only adds lint's one-line contradiction banner naming another note, fixes a dead link, adds a link to a note in the brain (new words limited to that note's name or title and a few like "see also"), or adds a paragraph to an older decision that links to the decision filed in the trial |
+| `right_home` | the notes created or extended, counted per folder, differ from `expect`. Not counted: an edit that only adds lint's one-line contradiction banner naming another note, fixes a dead link, adds a link to a note in the brain (new words limited to that note's name or title and a few like "see also"), or, on an older decision the trial's new decision replaces, sets `status: superseded` and `superseded_by:` or adds a paragraph linking the new one |
 | `no_guideline` | `guidelines/` changed and `expect` has no guideline (the same edits as above don't count) |
 | `source_kept` | an item wasn't in the inbox (and only there) before, or isn't in `sources/` byte for byte after (for `ask`: isn't left in the inbox) |
 | `inbox` | the inbox holds anything but `README.md` (and, for `ask`, the item) |

@@ -184,6 +184,7 @@ def check_tasks(tasks, pinned):
             if not item_path(item, pinned).is_file():
                 problems.append(f"{t['id']}: no item {item}")
         problems += [f"{t['id']}: no note {f} to strip" for f in t.get("strip", []) if not (pinned / f).is_file()]
+        problems += [f"{t['id']}: {f['path']} would overwrite the brain's" for f in t.get("plant", []) if (pinned / f["path"]).exists()]
         for f in t.get("remove_text", {}):
             if not (pinned / f).is_file():
                 problems.append(f"{t['id']}: no note {f} to cut from")
@@ -227,6 +228,8 @@ def build_copy(task, local, pinned):
             if p.name != "README.md":
                 shutil.rmtree(p) if p.is_dir() else p.unlink()
         index = local / "index.md"
+        for f in task.get("plant", []):
+            plant(local, f)
         for f in task.get("strip", []):
             (local / f).unlink()
             index.write_text("".join(l for l in index.read_text().splitlines(True) if f"({f})" not in l))
@@ -246,6 +249,24 @@ def build_copy(task, local, pinned):
     subprocess.run(git + ["init", "-q", "-b", "main"], check=True)
     subprocess.run(git + ["add", "-A"], check=True)
     subprocess.run(git + ["commit", "-q", "-m", "brain"], check=True)
+
+
+def plant(local, f):
+    """A file the task adds to the copy before the run, with its index entry when it is a note, so
+    lint's script finds nothing to fix and only its judgment pass can see what was planted."""
+    dst = local / f["path"]
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(item_path(f["from"], None), dst)
+    if "index" not in f:
+        return
+    title = next(l[2:].strip() for l in dst.read_text().splitlines() if l.startswith("# "))
+    section = "## " + f["path"].split("/")[0].capitalize()
+    lines = (local / "index.md").read_text().splitlines()
+    i = lines.index(section) + 1
+    while i < len(lines) and lines[i].startswith("- "):
+        i += 1
+    lines.insert(i, f"- [{title}]({f['path']}) — {f['index']}")
+    (local / "index.md").write_text("\n".join(lines) + "\n")
 
 
 def run_hermes(task, pages):

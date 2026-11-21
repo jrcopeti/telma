@@ -472,3 +472,21 @@
   now public (one has a fragment of the owner's name), for the owner to approve in the PR.
 - Checked against the brain at `f80fada`: all 25 tasks fit, and project-1's and project-2's copies
   lose exactly the old passages (project-1 also the citation).
+
+## 2026-11-21: eval-v1 step 3, lint task
+
+- `lint-1` plants two made-up notes that disagree (pin Docker base images by digest; build from
+  floating tags), each with its own made-up capture in `sources/` and its index line, so lint's
+  script reports the copy clean and only the judgment pass can find them. The inbox is empty:
+  triage files nothing, then lint runs, as on a quiet morning.
+- The harness's `plant` copies files from `evals/tasks/items/` into the copy before the snapshot,
+  adding index lines for notes. `check_tasks` stops a run if a planted path already exists in the
+  brain.
+- New check `contradiction`: each of the pair still exists, has a `> [!warning] Contradiction`
+  line naming the other by link or path (the same reading `without_banners` makes, so a banner
+  that passes here is never counted as filing), and otherwise reads token for token as before. A
+  banner naming the other by title only fails: the grader can't tell it from prose. Banners on
+  real notes stay side edits, as in step 1.
+- Checked on the brain at `f80fada`: the built copy lints clean and `git status` is clean.
+- 26 tasks, 130 trials a full run. The second run (step 5) is the first with lint-1, so it shows
+  up there as a new task, not a newly failing one.

@@ -433,6 +433,11 @@
   `amends:`), plus the dated line under the changed part. Lint checks `amended_by:` like
   `superseded_by:`. Rejected: always superseding the whole decision and restating what stands; a
   mostly valid decision would read as void to an agent skimming.
+- Telling the two apart is her judgment, so step 6 also gets: a test in rule 6 (point by point:
+  anything still right means amended, nothing means superseded, unsure means ask, never supersede
+  quietly), one line in her report naming the choice, and three tasks with known answers from the
+  owner's past calls: a full replacement (a real superseded decision), a partial one (decision-2), an
+  unclear made-up one (ask).
 - Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.

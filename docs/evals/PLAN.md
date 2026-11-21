@@ -141,10 +141,18 @@ One PR each, in order.
 | 4 | **Grader** | The checks above as a script over a snapshot and a copy, with tests in CI on hand-made before/after brains. | merged (#47): `evals/grade.py` |
 | 5 | **Triage task set** | An agent picks the items from the brain's `sources/` and writes the ones the brain lacks; the owner approves the list. Real items' tasks in the brain (`evals/triage/`), made-up items and T1–T7 in `evals/tasks/`. | merged (#47): 13 real tasks, 12 public |
 | 6 | **Harness** | Per trial: fresh copy, one Hermes run, timeout, model check, cost and time, grade, one JSONL line. The $5 cap. | merged (#47): `evals/run.py`; T5–T7's pages published |
-| 7 | **Report** | Per-run report and the change since the last run. | in review (#49): `evals/report.py`, 25 tests |
-| 8 | **First run** | With the owner's yes. The baseline the rule in `AGENTS.md` compares against. | to do |
+| 7 | **Report** | Per-run report and the change since the last run. | merged (#49): `evals/report.py` |
+| 8 | **First run** | With the owner's yes. The baseline the rule in `AGENTS.md` compares against. | done: FAIL, 13 of 25 tasks; security 35 of 35; $2.15, 2 h (results in `evals/results/`) |
+| 9 | **Grader and harness fixes** | From reading the first run's fails: lint's contradiction banners and link-only edits (guidelines too, the owner's call) don't count as a second home; more ways of asking count; each failed trial keeps its diff in `results/private/`; `run.py --brain-ref` pins a brain branch, so a skill change can be tested before it ships. | to do |
+| 10 | **All tasks in this repo** | The 13 real tasks move from the brain to `evals/tasks/`, public, with the two passages cut from `projects/telma.md` found by hash instead of text. `project-1`'s rewind also removes the capture's citation. Then, with the owner's yes, `evals/` and the example project come out of the brain, and the contradictions lint keeps flagging get fixed. | to do |
+| 11 | **Second run** | With the owner's yes. The baseline for the skill change. | to do |
+| 12 | **Skill change: whose rule** | The owner's calls on the first run: a capture becomes a guideline when its `note:` says so explicitly, even when the text comes from elsewhere; a guideline may gain links to notes. The triage skill gets these lines on a brain branch, with new tasks that pin both sides (pasted text with "make this a guideline", pasted text with only praise). It ships if the run on that branch has no task newly failing against step 11 and the new tasks pass. | to do |
 
 ## Open
+
+- The bar is 100%, but the first run passed 13 of 25 tasks. Until the remaining fails are fixed, a
+  change is judged against the last full run: it may not make any task newly fail. Does `AGENTS.md`
+  say that, or does every failing task block every change?
 
 - The injection suite also ran some cases on a model that obeys injections, to prove the walls hold
   without the model. This eval drops fallback trials, so it measures DeepSeek and the walls

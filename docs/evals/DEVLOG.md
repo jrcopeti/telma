@@ -121,7 +121,7 @@
     back. The harness removes `evals/` from every trial's copy.
 - Real items: 2 own rules, 5 that look like rules but aren't (the Testcontainers link, Conventional
   Branch, Conventional Commits, the Hermes setup gotchas, the lethal-trifecta article), 3
-  decisions, 2 project facts, and the batch: T4 with the Conventional Branch, kit scripts and
+  decisions, 2 project facts, and the batch: T4 with the Conventional Branch, one decision and
   Testcontainers items.
 - Expectations come from where triage filed each item, except the Testcontainers link, which was
   never filed: the triage skill names it as its example of a capture that becomes a note.
@@ -453,7 +453,7 @@
   exactly once.
 - A brain path can be given as `sha256:<hash of the path>` in `items` and `strip`; `run.py`
   hashes every file path in the pinned brain and swaps the match in. The owner's call: decision-1
-  and batch-T4's kit-scripts decision and capture are named this way. A hashed path only hides a
+  and batch-T4's decision and its capture are named this way. A hashed path only hides a
   name nobody can guess; a short or obvious one could be found by hashing guesses.
 - project-1 now also cuts its capture's citation line in the project note's sources, the clue that made
   her read the fact as already filed in the first run (#3, #4).

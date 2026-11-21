@@ -413,6 +413,14 @@
 - A review (default effort, no cap) found 10; 9 fixed (the tightening above, the diff, the
   baseline). Left: `report.py` run by hand reads the brain's task list from `~/brain`'s work tree,
   not the branch; it goes away in step 2, when every task lives in this repo.
+- Smoke run with the owner's yes (`--brain-ref main --only project-2 decision-2 mixed-1 -k 1`, $0.010,
+  2.7 min): `--brain-ref`, the kept diff and the report link worked on the VPS. mixed-1 passed on the
+  new asking check ("Your call on the split… Say yes and I'll file…"); project-2 passed. decision-2
+  failed, and its diff showed the first run's "probably grader" guess was wrong: she added a
+  dated **Amended (2026-11-19)** paragraph to the 2026-11-17 decision, linking the new one, not
+  a bare link. The owner's call: that's more context, not wrong. An older decision may gain a
+  paragraph that links to a decision filed in the same trial; a note may not, and a paragraph
+  linking to a decision that was already there still counts. Her real edit passes `side_edit` now.
 - Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.

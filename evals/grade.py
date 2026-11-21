@@ -103,15 +103,30 @@ def names(target, after):
     return words(target) | words(title)
 
 
-def side_edit(path, old, new, after):
+def without_amendments(path, old, new, before, after):
+    """An older decision without the paragraphs added to point at a decision filed in this trial
+    ("Amended (date): … see [repo split](new.md)"): more context on what replaces it, not a second
+    home (the owner's call, eval-v1 step 1)."""
+    if not path.startswith("decisions/"):
+        return new
+    kept = set(re.split(r"\n\s*\n", old))
+    def amends(par):
+        return par not in kept and any(
+            (t := link_target(path, target)) and t.startswith("decisions/") and t in after and t not in before
+            for _, target in LINK.findall(par))
+    return "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par))
+
+
+def side_edit(path, old, new, before, after):
     """True when a note changed only in ways that aren't filing: lint's contradiction banners, a
-    dead link removed or repointed at a file in the brain, or a link added to a file in the brain
-    (triage links an older note to the new one; a guideline may gain one too). New words may be
-    only a few like "see also" and the linked note's own name or title. Never a URL, never sources/."""
+    dead link removed or repointed at a file in the brain, a link added to a file in the brain
+    (triage links an older note to the new one; a guideline may gain one too), or an older
+    decision's paragraph pointing at the decision that replaces it. New words may be only a few like
+    "see also" and the linked note's own name or title. Never a URL, never sources/."""
     if path.startswith("sources/"):
         return False
     old = without_banners(old.decode(errors="replace"), path, after)
-    new = without_banners(new.decode(errors="replace"), path, after)
+    new = without_amendments(path, old, without_banners(new.decode(errors="replace"), path, after), before, after)
     gone = Counter(LINK.findall(old)) - Counter(LINK.findall(new))
     came = Counter(LINK.findall(new)) - Counter(LINK.findall(old))
     for _, target in gone:
@@ -176,7 +191,7 @@ def check_triage(task, before, after, report, out):
     # only does those is not filing.
     diff = [k for k in changed(before, after)
             if not (k in before and k in after and k.endswith(".md") and k != "index.md"
-                    and side_edit(k, before[k], after[k], after))]
+                    and side_edit(k, before[k], after[k], before, after))]
     # Notes created or extended; a deleted note is never filing, and fails no_other_change.
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 

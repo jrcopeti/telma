@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).parent))
-from grade import grade, main  # noqa: E402
+from grade import grade, main, side_edit  # noqa: E402
 
 ITEM = "2026-11-10-testcontainers-article.md"
 INDEX = "# Index\n\n## Guidelines\n- [Real DB](guidelines/real-db.md) — rule\n\n## Notes\n- [Old](notes/old.md) — old\n"
@@ -222,6 +222,23 @@ class GradeTest(unittest.TestCase):
         self.file_as_note()
         r = self.run_grade({"notes": 1})
         self.assertTrue(r["pass"], r["detail"])
+
+    def test_an_older_decision_amended_to_point_at_the_new_one_is_not_filing(self):
+        old = "# Split\n\nShowcase: one repo for both agents.\n\nSource: x\n"
+        amended = ("# Split\n\nShowcase: one repo for both agents.\n\n**Amended (2026-11-19):** the one-repo line no "
+                   "longer holds. See [repo split](2026-11-19-repo-split.md).\n\nSource: x\n")
+        self.before.write("decisions/2026-11-17-split.md", old)
+        self.after.write("decisions/2026-11-17-split.md", amended)
+        self.after.write("decisions/2026-11-19-repo-split.md", "two repos\n")
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [Repo split](decisions/2026-11-19-repo-split.md) — two\n")
+        r = self.run_grade({"decisions": 1})
+        self.assertTrue(r["pass"], r["detail"])
+        # Not when the paragraph links to a decision that was already there, or sits in a note.
+        o, n, new = old.encode(), amended.encode(), {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        self.assertTrue(side_edit("decisions/2026-11-17-split.md", o, n, {}, new))
+        self.assertFalse(side_edit("decisions/2026-11-17-split.md", o, n, new, new))
+        self.assertFalse(side_edit("notes/split.md", o, amended.replace("](", "](../decisions/").encode(), {}, new))
 
     def test_a_link_with_new_words_around_it_is_filing(self):
         self.after.write("notes/old.md", "old\n\nSee [Testcontainers](testcontainers.md): it starts a real Postgres.\n")

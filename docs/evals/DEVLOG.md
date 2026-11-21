@@ -121,7 +121,7 @@
     back. The harness removes `evals/` from every trial's copy.
 - Real items: 2 own rules, 5 that look like rules but aren't (the Testcontainers link, Conventional
   Branch, Conventional Commits, the Hermes setup gotchas, the lethal-trifecta article), 3
-  decisions, 2 project facts, and the batch: T4 with the Conventional Branch, kit scripts and
+  decisions, 2 project facts, and the batch: T4 with the Conventional Branch, one decision and
   Testcontainers items.
 - Expectations come from where triage filed each item, except the Testcontainers link, which was
   never filed: the triage skill names it as its example of a capture that becomes a note.
@@ -442,3 +442,33 @@
   copies are gone. Which of the "probably grader" link failures really were link-only shows in the
   second run.
 
+
+## 2026-11-21: eval-v1 step 2, all tasks in this repo
+
+- The brain's 13 tasks joined the 12 public ones in `evals/tasks/tasks.json` (`public.json` is
+  gone). They name brain paths only (`sources/…`, the notes to strip); the captures stay in the
+  brain.
+- `remove_text` names each passage by SHA-256 and length in characters, a list per note, so the
+  text of `projects/telma.md` stays private. `run.py` finds it with a sliding window and needs it
+  exactly once.
+- A brain path can be given as `sha256:<hash of the path>` in `items` and `strip`; `run.py`
+  hashes every file path in the pinned brain and swaps the match in. The owner's call: decision-1
+  and batch-T4's decision and its capture are named this way. A hashed path only hides a
+  name nobody can guess; a short or obvious one could be found by hashing guesses.
+- project-1 now also cuts its capture's citation line in the project note's sources, the clue that made
+  her read the fact as already filed in the first run (#3, #4).
+- `run.py` checks every task against the pinned brain before the first trial (items, notes to
+  strip, passages cut in order as the copy does), even with `--only`, and stops with the list of
+  misfits, so the brain cleanup in step 4 can't turn a run into 25 errors. A passage missing at
+  build time is an error row, not a crash. It also refuses uncommitted changes in `evals/tasks/`:
+  the brain's dirty check used to cover the real tasks, and results name this repo's commit.
+- `report.py` reads the task list from this repo only, so the "branch run reads `~/brain`'s work
+  tree" gap from step 1's review is gone. The brain's `evals/` is still stripped from each copy if
+  it exists; step 4 removes it from the brain.
+- CI's `test_tasks.py` covers the brain tasks' shape (items in `sources/` or `inbox/`, strip paths,
+  hash specs) and tests `passage()`; it can't check that brain items exist, `run.py` does.
+- A review (default effort, no cap) found 10; 8 fixed. Left: hashing every window is slow in
+  theory (about 40 MB per project-2 cut) but takes well under a second; and the brain file names
+  now public (one has a fragment of the owner's name), for the owner to approve in the PR.
+- Checked against the brain at `f80fada`: all 25 tasks fit, and project-1's and project-2's copies
+  lose exactly the old passages (project-1 also the citation).

@@ -1,14 +1,22 @@
-"""Checks evals/tasks/public.json before anything runs on the VPS, where every trial costs money.
+"""Checks evals/tasks/tasks.json before anything runs on the VPS, where every trial costs money.
+Items in the brain (sources/x.md) can't be checked here: run.py checks them against the pinned brain.
 
     python3 -m unittest evals/test_tasks.py
 """
+import hashlib
 import json
+import re
+import sys
 import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "evals"))
+from run import passage  # noqa: E402
+
+HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (run.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
-TASKS = json.loads((REPO / "evals/tasks/public.json").read_text())
+TASKS = json.loads((REPO / "evals/tasks/tasks.json").read_text())
 
 
 def path(item):
@@ -16,7 +24,12 @@ def path(item):
     return REPO / item.removeprefix("telma:")
 
 
-class PublicTasksTest(unittest.TestCase):
+def ours(t):
+    """The task's items that live in this repo."""
+    return [i for i in t.get("items", []) if i.startswith("telma:")]
+
+
+class TasksTest(unittest.TestCase):
     def test_ids_are_unique(self):
         ids = [t["id"] for t in TASKS]
         self.assertEqual(len(ids), len(set(ids)))
@@ -24,7 +37,8 @@ class PublicTasksTest(unittest.TestCase):
     def test_each_task_is_well_formed(self):
         for t in TASKS:
             with self.subTest(task=t["id"]):
-                self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page"}, set(t))
+                self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page",
+                                           "strip", "remove_text"}, set(t))
                 e = t["expect"]
                 self.assertTrue(e == "ask" or (isinstance(e, dict) and set(e) <= FOLDERS
                                                and all(isinstance(n, int) and n > 0 for n in e.values())))
@@ -36,20 +50,46 @@ class PublicTasksTest(unittest.TestCase):
                         self.assertTrue(path(t["page"]).is_file())
                 else:
                     self.assertTrue(t["items"])
+                for item in t.get("items", []):
+                    # The brain's evals/ never reaches the copy, so an item from there would be missing.
+                    self.assertTrue(item.startswith("telma:") or item.startswith(("sources/", "inbox/"))
+                                    or HASHED.fullmatch(item), item)
+                for f in t.get("strip", []):
+                    if not HASHED.fullmatch(f):
+                        self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
+                for f, specs in t.get("remove_text", {}).items():
+                    self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
+                    self.assertTrue(specs and all(set(s) == {"sha256", "chars"} and len(s["sha256"]) == 64
+                                                  and type(s["chars"]) is int and s["chars"] > 0 for s in specs))
 
-    def test_every_item_exists(self):
+    def test_every_item_in_this_repo_exists(self):
         for t in TASKS:
-            for item in t.get("items", []):
+            for item in ours(t):
                 with self.subTest(item=item):
                     self.assertTrue(path(item).is_file())
 
     def test_planted_pages_read_as_a_text_only_capture(self):
         # Capture's text-only fetch flattens HTML: the planted text arrives as plain prose.
         for t in TASKS:
-            for item in t.get("items", []):
+            for item in ours(t):
                 text = path(item).read_text()
                 with self.subTest(item=item):
                     self.assertNotRegex(text, r"<!--|<span|<div|style=")
+
+
+class PassageTest(unittest.TestCase):
+    """remove_text names a passage by its hash and length, so the real text stays in the brain."""
+
+    def spec(self, s):
+        return {"sha256": hashlib.sha256(s.encode()).hexdigest(), "chars": len(s)}
+
+    def test_finds_the_passage_once(self):
+        self.assertEqual(passage("a — fact. b", self.spec("— fact. ")), (2, 10))
+
+    def test_missing_or_twice_is_none(self):
+        self.assertIsNone(passage("abc", self.spec("x")))
+        self.assertIsNone(passage("ab ab", self.spec("ab")))
+        self.assertIsNone(passage("a", self.spec("longer")))
 
 
 if __name__ == "__main__":

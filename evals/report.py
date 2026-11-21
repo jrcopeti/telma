@@ -5,7 +5,7 @@ since the last full run.
     python3 evals/report.py evals/results/private/<run>.jsonl # with the grader's reasons
     python3 evals/report.py RUN --since OLDER                 # against a chosen earlier run
 
-A full run has every task (the public ones, and the brain's when ~/brain is here) at k = 5; any
+A full run has every task in evals/tasks/tasks.json at k = 5; any
 other run is partial and can't pass. The last run is the newest full one before this one in the
 same folder (names start with the UTC time), so a public run compares with public runs and a
 private one with private ones. run.py writes the report beside each results file as <run>.md.
@@ -18,7 +18,6 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-BRAIN_TASKS = Path.home() / "brain/evals/triage/tasks.json"
 K = 5  # trials per task in a full run (docs/evals/PLAN.md, Score)
 STATUSES = ("pass", "fail", "error", "discarded", "not_run")
 # A run where more than this share of the trials that ran errored or were discarded is broken: it
@@ -33,11 +32,8 @@ def load(path):
 
 
 def all_tasks():
-    """Every task id a full run has: the public ones, plus the brain's when it is on this machine."""
-    ids = {t["id"] for t in json.loads((HERE / "tasks/public.json").read_text())}
-    if BRAIN_TASKS.exists():
-        ids |= {t["id"] for t in json.loads(BRAIN_TASKS.read_text())}
-    return ids
+    """Every task id a full run has."""
+    return {t["id"] for t in json.loads((HERE / "tasks/tasks.json").read_text())}
 
 
 def summarize(rows, full):

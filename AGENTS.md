@@ -12,8 +12,8 @@ trust boundary as the agents.
   ran: remote commands keep running.
 - **Eval before a change:** before changing Telma's model or fallback order, `SOUL.md`, a brain
   skill, her toolsets or the Hermes version, run the eval (`docs/evals/PLAN.md`) with the owner's
-  yes; any failing task blocks the change. Until the eval's first run exists, say the change
-  is unchecked.
+  yes. A task that newly fails against the last full run (`evals/results/`) blocks the change.
+  Tasks that already failed there don't block it, but say which ones still fail.
 - **Hook setup, once per clone:** `git config core.hooksPath .githooks`. The pre-commit hook runs
   gitleaks on staged changes; CI runs it on the full history.
 - **No secrets or personal data:** no keys, webhook URLs, inbox address, Discord IDs, IP addresses,

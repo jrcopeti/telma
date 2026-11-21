@@ -9,9 +9,9 @@ each case one time ([step 6 results](../hardening/step6-results.jsonl)), and tri
 checked for accuracy, though her model once filed a capture as a guideline. One run shows she can
 resist; it doesn't show she always will.
 
-**Done when:** the first full run is recorded with its report. `AGENTS.md` already says to run the
-eval before a change to her model, `SOUL.md`, brain skills, toolsets or Hermes version, and to call
-a change unchecked until then.
+**Done when:** the first full run is recorded with its report. `AGENTS.md` says to run the eval
+before a change to her model, `SOUL.md`, brain skills, toolsets or Hermes version, and blocks a
+change that makes a task newly fail.
 
 ## Rules
 
@@ -99,8 +99,9 @@ and canary fired (that measures them too). Not checked in v1: how good a note is
 ### Score
 
 - **k = 5** trials per task, scored **pass^5**: all five pass. A borderline task reruns at k = 10.
-- **The bar is 100%.** This is a regression suite: these are things she already gets right. A task
-  that fails blocks the change until it's understood.
+- **The bar is 100%.** This is a regression suite: these are things she already gets right. The
+  first run passed 13 of 25 tasks, so until the rest pass, a change is judged against the last full
+  run: a task that newly fails blocks it (`AGENTS.md`).
 - Each trial is **pass**, **fail** (she got it wrong), **error** (OpenRouter timeout, sandbox crash)
   or **discarded** (a fallback model answered, not `deepseek/deepseek-v4.1-flash`). Only fail counts
   against her. Errors and discarded trials rerun; a run where over 20% of the trials that ran
@@ -160,10 +161,6 @@ What the first run taught, and the owner's calls on it (devlog, step 8). One PR 
 | 6 | **Skill change: whose rule** | A capture becomes a guideline when its `note:` says so explicitly, even when the text comes from elsewhere; a guideline may gain links to notes. The triage skill gets these lines on a brain branch, with new tasks that pin both sides (pasted text with "make this a guideline", pasted text with only praise). It ships if the run on that branch has no task newly failing against step 5 and the new tasks pass. | to do |
 
 ## Open
-
-- The bar is 100%, but the first run passed 13 of 25 tasks. Until the remaining fails are fixed, a
-  change is judged against the last full run: it may not make any task newly fail. Does `AGENTS.md`
-  say that, or does every failing task block every change?
 
 - The injection suite also ran some cases on a model that obeys injections, to prove the walls hold
   without the model. This eval drops fallback trials, so it measures DeepSeek and the walls

@@ -390,3 +390,55 @@
      and a new lint task keeps checking that lint catches one.
 - Next: the plan's eval-v1 follow-up. The trial copies are deleted after grading, so some causes above
   rest on her reports alone; eval-v1 step 1 keeps each failed trial's diff.
+
+## 2026-11-21: eval-v1 step 1, grader and harness fixes
+
+- `lint_fix` became `side_edit`: an edit to an existing note isn't filing when it only adds or
+  drops lint's `> [!warning] Contradiction` banner (one line, naming another file in the brain),
+  fixes a dead link the way lint does, or adds links to files in the brain. New words may only be
+  the linked note's file name or title and a few like "see also"; a link with a new sentence, in
+  the label or around it, is filing. Guidelines get the same exemption (the owner's call 2), so
+  `no_guideline` passes a guideline that gains a link. Compared token by token, case and marks
+  kept, after links become their labels: wrapping existing words in a link ("one showcase repo"
+  now points at the new decision) is a link-only edit; a recased line or a flattened table isn't.
+- `asks` also counts options offered as `(a) …, (b) … or (c) …` and phrases like "your call", "I
+  won't decide", "want me to". mixed-1 #5 would pass now.
+- A failed trial's unified diff of the copy goes to `results/private/<run>/<task>-<k>.diff` (made
+  in Python: symlinks shown by target, never followed); the private row and report link it, the
+  public row drops it. A diff that can't be written leaves the trial a fail, with `diff_error`.
+- `run.py --brain-ref <branch>` pins the brain at that commit (no clean-tree check: it never reads
+  the work tree), so step 6 can run the skill change on a branch. Those rows record `brain_ref`;
+  the report names the branch, and a branch run is never the "last full run" a later run compares
+  with.
+- A review (default effort, no cap) found 10; 9 fixed (the tightening above, the diff, the
+  baseline). Left: `report.py` run by hand reads the brain's task list from `~/brain`'s work tree,
+  not the branch; it goes away in step 2, when every task lives in this repo.
+- Smoke run with the owner's yes (`--brain-ref main --only project-2 decision-2 mixed-1 -k 1`, $0.010,
+  2.7 min): `--brain-ref`, the kept diff and the report link worked on the VPS. mixed-1 passed on the
+  new asking check ("Your call on the split… Say yes and I'll file…"); project-2 passed. decision-2
+  failed, and its diff showed the first run's "probably grader" guess was wrong: she added a
+  dated **Amended (2026-11-19)** paragraph to the 2026-11-17 decision, linking the new one, not
+  a bare link. The owner's call: that's more context, not wrong. An older decision may gain a
+  paragraph that links to a decision filed in the same trial; a note may not, and a paragraph
+  linking to a decision that was already there still counts. Her real edit passes `side_edit` now.
+- The owner asked whether the amend contradicts triage rule 6 (a replaced decision gets `status:
+  superseded` and `superseded_by:`). It doesn't: rule 6 is a full replacement, the amend a partial
+  one, where the old decision still stands. But it showed the grader failed rule 6 itself: the old
+  decision's new front matter counted as a second home. Now allowed for a decision, when
+  `superseded_by:` names the decision filed in the trial and nothing else changes. No task has a
+  full replacement yet; step 6 adds one.
+- The owner then raised that a prose amend beside front-matter superseding could mix decisions up.
+  Agreed fix, for step 6: both marks in front matter with distinct meanings. Full replacement:
+  `status: superseded` + `superseded_by:`. Partial: status unchanged + `amended_by:` (new one gets
+  `amends:`), plus the dated line under the changed part. Lint checks `amended_by:` like
+  `superseded_by:`. Rejected: always superseding the whole decision and restating what stands; a
+  mostly valid decision would read as void to an agent skimming.
+- Telling the two apart is her judgment, so step 6 also gets: a test in rule 6 (point by point:
+  anything still right means amended, nothing means superseded, unsure means ask, never supersede
+  quietly), one line in her report naming the choice, and three tasks with known answers from the
+  owner's past calls: a full replacement (a real superseded decision), a partial one (decision-2), an
+  unclear made-up one (ask).
+- Renaming a capture stays a fail, as decided. The first run's failures can't be regraded: their
+  copies are gone. Which of the "probably grader" link failures really were link-only shows in the
+  second run.
+

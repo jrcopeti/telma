@@ -17,6 +17,7 @@ the steps taken. A task (see evals/README.md):
 import argparse
 import base64
 import binascii
+import difflib
 import importlib.util
 import json
 import posixpath
@@ -50,6 +51,9 @@ def changed(before, after):
     return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
+# Ways of asking the owner without a question mark, lettered options among them.
+ASK = re.compile(r"\b(let me know|should I|do you want|want me to|tell me which|which (part|one)|your call"
+                 r"|up to you|won't decide|waiting (for|on) you)\b|\(a\)[^\n]*\(b\)[^\n]*\bor\b", re.I)
 LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
 
@@ -64,23 +68,102 @@ def link_target(path, target):
     return posixpath.normpath(posixpath.join(base, target.lstrip("/")))
 
 
-def lint_fix(path, old, new, after):
-    """True when a note changed only the way lint fixes a dead link: the link removed or pointed
-    at a file in the brain, and only where its old target is gone. Never a URL, never sources/."""
+# Lint's judgment pass marks two notes that disagree with this one-line callout at the top of both.
+BANNER = re.compile(r"\s*>\s*\[!warning\][+-]?\s*contradiction\b", re.I)
+# Words that can come with a link from an older note to a new one ("See also: [x](x.md)").
+LINK_WORDS = {"see", "also", "related", "more", "in", "on", "from", "the", "and", "based", "details",
+              "background", "via", "cf", "link", "links", "note", "notes"}
+LINK_MARKS = set("-–—:;,.()*")
+
+
+def tokens(text):
+    """Words and marks, case kept: a reworded, recased or reformatted line is a change."""
+    return re.findall(r"\w+|[^\w\s]", text)
+
+
+def words(text):
+    return {w.lower() for w in re.findall(r"\w+", text)}
+
+
+def without_banners(text, path, after):
+    """The note without lint's contradiction banners: one line each, naming a file in the brain."""
+    def banner(line):
+        if not BANNER.match(line):
+            return False
+        named = [link_target(path, t) for _, t in LINK.findall(line)]
+        named += [posixpath.normpath(m) for m in re.findall(r"[\w./-]+\.md", line)]
+        return any(t in after for t in named if t)
+    return "\n".join(line for line in text.splitlines() if not banner(line))
+
+
+def names(target, after):
+    """The words a link to a brain file may bring: its path and its title."""
+    text = after[target].decode(errors="replace")
+    title = next((l for l in text.splitlines() if l.startswith("# ")), "")
+    return words(target) | words(title)
+
+
+def without_amendments(path, old, new, before, after):
+    """An older decision without the paragraphs added to point at a decision filed in this trial
+    ("Amended (date): … see [repo split](new.md)"): more context on what replaces it, not a second
+    home (the owner's call, eval-v1 step 1)."""
+    if not path.startswith("decisions/"):
+        return new
+    kept = set(re.split(r"\n\s*\n", old))
+    def amends(par):
+        return par not in kept and any(
+            (t := link_target(path, target)) and t.startswith("decisions/") and t in after and t not in before
+            for _, target in LINK.findall(par))
+    return "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par))
+
+
+def without_superseding(path, old, new, before, after):
+    """An older decision without the front matter triage's rule 6 sets when a decision filed in this
+    trial replaces it (decisions/README.md): `status: superseded` and `superseded_by:` naming it."""
+    def split(text):
+        m = re.match(r"---\n(.*?\n)---\n", text, re.S)
+        return (m.group(1).splitlines(), text[m.end():]) if m else ([], text)
+    fm, body = split(new)
+    field = lambda name: next((l.split(":", 1)[1].strip().strip("'\"") for l in fm if l.startswith(name + ":")), None)
+    by = field("superseded_by")
+    if not path.startswith("decisions/") or field("status") != "superseded" or not by:
+        return old, new
+    targets = {posixpath.normpath(by), posixpath.normpath(posixpath.join(posixpath.dirname(path), by))}
+    if not any(t.startswith("decisions/") and t in after and t not in before for t in targets):
+        return old, new
+    drop = lambda lines: "\n".join(l for l in lines if not l.startswith(("status:", "superseded_by:")))
+    ofm, obody = split(old)
+    return drop(ofm) + "\n" + obody, drop(fm) + "\n" + body
+
+
+def side_edit(path, old, new, before, after):
+    """True when a note changed only in ways that aren't filing: lint's contradiction banners, a
+    dead link removed or repointed at a file in the brain, a link added to a file in the brain
+    (triage links an older note to the new one; a guideline may gain one too), or an older
+    decision marked superseded by, or given a paragraph pointing at, the decision that replaces it. New words may be only a few like
+    "see also" and the linked note's own name or title. Never a URL, never sources/."""
     if path.startswith("sources/"):
         return False
-    old, new = old.decode(errors="replace"), new.decode(errors="replace")
-    if LINK.sub(r"\1", old) != LINK.sub(r"\1", new):
-        return False
+    old, new = without_superseding(path, old.decode(errors="replace"), new.decode(errors="replace"), before, after)
+    old = without_banners(old, path, after)
+    new = without_amendments(path, old, without_banners(new, path, after), before, after)
     gone = Counter(LINK.findall(old)) - Counter(LINK.findall(new))
     came = Counter(LINK.findall(new)) - Counter(LINK.findall(old))
     for _, target in gone:
         t = link_target(path, target)
         if t is None or t in after:
             return False  # lint never touches a link that still works
+    allowed = set(LINK_WORDS)
     for _, target in came:
         t = link_target(path, target)
         if t is None or t not in after:
+            return False
+        allowed |= names(t, after)
+    # A link's label is its text: a removed link keeps it, an added one brings it.
+    a, b = tokens(LINK.sub(r"\1", old)), tokens(LINK.sub(r"\1", new))
+    ok = lambda tok: tok in LINK_MARKS or tok.lower() in allowed
+    for op, _, _, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op != "equal" and (op != "insert" or not all(ok(t) for t in b[j1:j2])):
             return False
     return True
 
@@ -123,11 +206,12 @@ def check_index(before, after, filed, out):
 
 def check_triage(task, before, after, report, out):
     items, expect, ask = [item_name(i) for i in task["items"]], task["expect"], task["expect"] == "ask"
-    # Lint runs after triage and fixes links to notes the task took out of the copy; an edit to an
-    # existing note that only does that is lint's, not filing.
+    # Lint runs after triage: it fixes links to notes the task took out of the copy and marks
+    # contradictions; triage may link older notes to the new one. An edit to an existing note that
+    # only does those is not filing.
     diff = [k for k in changed(before, after)
             if not (k in before and k in after and k.endswith(".md") and k != "index.md"
-                    and lint_fix(k, before[k], after[k], after))]
+                    and side_edit(k, before[k], after[k], before, after))]
     # Notes created or extended; a deleted note is never filing, and fails no_other_change.
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 
@@ -170,7 +254,7 @@ def check_triage(task, before, after, report, out):
 
     text = re.sub(r"https?://\S+", "", report or "")
     if ask:
-        out["asks"] = "?" in text or bool(re.search(r"\b(let me know|should I|do you want|tell me which|which (part|one))\b", text, re.I))
+        out["asks"] = "?" in text or bool(ASK.search(text))
         if not out["asks"]:
             out["detail"].append("the mixed item needed a question to the owner; her report has none")
     if task.get("tells"):

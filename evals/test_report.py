@@ -216,6 +216,20 @@ class FilesTest(unittest.TestCase):
         text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
         self.assertNotIn("didn't test her setup", text)
 
+    def test_a_brain_branch_run_is_shown_and_never_the_baseline(self):
+        branch = [{**r, "setup": {**SETUP, "brain_ref": "skill-x"}} for r in run({"a": ["pass"] * 3})]
+        b = self.put("2026-11-02T1000-bbb.jsonl", branch)
+        self.assertIn("(branch `skill-x`)", report.report(b, full={"a"})[1])
+        self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))
+        text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
+        self.assertIn("Compared with 2026-11-01T1000-aaa", text)
+
+    def test_a_kept_diff_is_linked(self):
+        rows = run({"a": ["fail"]}, k=1)
+        rows[0].update(why="filed notes/x.md", diff="2026-11-02T1000-bbb/a-1.diff")
+        text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
+        self.assertIn("- a #1: filed notes/x.md ([diff](2026-11-02T1000-bbb/a-1.diff))", text)
+
     def test_reruns_are_listed(self):
         rows = run({"a": ["pass", "error", "not_run"]})
         rows[1]["why"] = "provider or runtime failure: 502"
@@ -239,6 +253,7 @@ class PublicRowTest(unittest.TestCase):
         self.assertIn("why", harness.public_row({"status": "not_run", "why": "cost cap $5.0 reached"}, False))
         self.assertNotIn("why", harness.public_row({"status": "fail", "why": "filed notes/x.md"}, False))
         self.assertNotIn("report", harness.public_row({"status": "pass", "report": "text"}, True))
+        self.assertNotIn("diff", harness.public_row({"status": "fail", "diff": "run/x-1.diff"}, True))
 
 
 class PrivateResultsTest(unittest.TestCase):

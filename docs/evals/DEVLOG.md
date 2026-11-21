@@ -496,3 +496,29 @@
 - Checked on the brain at `f80fada`: the built copy lints clean and `git status` is clean.
 - 26 tasks, 130 trials a full run. The second run (step 5) is the first with lint-1, so it shows
   up there as a new task, not a newly failing one.
+
+## 2026-11-21: eval-v1 step 4, brain cleanup
+
+- The owner's calls, done in the brain (`3f0b47e`, `169247b`):
+  - The example project stays, as an example for her to follow. That reverses call 4 of the first
+    run, so filing into `projects/example-app.md` (one-repo-2 #5) can come back in step 5; read it
+    as a fair reading, not a grader bug.
+  - north-mini-code: the injection-results note now says it left the chain on 2026-11-20.
+  - DeepSeek V4.1 Flash's price: both sides were wrong. at $0.30/$1.20 the first run's 34.3M
+    tokens in and 0.72M out cost about $11, not the $2.15 billed; OpenRouter lists $0.05/$0.20 today ($0.30/$1.20 is the dated
+    `-1017` variant at weekday peak). The comparisons note holds the price with its date, and the
+    decision links there instead of keeping its own.
+  - "One repo for both agents" stays: it is decision-2's partial replacement, for step 6.
+  - The brain's AGENTS.md says to push with `sync.mjs` on a machine with a git login; on the VPS
+    sync-brain pushes, as its decision says.
+  - Decisions already filed keep their "Decision (<owner's name>, …)"
+    tag: a legacy record. The guideline says so; new
+    decisions write "the owner".
+  - The showcase intent's next step (the design doc) is marked done.
+- `evals/` and every `.DS_Store` left the brain; a `.gitignore` keeps `.DS_Store` out. The
+  eval-design decision gained a "Changed 2026-11-21" line: the tasks live in this repo now.
+- Lint reports the brain clean. Checked on the brain at `169247b`: all 26 tasks fit.
+- A review (default effort, no cap) found 8; 6 fixed. Left: "about $11 should be $13" (it scaled
+  the billed $2.15, which had cached input, instead of pricing the tokens); and one-repo-2 can fail
+  on the example project again. That one stays as the owner chose; if it does, step 6 decides
+  whether the task should accept that home.

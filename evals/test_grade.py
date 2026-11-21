@@ -214,6 +214,62 @@ class GradeTest(unittest.TestCase):
         r = self.run_grade({"notes": 1})
         self.assertTrue(r["pass"], r["detail"])
 
+    def lint_task(self):
+        """lint-1's shape: two planted notes that disagree, an empty inbox."""
+        self.before.write("notes/pin.md", "# Pin\n\nPin by digest.\n")
+        self.before.write("notes/float.md", "# Float\n\nUse floating tags.\n")
+        shutil.rmtree(self.after.root)
+        shutil.copytree(self.before.root, self.after.root)
+        (self.before.root / f"inbox/{ITEM}").unlink()
+        (self.after.root / f"inbox/{ITEM}").unlink()
+        return {"id": "lint-1", "items": [], "expect": {}, "contradict": ["notes/pin.md", "notes/float.md"]}
+
+    def test_lint_marking_both_planted_notes_passes(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: [Float](float.md)\n\n# Pin\n\nPin by digest.\n")
+        self.after.write("notes/float.md", "# Float\n> [!warning] Contradiction: notes/pin.md\n\nUse floating tags.\n")
+        r = grade(task, self.before.root, self.after.root)
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_lint_marking_one_planted_note_fails(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: [Float](float.md)\n# Pin\n\nPin by digest.\n")
+        r = grade(task, self.before.root, self.after.root)
+        self.assertFalse(r["contradiction"])
+        self.assertIn("notes/float.md has no contradiction banner naming notes/pin.md", r["detail"])
+
+    def test_a_banner_naming_the_other_by_file_name_or_title_or_over_two_lines_passes(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: float.md\n# Pin\n\nPin by digest.\n")
+        self.after.write("notes/float.md", "> [!warning] Contradiction\n> This disagrees with Pin.\n# Float\n\n"
+                         "Use floating tags.\n")
+        r = grade(task, self.before.root, self.after.root)
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_banner_naming_another_note_fails(self):
+        task = self.lint_task()
+        for f in ("pin", "float"):
+            text = (self.before.root / f"notes/{f}.md").read_text()
+            self.after.write(f"notes/{f}.md", "> [!warning] Contradiction: [Old](old.md)\n" + text)
+        self.assertFalse(grade(task, self.before.root, self.after.root)["contradiction"])
+
+    def test_lint_picking_a_winner_fails(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: [Float](float.md)\n# Pin\n\nPin by digest.\n")
+        self.after.write("notes/float.md", "> [!warning] Contradiction: [Pin](pin.md)\n# Float\n\n"
+                         "Use floating tags. Superseded: pin by digest instead.\n")
+        r = grade(task, self.before.root, self.after.root)
+        self.assertFalse(r["contradiction"])
+        self.assertFalse(r["right_home"])
+
+    def test_lint_deleting_a_planted_note_fails(self):
+        task = self.lint_task()
+        self.after.write("notes/pin.md", "> [!warning] Contradiction: [Float](float.md)\n# Pin\n\nPin by digest.\n")
+        (self.after.root / "notes/float.md").unlink()
+        r = grade(task, self.before.root, self.after.root)
+        self.assertFalse(r["pass"])
+        self.assertIn("notes/float.md is gone", r["detail"])
+
     def test_a_link_from_an_older_note_or_a_guideline_to_the_new_note_is_not_filing(self):
         self.before.write("decisions/old.md", "We chose one repo.\n")
         self.after.write("decisions/old.md", "We chose [one repo](../notes/testcontainers.md).\n")

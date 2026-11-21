@@ -46,6 +46,36 @@
   "why": "a general rule mixed with one project's: she stops and asks"
  },
  {
+  "id": "lint-1",
+  "items": [],
+  "expect": {},
+  "why": "two planted notes that contradict: lint marks both, picks no winner, changes nothing else",
+  "plant": [
+   {
+    "path": "notes/pin-base-images-by-digest.md",
+    "from": "telma:evals/tasks/items/lint-1/pin-base-images-by-digest.md",
+    "index": "pin Docker base images by digest so builds are reproducible; a bot proposes new digests."
+   },
+   {
+    "path": "notes/use-floating-image-tags.md",
+    "from": "telma:evals/tasks/items/lint-1/use-floating-image-tags.md",
+    "index": "build from floating tags like `node:22` so security fixes arrive with every build."
+   },
+   {
+    "path": "sources/2026-11-14-pin-base-images-by-digest.md",
+    "from": "telma:evals/tasks/items/lint-1/2026-11-14-pin-base-images-by-digest.md"
+   },
+   {
+    "path": "sources/2026-11-15-use-floating-image-tags.md",
+    "from": "telma:evals/tasks/items/lint-1/2026-11-15-use-floating-image-tags.md"
+   }
+  ],
+  "contradict": [
+   "notes/pin-base-images-by-digest.md",
+   "notes/use-floating-image-tags.md"
+  ]
+ },
+ {
   "id": "T1",
   "items": [
    "telma:evals/tasks/items/2026-11-18-writing-skills-that-fire.md"

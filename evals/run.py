@@ -152,6 +152,16 @@ def passage(text, spec):
     return (found[0], found[0] + n) if len(found) == 1 else None
 
 
+def cut(task, f, text):
+    """The note without the task's passages, cut one after another as the copy is built."""
+    for spec in task["remove_text"][f]:
+        span = passage(text, spec)
+        if span is None:
+            raise ValueError(f"{task['id']}: passage {spec['sha256'][:12]} not found once in {f}")
+        text = text[:span[0]] + text[span[1]:]
+    return text
+
+
 def check_tasks(tasks, pinned):
     """Every real task fits the pinned brain, before a trial is paid for: its items, the notes it
     strips and the passages it cuts are all there."""
@@ -163,11 +173,23 @@ def check_tasks(tasks, pinned):
             if not item_path(item, pinned).is_file():
                 problems.append(f"{t['id']}: no item {item}")
         problems += [f"{t['id']}: no note {f} to strip" for f in t.get("strip", []) if not (pinned / f).is_file()]
-        for f, specs in t.get("remove_text", {}).items():
-            text = (pinned / f).read_text() if (pinned / f).is_file() else ""
-            problems += [f"{t['id']}: passage {s['sha256'][:12]} not found once in {f}" for s in specs if not passage(text, s)]
+        for f in t.get("remove_text", {}):
+            if not (pinned / f).is_file():
+                problems.append(f"{t['id']}: no note {f} to cut from")
+                continue
+            try:
+                cut(t, f, (pinned / f).read_text())
+            except ValueError as e:
+                problems.append(str(e))
     if problems:
         sys.exit("tasks don't fit this brain:\n  " + "\n  ".join(problems))
+
+
+def check_clean():
+    """The task list as committed, since results are stamped with this repo's commit."""
+    r = subprocess.run(["git", "status", "--porcelain", "--", "evals/tasks"], cwd=REPO, capture_output=True, text=True)
+    if r.returncode or r.stdout.strip():
+        sys.exit("evals/tasks has uncommitted changes: commit them first, so the run's commit names its tasks")
 
 
 def item_path(item, pinned):
@@ -197,15 +219,8 @@ def build_copy(task, local, pinned):
         for f in task.get("strip", []):
             (local / f).unlink()
             index.write_text("".join(l for l in index.read_text().splitlines(True) if f"({f})" not in l))
-        for f, specs in task.get("remove_text", {}).items():
-            note = local / f
-            text = note.read_text()
-            for spec in specs:
-                span = passage(text, spec)
-                if span is None:
-                    raise ValueError(f"{task['id']}: passage {spec['sha256'][:12]} not found once in {f}")
-                text = text[:span[0]] + text[span[1]:]
-            note.write_text(text)
+        for f in task.get("remove_text", {}):
+            (local / f).write_text(cut(task, f, (local / f).read_text()))
         for item in task["items"]:
             src = item_path(item, pinned)
             shutil.copy2(src, local / "inbox" / src.name)
@@ -420,14 +435,16 @@ def main(argv=None):
     ap.add_argument("-k", type=int, default=5)
     ap.add_argument("--brain-ref", help="a brain branch or commit to pin instead of ~/brain's HEAD")
     a = ap.parse_args(argv)
-    tmp = Path(tempfile.mkdtemp())
+    check_clean()
+    tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
         tasks = json.loads((HERE / "tasks/tasks.json").read_text())
         full = {t["id"] for t in tasks}
+        check_tasks(tasks, tmp / "pinned")  # all of them, so a partial run warns of the rest too
         if a.only:
             tasks = [t for t in tasks if t["id"] in a.only]
-        check_tasks(tasks, tmp / "pinned")
+        started = True
         pages_file = HERE / "tasks/pages.json"
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile()
@@ -448,7 +465,8 @@ def main(argv=None):
         print(out.with_suffix(".md") if out in reports else out)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)  # the pinned copy of the real brain
-        vps(remove_container() + f"rm -rf {WORK}\n", check=False)
+        if started:
+            vps(remove_container() + f"rm -rf {WORK}\n", check=False)
 
 
 def run_all(tasks, trials, pages, tmp, stamp, out, private):

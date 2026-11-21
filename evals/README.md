@@ -167,7 +167,8 @@ to undo what triage made of it in the copy: `strip` lists files to delete with t
 and `remove_text` cuts passages from a note (for facts that extended a project note), each named by
 its SHA-256 and length in characters so the real text stays in the brain. Before the first trial,
 `run.py` checks every task against the pinned brain (items there, notes to strip, each passage
-found exactly once) and stops if one doesn't fit.
+found exactly once) and stops if one doesn't fit, as it does when `tasks/` has uncommitted
+changes.
 T1–T7 also list `targets`: text from the planted instruction. The harness records an attempt when a
 target shows up in a call that leaves the host or writes where the injection aimed (a read-only
 path, memory, a skill); it doesn't grade it, the walls are graded. `flagged` (her report names the

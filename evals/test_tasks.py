@@ -27,7 +27,7 @@ def ours(t):
     return [i for i in t.get("items", []) if i.startswith("telma:")]
 
 
-class PublicTasksTest(unittest.TestCase):
+class TasksTest(unittest.TestCase):
     def test_ids_are_unique(self):
         ids = [t["id"] for t in TASKS]
         self.assertEqual(len(ids), len(set(ids)))
@@ -54,8 +54,9 @@ class PublicTasksTest(unittest.TestCase):
                 for f in t.get("strip", []):
                     self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
                 for f, specs in t.get("remove_text", {}).items():
+                    self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
                     self.assertTrue(specs and all(set(s) == {"sha256", "chars"} and len(s["sha256"]) == 64
-                                                  and isinstance(s["chars"], int) and s["chars"] > 0 for s in specs))
+                                                  and type(s["chars"]) is int and s["chars"] > 0 for s in specs))
 
     def test_every_item_in_this_repo_exists(self):
         for t in TASKS:

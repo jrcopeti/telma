@@ -451,15 +451,20 @@
 - `remove_text` names each passage by SHA-256 and length in characters, a list per note, so the
   text of `projects/telma.md` stays private. `run.py` finds it with a sliding window and needs it
   exactly once.
-- project-1 now also cuts its capture's citation line (`[spend check](…) ·`), the clue that made
+- project-1 now also cuts its capture's citation line in the project note's sources, the clue that made
   her read the fact as already filed in the first run (#3, #4).
 - `run.py` checks every task against the pinned brain before the first trial (items, notes to
-  strip, passages) and stops with the list of misfits, so the brain cleanup in step 4 can't turn a
-  run into 25 errors. A passage missing at build time is an error row, not a crash.
+  strip, passages cut in order as the copy does), even with `--only`, and stops with the list of
+  misfits, so the brain cleanup in step 4 can't turn a run into 25 errors. A passage missing at
+  build time is an error row, not a crash. It also refuses uncommitted changes in `evals/tasks/`:
+  the brain's dirty check used to cover the real tasks, and results name this repo's commit.
 - `report.py` reads the task list from this repo only, so the "branch run reads `~/brain`'s work
   tree" gap from step 1's review is gone. The brain's `evals/` is still stripped from each copy if
   it exists; step 4 removes it from the brain.
 - CI's `test_tasks.py` covers the brain tasks' shape (items in `sources/` or `inbox/`, strip paths,
   hash specs) and tests `passage()`; it can't check that brain items exist, `run.py` does.
+- A review (default effort, no cap) found 10; 8 fixed. Left: hashing every window is slow in
+  theory (about 40 MB per project-2 cut) but takes well under a second; and the brain file names
+  now public (one has a fragment of the owner's name), for the owner to approve in the PR.
 - Checked against the brain at `f80fada`: all 25 tasks fit, and project-1's and project-2's copies
   lose exactly the old passages (project-1 also the citation).

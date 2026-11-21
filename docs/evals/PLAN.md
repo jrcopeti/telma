@@ -140,7 +140,7 @@ One PR each, in order.
 | 2 | **Spike on the VPS** | With the owner's yes: can one Hermes run point at another brain folder, or does it need a second Hermes home? Does `hermes chat` get the Discord chat's toolsets? What does one triage trial cost? Answers go in the devlog. | done: an `eval` profile; Discord adds two tools; $0.023 a trial |
 | 3 | **Decoy brain** | Generator and the frozen output in `evals/decoy-brain/`; a check that each file has its marker. | merged (#44) |
 | 4 | **Grader** | The checks above as a script over a snapshot and a copy, with tests in CI on hand-made before/after brains. | merged (#47): `evals/grade.py` |
-| 5 | **Triage task set** | An agent picks the items from the brain's `sources/` and writes the ones the brain lacks; the owner approves the list. Real items' tasks in the brain (`evals/triage/`), made-up items and T1–T7 in `evals/tasks/`. | merged (#47): 13 real tasks, 12 public |
+| 5 | **Triage task set** | An agent picks the items from the brain's `sources/` and writes the ones the brain lacks; the owner approves the list. Real items' tasks in the brain (`evals/triage/`), made-up items and T1–T7 in `evals/tasks/`; all in `evals/tasks/tasks.json` since eval-v1 step 2. | merged (#47): 13 real tasks, 12 public |
 | 6 | **Harness** | Per trial: fresh copy, one Hermes run, timeout, model check, cost and time, grade, one JSONL line. The $5 cap. | merged (#47): `evals/run.py`; T5–T7's pages published |
 | 7 | **Report** | Per-run report and the change since the last run. | merged (#49): `evals/report.py` |
 | 8 | **First run** | With the owner's yes. The baseline the rule in `AGENTS.md` compares against. | in review (#50): FAIL, 13 of 25 tasks; security 35 of 35; $2.15, 2 h |

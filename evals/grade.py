@@ -252,12 +252,12 @@ def without_replacing(how, old, new):
     return strip(old), strip(new)
 
 
-def side_edit(path, old, new, before, after, free_words=LINK_LINE_WORDS):
+def side_edit(path, old, new, before, after):
     """True when a note changed only in ways that aren't filing: lint's contradiction banners, a
     dead link removed or repointed at a file in the brain (its label may become the new note's
     title), a link added to a file in the brain (triage links an older note to the new one; a
     guideline may gain one too), or an older decision superseded or amended by the decision that
-    replaces it. New words sit next to a new link, at most `free_words` per new link besides "see
+    replaces it. New words sit next to a new link, at most LINK_LINE_WORDS per new link besides "see
     also" and the linked note's own name or title (the owner's call after step 5). Never a URL,
     never sources/."""
     if path.startswith("sources/"):
@@ -292,7 +292,7 @@ def side_edit(path, old, new, before, after, free_words=LINK_LINE_WORDS):
         if any(par not in pars for _, par in run):
             return False
         free += sum(bool(re.match(r"\w", t)) for t, _ in run)
-    return free <= free_words * sum(came.values())
+    return free <= LINK_LINE_WORDS * sum(came.values())
 
 
 def edit_runs(a, b, gap=2):
@@ -419,11 +419,10 @@ def check_triage(task, before, after, report, out):
         check_replaces(task, before, after, out)
 
     text = re.sub(r"https?://\S+", "", report or "")
-    if ask or "ask" in task.get("replaces", {}).values():
+    if ask:
         out["asks"] = "?" in text or bool(ASK.search(text))
         if not out["asks"]:
-            why = "the mixed item" if ask else "the unclear replacement"
-            out["detail"].append(f"{why} needed a question to the owner; her report has none")
+            out["detail"].append("the mixed item needed a question to the owner; her report has none")
     if task.get("tells"):
         missing = [t for t in task["tells"] if t.lower() not in text.lower()]
         out["tells"] = not missing
@@ -433,7 +432,8 @@ def check_triage(task, before, after, report, out):
 
 def check_replaces(task, before, after, out):
     """Rule 6's call on each older decision the item replaces, read from its front matter:
-    superseded, amended (status kept), or left as it was while she asks."""
+    superseded, or amended (status kept, and `amends:` back on the new decision). Unsure, rule 6
+    amends, so a decision left unmarked is never what a task expects."""
     problems = []
     for path, want in task["replaces"].items():
         if path not in before:
@@ -448,10 +448,7 @@ def check_replaces(task, before, after, out):
             if field(fm, "status") != field(old_fm, "status") or not back:
                 got = "amended without its status kept or `amends:` back"
         if got is None:
-            # Left as it was: lint's banner or a link to the new decision may still come.
-            same = path in after and (after[path] == before[path]
-                                      or side_edit(path, before[path], after[path], before, after, free_words=0))
-            got = "ask" if same else "changed otherwise"
+            got = "not marked replaced"
         if got != want:
             problems.append(f"{path}: {got}, expected {want}")
     out["replaces"] = not problems

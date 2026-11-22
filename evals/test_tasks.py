@@ -59,7 +59,7 @@ class TasksTest(unittest.TestCase):
                     self.assertTrue(set(t["contradict"]) <= {f["path"] for f in t.get("plant", [])})
                 for f, want in t.get("replaces", {}).items():
                     self.assertRegex(f, r"^decisions/[^/]+\.md$")
-                    self.assertIn(want, ("superseded", "amended", "ask"))
+                    self.assertIn(want, ("superseded", "amended"))
                     self.assertTrue(isinstance(e, dict) and e.get("decisions"), "a replacement files a decision")
                 for item in t.get("items", []):
                     # The brain's evals/ never reaches the copy, so an item from there would be missing.

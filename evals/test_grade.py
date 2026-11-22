@@ -417,6 +417,11 @@ class GradeTest(unittest.TestCase):
         self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
         return lambda want: self.run_grade({"decisions": 1}, task={"replaces": {"decisions/old.md": want}}, report=report)
 
+    def test_an_unclear_replacement_left_unmarked_fails(self):
+        r = self.replacement(lambda t: t, report="Filed the new one. Does the old backup rule still hold?")("amended")
+        self.assertFalse(r["replaces"])
+        self.assertIn("decisions/old.md: not marked replaced, expected amended", r["detail"])
+
     def test_a_replacement_graded_on_the_older_decisions_front_matter(self):
         superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
         amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")
@@ -438,7 +443,7 @@ class GradeTest(unittest.TestCase):
         self.assertTrue(r["pass"], r["detail"])
         # Not when it wasn't marked replaced, or the line moved section.
         self.after.write("decisions/old.md", self.before.root.joinpath("decisions/old.md").read_text())
-        self.assertFalse(grade_as("ask")["index"])
+        self.assertFalse(grade_as("superseded")["index"])
 
     def test_a_replaced_decisions_index_line_may_not_go(self):
         index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
@@ -447,13 +452,6 @@ class GradeTest(unittest.TestCase):
         grade_as = self.replacement(superseded, new_fm="supersedes: decisions/old.md")
         self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
         self.assertFalse(grade_as("superseded")["index"])
-
-    def test_an_unclear_replacement_settled_in_the_old_decision_is_not_ask(self):
-        settle = lambda t: t + "\nSee [New](new.md): the nightly dump is no longer needed, drop it.\n"
-        r = self.replacement(settle, report="Which?")("ask")
-        self.assertFalse(r["replaces"], r["detail"])
-        bare = lambda t: t + "\nSee [New](new.md).\n"
-        self.assertTrue(self.replacement(bare, report="Which?")("ask")["replaces"])
 
     def test_a_banner_above_the_front_matter_still_reads_the_replacement(self):
         marked = lambda t: ("> [!warning] Contradiction: [New](new.md)\n"
@@ -478,13 +476,6 @@ class GradeTest(unittest.TestCase):
                 r = self.replacement(twice)("amended")  # a.md was there before the trial; new.md is filed in it
                 self.assertTrue(r["replaces"], r["detail"])
 
-    def test_an_unclear_replacement_may_still_gain_a_banner(self):
-        banner = lambda t: t.replace("# Old\n", "# Old\n> [!warning] Contradiction: [New](new.md)\n")
-        r = self.replacement(banner, report="Filed the new one. Does the nightly dump still hold?")("ask")
-        self.assertTrue(r["replaces"], r["detail"])
-        r = self.replacement(lambda t: t.replace("Render", "Fly.io"), report="Which?")("ask")
-        self.assertFalse(r["replaces"])
-
     def test_an_amend_line_inside_a_prose_paragraph_is_not_filing(self):
         old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nTwo agents split by trust.\n"
                "Showcase: one repo for both agents.\nThe bot has no brain.\n")
@@ -494,15 +485,6 @@ class GradeTest(unittest.TestCase):
         new = new.replace("The bot has", amend + "The bot has")
         self.assertTrue(side_edit("decisions/2026-11-17-split.md", old.encode(), new.encode(), {},
                                   {"decisions/2026-11-19-repo-split.md": b"two\n"}))
-
-    def test_an_unclear_replacement_leaves_the_old_decision_and_asks(self):
-        r = self.replacement(lambda t: t, report="Filed the new one. Does the old backup rule still hold?")("ask")
-        self.assertTrue(r["pass"], r["detail"])
-        r = self.replacement(lambda t: t, report="Filed the new one.")("ask")
-        self.assertFalse(r["asks"])
-        r = self.replacement(lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md"),
-                             report="Amended it. Right?")("ask")
-        self.assertFalse(r["replaces"])
 
     def test_a_new_link_to_a_url_or_a_missing_file_is_a_change(self):
         self.file_as_note()

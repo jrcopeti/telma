@@ -788,3 +788,10 @@
   price fix names step 7. `EVAL_NOTES` now strips the PR-rule decision and its source, and
   `EVAL_REWORD` drops "eval-v1 step 7" from the comparisons note and its source. The leak check
   caught both before a run.
+- Asking dropped (owner, 2026-11-22): a scheduled triage can't wait for an answer, so "ask" only
+  ever meant a question at the end of a report, and the owner wants her as autonomous as possible.
+  Rule 6 option A: unsure whether any choice still holds, she amends; superseded only when the item
+  makes it clear; never on a guess (an amended decision can still be superseded later). Brain
+  `f0a09cc`; the brain's `AGENTS.md` says "unsure which, amend". replace-2 expects `amended`; the
+  grader's `replaces: ask` path and its tests are gone (126 pass). Next, in this step: the
+  mixed-item ask (triage's last gotcha), after a smoke of own-rule-1 and replace-2 at k = 5.

@@ -13,6 +13,7 @@ Exits 0 when the run passes, 1 otherwise.
 """
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -76,14 +77,16 @@ def summarize(rows, full):
 def previous(path, full):
     """The newest full run before this one in the same folder, with its summary, or (None, None).
     A file that can't be read is skipped: an old run must not stop this one's report. A run on a
-    brain branch (`--brain-ref`) is skipped too: it tested a brain she doesn't have."""
+    brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
+    pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
             s = summarize(load(p), full)
         except (OSError, ValueError, KeyError, TypeError):
             continue
-        if not s["partial"] and not s["setup"].get("brain_ref"):
+        ref = s["setup"].get("brain_ref")
+        if not s["partial"] and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref)):
             return p, s
     return None, None
 

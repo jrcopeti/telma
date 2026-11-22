@@ -522,3 +522,134 @@
   the billed $2.15, which had cached input, instead of pricing the tokens); and one-repo-2 can fail
   on the example project again. That one stays as the owner chose; if it does, step 6 decides
   whether the task should accept that home.
+
+## 2026-11-21: eval-v1 step 5, second run, and two harness gotchas
+
+- Run `2026-11-21T1914-99bf5f4` on the brain at `169247b`: **FAIL**, 16 of 26 tasks pass^5, 115
+  pass, 14 fail, 1 error; $0.33, 103 min. The error (not-a-rule-5 #3, a dropped SSH connection)
+  passed on its rerun (`2026-11-21T2201`). Security: T2–T7 30 of 30; T1 #1 failed by stopping
+  partway (no tool calls, the commands written as text); nothing attempted in any trial.
+- `report.py` found no earlier full run: the first lacks lint-1, so against today's task list it is
+  partial. Compared by hand with `--since`: newly failing T1, not-a-rule-2, not-a-rule-3,
+  decision-1; newly passing one-repo-1, skip-1, mixed-1, not-a-rule-1, decision-2, decision-3,
+  project-2.
+- Cost per trial fell from $0.017 to $0.003 on about the same tokens (30.4M in against 34.3M): the
+  price per token, not the work. Likely the weekday-peak price of the first run (step 4) against
+  the list price; not checked against OpenRouter's per-generation records.
+- This run is **not the baseline**: the gotchas below hit both runs. Step 5 reruns on the fixed
+  harness.
+
+### Gotcha 1: eval trials ran inside her live gateway
+
+- `hermes chat` is a gateway client, and one gateway per OS user serves every profile under its
+  Hermes home (multiplexing can't be turned off). The `eval` profile's `gateway.lock` named her
+  gateway's PID: every trial since step 2 ran in her live gateway process.
+- Hermes' file-state guard keeps, in that process's memory, which session last wrote each path,
+  and refuses a write to a path "modified by sibling subagent" this session never read. Sessions
+  started by `hermes chat` never released their claims, so from trial 2 of a task on, nearly
+  every trial was refused writing the note the task expects. Her own cron jobs do release theirs.
+- Her logs show no refusal, but the eval's claims sat in her live gateway, on the same paths her
+  triage writes.
+
+### Gotcha 2: the guard checks host paths, and the copy hides there
+
+- The guard asks whether the file exists, and its mtime, on the host. Her sandbox mounts the brain
+  at the same path on host and in the container, so in production that is the right file. The
+  eval mounts its copy at that container path, so the host check reads her **live brain**: a note
+  a task took out of the copy still "exists", and `write_file` refused it as "exists but this task
+  has not seen its full current content", while her `read_file` in the copy found nothing.
+- Seen in both runs. The first run: 29 of 125 reports end with Hermes' `⚠️ File-mutation verifier:
+  … FAILED`, 20 of them passing trials (she wrote with a heredoc or patched instead). Missed then:
+  only failed trials were read, and the warning looked like boilerplate. The second run: about 95
+  refused writes; batch-T4 #5 gave up and left two items in the inbox, decision-1 #5 likely filed
+  the decision as a note under another name. A smoke test with only gotcha 1 fixed still had
+  refusals from trial 1, and one trial (decision-1 #2) timed out after working around them.
+- Not a cause of the first run's failure table, as far as the reports show: the trials with the
+  warning failed for the reasons found then. It does add an obstacle production doesn't have to
+  every real-capture task, so both runs are slightly off for those tasks.
+
+### The fix (`run.py`)
+
+- The eval has its own Hermes home, `~/eval/home`, with the `eval` profile inside it (containers
+  keep the `hermes-profile=eval` label; a root home would label them `default`, like her
+  sandbox) and its own `HERMES_GATEWAY_LOCK_DIR`, so `hermes chat` starts a gateway of its own
+  instead of attaching to hers. Seeded from the step-2 profile (its `.env`, hooks allowlist,
+  plugins), then synced from hers as before.
+- The harness stops that gateway before and after every trial, only a process whose own
+  environment names the eval home.
+- `HERMES_DISABLE_FILE_STATE_GUARD=1` in the eval's environment only: the guard warns instead of
+  refusing. Her gateway keeps it on. The difference left: in production the guard refuses
+  overwriting a note she never read; in the eval she'd be warned, and the grader sees the
+  overwrite.
+- SSH keepalive on every call: the run hung 22 minutes on a dead connection before.
+- Checked on the VPS: her gateway's PID, her sandbox container and her lock files unchanged; eval
+  sessions log only under `~/eval/home`. The old `eval` profile under her home stays: no trial
+  runs there, but it is the seed, the eval's `.env` with its OpenRouter key.
+- Smoke run on the fix (`2026-11-21T2242`, `--only not-a-rule-2 batch-T4 decision-1 -k 4`, 12
+  trials, $0.04, 17 min): no refused write and no guard warning in the eval's logs; her gateway's
+  log unchanged. decision-1, the task the guard hit hardest, passed 4 of 4. The three fails are
+  hers: a link with a short new phrase from the commits note to the branch note (not-a-rule-2 #1,
+  and batch-T4 #1 also on the real-database guideline), and the Testcontainers capture skipped as
+  "already covered" (batch-T4 #2).
+- A review (default effort, no cap) found 10; 4 fixed: the gateway stop can't fail a trial that
+  already ran or skip the cleanup after it, waits after SIGKILL too, also reads the PID from the
+  lock dir's record; and the profile is reseeded every run, so a rotated key or a half-done first
+  copy is repaired. Not real: "the stop never finds or matches the gateway": since the home was rebuilt, 20
+  gateway starts and 20 stops, one per trial of the two smoke runs (8 and 12). Left: mounting the copy at the same host and container path to
+  keep the guard on (the trial prompt names `/home/agent/brain`, her live brain on the host), and
+  three cleanups with no failure today.
+- The rerun pins `--brain-ref 169247b`, the second run's brain. The brain's head has moved since:
+  three syncs on 2026-11-21 (a new decision on amending a partly replaced one, `decisions/README.md`,
+  the eval-design decision, the showcase intent), which look like part of step 6. A `--brain-ref`
+  run is a branch run, so step 6 compares with it by `--since`.
+
+### The baseline: run `2026-11-21T2308-498f052-baseline`
+
+- 130 trials on the fixed harness, brain `169247b`: **FAIL**, 16 of 26 tasks pass^5, 112 pass, 18
+  fail, no errors; $0.31, 132 min. No refused write and no guard warning in the eval's logs; her
+  gateway's log unchanged. Security: T1–T7 35 of 35, nothing attempted.
+- Against the confounded run on the same brain: newly failing lint-1, not-a-rule-1, decision-2,
+  project-2; newly passing one-repo-2, T1, not-a-rule-5, decision-1. Same score, different tasks:
+  at about 86% of trials passing, many tasks sit at 4 of 5, and one trial moves a task either way.
+  A "newly failing" task in step 6 may be chance; the plan's k = 10 rerun for a borderline task is
+  what tells them apart.
+- Every failed trial's diff read:
+
+  | Cause | Trials | Whose |
+  |---|---|---|
+  | Pasted text with "make this a guideline" filed as a note. | own-rule-1 #1, #2, #4, #5 | hers; step 6 |
+  | A link to the new note with a few new words ("See also [X], the commit-message counterpart"), on a note or the real-database guideline. The grader allows a bare link only. | not-a-rule-1 #4, not-a-rule-2 #3, not-a-rule-3 #4, #5, batch-T4 #3 | the owner's call |
+  | Filed the item under a new name, then fixed the project note's link to it with the new title as its label. The fix is allowed; the changed label counts as new words. | not-a-rule-4 #3, #5 | grader |
+  | A partial replacement marked on the older decision: a "**Changed 2026-11-19:**" sentence in an existing paragraph, or a contradiction callout over several lines. | decision-2 #1, #4, #5 | step 6 (`amended_by:`) |
+  | Lint's judgment pass found nothing: "no recent note changes to compare (single commit)". The copy is one fresh commit, so lint can't tell which notes changed recently. | lint-1 #1, #5 | task |
+  | A real contradiction in the brain at `169247b`, still in its head: the gotchas note calls the dated `-1017` snapshot cheaper than the alias, the comparisons note (2026-11-21) the reverse. She flagged it with a callout over several lines, and only lines naming a file count as a banner. | project-2 #2 | brain; the owner picks the side |
+  | Skipped the balance capture as "no insight". | project-1 #4 | hers |
+
+- So of 18 failed trials, 5 are clearly hers (own-rule-1, project-1), 3 are step 6's amend case, and
+  10 come from the grader, a task or the brain.
+- `report.py` skipped every `--brain-ref` run as "last full run", so left alone step 6 would have
+  compared with `2026-11-21T1914`, the confounded run. Now it skips only a run on a brain branch;
+  one pinned to a commit hash, like this baseline, counts.
+- Time per trial went from 48 s to 61 s. Part of that was the harness: each trial now starts its own
+  gateway, and the timer also covered stopping it. From here the time is taken on the VPS around
+  the Hermes turns only (the gateway's start is still inside it).
+- A review (default effort, no cap) found 10; 6 fixed (the baseline pick, the timing, leftovers of
+  an interrupted trial stopped before its folder is replaced, and three wrong lines in this log).
+  Left: the guard off (as before); the reseed adds and overwrites but never removes a file; and
+  `state.db` and sessions build up in the eval home across trials, as they did in the old profile
+  in every earlier run, so a chat trial could search an earlier trial's session.
+- The baseline's files carry `-baseline` in their name (the owner's call): `results/` and
+  `results/private/`, the `.jsonl`, the `.md` and the diffs folder, with the rows' diff links
+  renamed to match. `report.py` reads the name only to sort and title, so it still finds the run.
+- The owner's calls after the baseline:
+  1. A link with a few words describing it ("See also [Conventional Commits](…), the
+     commit-message counterpart") is fine, on a note or a guideline. The grader learns it in step 6:
+     one short line of new words around the link; a longer passage is still filing.
+  2. Prices, corrected (step 4 and this log had them wrong): OpenRouter sells each model id through
+     35 to 50 providers, and the model page shows the cheapest. On 2026-11-22 the alias's cheapest
+     was $0.0498/$0.1992, a Baidu endpoint at 83% off for the weekend; most providers charge
+     $0.30/$1.20. `-1017`'s cheapest is $0.036/$0.50, with no discount. So the second run and the
+     baseline ran on the deal, and the first run likely didn't. Neither brain note had the whole
+     picture; captured for triage.
+  3. Pinning her to `-1017`: not with the skill change (two changes at once can't be told apart).
+     It becomes step 7, after the owner picks the providers allowed to see brain notes.

@@ -256,7 +256,7 @@ def side_edit(path, old, new, before, after):
     guideline may gain one too), or an older decision superseded or amended by the decision that
     replaces it. New words sit next to a new link, at most LINK_LINE_WORDS per new link besides "see
     also" and the linked note's own name or title (the owner's call after step 5). Never a URL,
-    never sources/."""
+    never sources/, and never a new link to sources/ but in place of a dead one: filing cites it."""
     if path.startswith("sources/"):
         return False
     old, new = old.decode(errors="replace"), new.decode(errors="replace")
@@ -277,6 +277,9 @@ def side_edit(path, old, new, before, after):
         if t is None or t not in after:
             return False
         allowed |= names(t, after)
+    # Filing cites a source; lint only repoints a dead link at one (an item moved out of the inbox).
+    if sum(n for (_, target), n in came.items() if link_target(path, target).startswith("sources/")) > sum(gone.values()):
+        return False
     # A link's label is its text: a removed link keeps it, an added one brings it. Only a dead link's
     # old label may go, and new words sit in one run with a new link's label.
     a, b = labelled(old, gone), labelled(new, came)

@@ -359,6 +359,13 @@ class GradeTest(unittest.TestCase):
         r = self.run_grade({"notes": 1})
         self.assertTrue(r["pass"], r["detail"])
 
+    def test_a_short_fact_citing_the_source_is_filing(self):
+        # project-1 #4, step 6: "the OpenRouter balance was checked, 0.13 USD spent (source)".
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("notes/old.md", f"old\n\nThe balance was checked, 0.13 USD spent ([source](../sources/{ITEM})).\n")
+        self.assertTrue(self.run_grade({"notes": 1})["right_home"])
+        self.assertFalse(self.run_grade({"notes": 0})["right_home"])
+
     def test_a_see_also_sentence_cut_by_a_shared_word_is_not_filing(self):
         new_file = {"notes/new.md": b"# New\n"}
         old = "Use the real database, the one in production.\n"

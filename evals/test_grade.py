@@ -172,7 +172,8 @@ class GradeTest(unittest.TestCase):
         self.before.write("notes/my note.md", "x\n")
         for new in (f"[a](/sources/{ITEM})", f'[a](../sources/{ITEM} "the source")', "[a](my%20note.md)"):
             with self.subTest(new=new):
-                self.before.write("notes/linker.md", "See [a](gone.md).\n")
+                old = f"../inbox/{ITEM}" if "sources/" in new else "gone.md"  # lint repoints the moved item
+                self.before.write("notes/linker.md", f"See [a]({old}).\n")
                 self.after.write("notes/linker.md", f"See {new}.\n")
                 if not (self.after.root / f"sources/{ITEM}").exists():
                     self.file_as_note()
@@ -365,6 +366,13 @@ class GradeTest(unittest.TestCase):
         self.after.write("notes/old.md", f"old\n\nThe balance was checked, 0.13 USD spent ([source](../sources/{ITEM})).\n")
         self.assertTrue(self.run_grade({"notes": 1})["right_home"])
         self.assertFalse(self.run_grade({"notes": 0})["right_home"])
+        # Nor when lint drops an unrelated dead link in the same note, or the citation replaces one.
+        self.before.write("notes/old.md", "old\n\nSee [x](gone.md).\n")
+        for after in (f"old\n\nSee x.\n\nThe balance was checked ([source](../sources/{ITEM})).\n",
+                      f"old\n\nSee [x](../sources/{ITEM}).\n"):
+            with self.subTest(after=after):
+                self.after.write("notes/old.md", after)
+                self.assertFalse(self.run_grade({"notes": 0})["right_home"])
 
     def test_a_see_also_sentence_cut_by_a_shared_word_is_not_filing(self):
         new_file = {"notes/new.md": b"# New\n"}

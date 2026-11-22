@@ -117,17 +117,24 @@ def remove_container():
     return "docker rm -f $(docker ps -aq --filter label=hermes-profile=eval) >/dev/null 2>&1 || true\n"
 
 
-def key_spend(out):
+def key_spend(out, settle=False):
     """Writes what OpenRouter has billed the eval's key so far (USD) to `out`, or null. A trial's cost
     is the difference: Hermes' estimate prices every call at the model's cheapest provider, while
     OpenRouter spreads the calls over dearer ones (5× the estimate on 2026-11-22). The eval has its own
-    key, so her jobs don't count; the key's limit is a hard cap. The key is never printed."""
+    key, so her jobs don't count; the key's limit is a hard cap. The key is never printed. OpenRouter's
+    count can lag: with `settle`, it reads until two reads 5 s apart agree (at most 30 s)."""
     return f"""python3 - > {out} <<'EOF_KEY' || echo null > {out}
-import json, re, urllib.request
+import json, re, time, urllib.request
 try:
-    key = re.search(r"^OPENROUTER_API_KEY=[\\"']?([^\\"'\\s]+)", open("{PROFILE}/.env").read(), re.M).group(1)
+    key = re.search(r"^(?:export\\s+)?OPENROUTER_API_KEY=[\\"']?([^\\"'\\s]+)", open("{PROFILE}/.env").read(), re.M).group(1)
     req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={{"Authorization": "Bearer " + key}})
-    print(json.dumps(json.load(urllib.request.urlopen(req, timeout=20))["data"]["usage"]))
+    read = lambda: json.load(urllib.request.urlopen(req, timeout=10))["data"]["usage"]
+    usage = read()
+    for _ in range({6 if settle else 0}):
+        time.sleep(5)
+        if (usage, usage := read())[0] == usage:
+            break
+    print(json.dumps(usage))
 except Exception:
     print("null")
 EOF_KEY
@@ -429,7 +436,7 @@ def run_hermes(task, pages):
             script += f"if [ \"$(cat exit0.txt)\" = 0 ] && [ -f usage0.json ]; then\n{cmd.replace('{resume}', resume)}fi\n"
     script += "date +%s.%N > t1.txt\n"
     script += STOP_GATEWAY  # turn 2 resumes from the session store, so only after the last turn
-    script += key_spend("key1.txt")  # after the stop: OpenRouter's count can lag a few seconds
+    script += key_spend("key1.txt", settle=True)  # after the stop, and settled: the count can lag
     start = time.monotonic()
     vps(script)
     seconds = round(time.monotonic() - start)
@@ -637,6 +644,7 @@ def main(argv=None):
         sync_profile()
         stamp = setup_stamp(brain_commit)
         stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on brain_commit less these
+        stamp["cost_source"] = "openrouter key"  # earlier runs: Hermes' estimate, about 5× too low
         if a.brain_ref:  # a branch run is never the baseline for the brain she has (report.previous)
             stamp["brain_ref"] = a.brain_ref
         name = f"{datetime.now(timezone.utc):%Y-%m-%dT%H%M}-{stamp['telma_commit']}.jsonl"

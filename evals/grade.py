@@ -277,8 +277,11 @@ def side_edit(path, old, new, before, after):
         if t is None or t not in after:
             return False
         allowed |= names(t, after)
-    # Filing cites a source; lint only repoints a dead link at one (an item moved out of the inbox).
-    if sum(n for (_, target), n in came.items() if link_target(path, target).startswith("sources/")) > sum(gone.values()):
+    # Filing cites a source; lint only repoints a dead link at one: inbox/<item> to sources/<item>.
+    moved = Counter("sources/" + t[len("inbox/"):] for (_, target), n in gone.items()
+                    if (t := link_target(path, target)).startswith("inbox/") for _ in range(n))
+    if Counter(t for (_, target), n in came.items() if (t := link_target(path, target)).startswith("sources/")
+               for _ in range(n)) - moved:
         return False
     # A link's label is its text: a removed link keeps it, an added one brings it. Only a dead link's
     # old label may go, and new words sit in one run with a new link's label.

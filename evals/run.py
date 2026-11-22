@@ -176,47 +176,53 @@ def rsync(src, dst, *extra):
 
 # The owner's notes about this eval: in her brain they're real, in a trial they tell her she's being
 # tested (step 6 smoke: "the rule-look-alike the eval flags"). They link only to each other.
-EVAL_NOTES = ["decisions/2026-11-20-telma-eval-design.md",
-              "decisions/2026-11-20-telma-eval-private-rows-public-history-accepted.md",
-              "decisions/2026-11-21-amend-a-partly-replaced-decision.md",
-              "sources/2026-11-20-telma-eval-design.md",
-              "sources/2026-11-20-telma-eval-design-cost-speed-failures.md",
-              "sources/2026-11-20-telma-eval-private-rows-in-public-history-accepted.md",
-              "sources/2026-11-20-telma-eval-task-set-results-and-review-decisions.md",
-              "sources/2026-11-21-telma-eval-amended-older-decision-allowed.md",
-              "decisions/2026-11-22-brain-skill-changes-go-through-a-pr.md",
-              "sources/2026-11-22-brain-skill-changes-go-through-a-pr-never-straight-to-main.md"]
-# A note linked from elsewhere loses only its words about the eval, in the copy.
-EVAL_REWORD = {"sources/2026-11-21-hermes-gateway-one-process-per-user-file-state-guard.md":
-               [("found in the Telma eval (eval-v1 step 5, 2026-11-21)", "found on 2026-11-21")],
-               "notes/telma-model-comparisons-and-costs.md": [("(telma\nrepo, eval-v1 step 7)", "(telma\nrepo)")],
-               "sources/2026-11-22-deepseek-v4-1-flash-price-depends-on-the-openrouter-provider.md":
-               [("(telma repo, eval-v1 step 7)", "(telma repo)")]}
+EVAL_NOTES = ["sha256:558426becce3267da2a46981556369ea9ba5a79655a17259da199687e1bdfc3d",
+              "sha256:613ca4a7d5a64921cb679f04155c7d099fe80c071e22017f3240488c3c110135",
+              "sha256:fa6ab98416d7e1cf61087db8e2c1880999c242e9da4e58220dc7839fa4c78f0c",
+              "sha256:36cfd407d5c0b108b10eb9f4a7ada3c9a40094025c412001e096e9e239a40fee",
+              "sha256:e5a59dba8fd2d689c5232aec615fa5d5064659db129d60a09a41b75cf3e45284",
+              "sha256:1e712a7014077dddb118ac358dc542ddc0726d4c699f7a19a73ee41563657796",
+              "sha256:54a7900eba46c93d9fbad4f3fb8f6a1ea4aa343a1b922663085d8243771ef1a2",
+              "sha256:26ae67e227bf6dd3e170940612517f133be527359d69bda51f07a983f9184dc6",
+              "sha256:16874a82bed749c9d2fca8a8cd7501d8e8969107835928100b985eb9011cc806",
+              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9"]
+# A note linked from elsewhere loses only its words about the eval, in the copy: a passage (as in
+# remove_text) and what takes its place.
+EVAL_REWORD = {
+    "sha256:8872c75cbe832bd09bc3032ae84e180d0545541ce539d0559e95ed2c04f000da": [{"sha256": "e63966377f3e56a3ae08022c3105d9b696501df8dd9d8c3df20e97672ad5f706", "chars": 52, "with": 'found on 2026-11-21'}],
+    "sha256:e0799c989c86870fe7d137f3a632aef3256c8978f8c0e1b9a7817284b0a83d05": [{"sha256": "e1859906de947c82e322ecf76b292fbef4f66cb5c7eb34b39992f616b2b007bc", "chars": 28, "with": '(telma\nrepo)'}],
+    "sha256:bf2ccc2a4bfc6101909614111ff79652d31668c582dfdaf5ae98705e59bdecd8": [{"sha256": "3c6e33525f085b78b14ed3243440c14f662ff4730057c77ac9dc971624c67faf", "chars": 28, "with": '(telma repo)'}]}
 # What still gives the eval away once they're gone.
 EVAL_WORDS = re.compile(r"telma[ -]eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
 
 
-def strip_eval_notes(pinned):
-    """The pinned brain without EVAL_NOTES and their index lines, and EVAL_REWORD applied. One the
-    brain no longer has is skipped; a note that still names the eval is eval_leaks's."""
+def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
+    """The pinned brain without `notes` and their index lines, and `reword` applied; both name files
+    by the hash of their path, like a task. Returns the stripped paths. One the brain no longer has is
+    skipped; a note that still names the eval is eval_leaks's."""
+    paths = {"sha256:" + hashlib.sha256(str(p.relative_to(pinned)).encode()).hexdigest(): str(p.relative_to(pinned))
+             for p in pinned.rglob("*") if p.is_file()}
+    stripped = [paths[n] for n in notes if n in paths]
+    for f in stripped:
+        (pinned / f).unlink()
+    for n, specs in reword.items():
+        if n in paths:
+            text = (pinned / paths[n]).read_text()
+            for spec in specs:
+                if span := passage(text, spec):
+                    text = text[:span[0]] + spec["with"] + text[span[1]:]
+            (pinned / paths[n]).write_text(text)
     index = pinned / "index.md"
-    for f in EVAL_NOTES:
-        (pinned / f).unlink(missing_ok=True)
-    for f, pairs in EVAL_REWORD.items():
-        if (pinned / f).is_file():
-            text = (pinned / f).read_text()
-            for old, new in pairs:
-                text = text.replace(old, new)
-            (pinned / f).write_text(text)
-    index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in EVAL_NOTES)))
+    index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in stripped)))
+    return stripped
 
 
-def eval_leaks(pinned):
-    """Files in the pinned brain that still name the eval or link to a stripped note (a dead link lint
-    would fix in every trial). The inbox is skipped: every trial empties it."""
-    stripped = [Path(f).name for f in EVAL_NOTES]
+def eval_leaks(pinned, stripped=()):
+    """Files in the pinned brain that still name the eval or link to a `stripped` note (a dead link
+    lint would fix in every trial). The inbox is skipped: every trial empties it."""
+    names = [Path(f).name for f in stripped]
     def leaks(text):
-        return EVAL_WORDS.search(text) or any(name in text for name in stripped)
+        return EVAL_WORDS.search(text) or any(name in text for name in names)
     return sorted(str(p.relative_to(pinned)) for p in pinned.rglob("*.md")
                   if p.relative_to(pinned).parts[0] != "inbox" and leaks(p.read_text(errors="replace")))
 
@@ -591,8 +597,8 @@ def main(argv=None):
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
-        strip_eval_notes(tmp / "pinned")
-        if leaks := eval_leaks(tmp / "pinned"):
+        stripped = strip_eval_notes(tmp / "pinned")
+        if leaks := eval_leaks(tmp / "pinned", stripped):
             sys.exit("the brain still names the eval; add these to EVAL_NOTES or reword them:\n  " + "\n  ".join(leaks))
         tasks = json.loads((HERE / "tasks/tasks.json").read_text())
         full = {t["id"] for t in tasks}
@@ -605,6 +611,7 @@ def main(argv=None):
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile()
         stamp = setup_stamp(brain_commit)
+        stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on brain_commit less these
         if a.brain_ref:  # a branch run is never the baseline for the brain she has (report.previous)
             stamp["brain_ref"] = a.brain_ref
         name = f"{datetime.now(timezone.utc):%Y-%m-%dT%H%M}-{stamp['telma_commit']}.jsonl"

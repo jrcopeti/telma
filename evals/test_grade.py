@@ -450,6 +450,57 @@ class GradeTest(unittest.TestCase):
                             .replace("Host on Render.\n", "Host on Render.\n" + line.strip() + "\n"))
         self.assertTrue(self.replacement(inline, new_fm="supersedes: decisions/old.md")("superseded")["pass"])
 
+    def test_front_matter_under_a_banner_with_a_rule_in_the_body(self):
+        from grade import front
+        text = ("> [!warning] Contradiction: [b](b.md)\n---\nstatus: superseded\nsuperseded_by: new.md\n---\n"
+                "# T\n\nbody\n\n---\n\nmore\n")
+        self.assertEqual(front(text)[0], ["status: superseded", "superseded_by: new.md"])
+
+    def test_one_links_words_cant_borrow_another_links_budget(self):
+        new_file = {"notes/x.md": b"# X\n", "notes/y.md": b"# Y\n"}
+        long = ("which covers how the deploy pipeline handles a failed migration, rolls the release back "
+                "without losing customer data, and pages whoever is on call")
+        new = f"old\n\nSee [X](x.md), {long}.\n\n[Y](y.md)\n"
+        self.assertFalse(side_edit("notes/a.md", b"old\n", new.encode(), {}, new_file))
+
+    def test_leaves_out_reads_only_what_she_added(self):
+        self.before.write("guidelines/real-db.md", "rule, as in example-app\n")
+        self.after.write("guidelines/real-db.md", "rule, as in example-app\nPin the runtime in .tool-versions.\n")
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        r = self.run_grade({"guidelines": 1}, task={"leaves_out": ["example-app"]})
+        self.assertTrue(r["leaves_out"], r["detail"])
+
+    def project(self, line, index_line=None):
+        """A decision filed, and projects/app.md's Runs-on line changed to `line`."""
+        before = "# App\n\n- **Runs on:** your hosting\n- **Status:** active\n"
+        index = INDEX + "\n## Projects\n- [App](projects/app.md) — where it runs\n"
+        self.before.write("projects/app.md", before)
+        self.before.write("index.md", index)
+        self.after.write("projects/app.md", before.replace("- **Runs on:** your hosting", line))
+        self.after.write("decisions/new.md", "---\ndate: 2026-11-20\n---\n# New\n")
+        if (self.after.root / f"inbox/{ITEM}").exists():
+            self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        new_index = index.replace("— where it runs", index_line or "— where it runs")
+        self.after.write("index.md", new_index + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        return self.run_grade({"decisions": 1})
+
+    def test_a_project_line_keeps_its_field_and_stays_short(self):
+        link = "([decision](../decisions/new.md))"
+        self.assertTrue(self.project(f"- **Runs on:** Fly.io, Frankfurt {link}")["pass"])
+        self.assertFalse(self.project(f"- **Status:** archived {link}")["right_home"])
+        long = " ".join(["word"] * 35)
+        self.assertFalse(self.project(f"- **Runs on:** {long} {link}")["right_home"])
+
+    def test_a_project_lines_index_entry_may_follow_it(self):
+        r = self.project("- **Runs on:** Fly.io ([decision](../decisions/new.md))", "— where it runs (Fly.io since 2026-11-20)")
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_project_line_beside_a_lint_banner(self):
+        r = self.project("- **Runs on:** Fly.io ([decision](../decisions/new.md))")
+        text = (self.after.root / "projects/app.md").read_text()
+        self.after.write("projects/app.md", "> [!warning] Contradiction: [Old](../notes/old.md)\n" + text)
+        self.assertTrue(self.run_grade({"decisions": 1})["pass"])
+
     def test_a_project_line_changed_with_a_link_to_the_new_decision_is_not_filing(self):
         before = "# App\n\n- **Runs on:** your hosting\n- **Status:** active\n"
         self.before.write("projects/app.md", before)

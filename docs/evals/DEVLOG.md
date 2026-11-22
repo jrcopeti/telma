@@ -839,3 +839,32 @@
 - Grader: `may_also` is gone. A project note changing one line that links a decision filed in the
   trial isn't filing (`project_line`); without the link, or more than one line, it is. 126 tests
   pass.
+
+### Smoke 3 `2026-11-22T1400-21505a2` (brain `07a88a4`: the project-line rule; × 5)
+
+- replace-2 5 of 5. replace-1 4 of 5, superseded every time; she changed the project line with a
+  link (#5) or left the placeholder note alone (#1: "never named Render"). #4 also updated the
+  project note's index line, as triage step 5 says, and the grader didn't allow it for a project
+  note.
+- Fourth review, on both PRs (owner's yes, 2026-11-22). Fixed:
+  - **Grader:**
+    - `front()` no longer reads a body `---` rule as front matter when a banner sits above
+      (`.*` under `re.S` ran across lines).
+    - The 15 words count per paragraph holding a new link, so one link can't borrow another's.
+    - `project_line`: the changed line keeps its field (the text before the first `:`), holds at
+      most 30 words, ignores lint's banners, and its index entry may follow it.
+    - `leaves_out` reads only the lines she added.
+  - **`run.py`:** `EVAL_NOTES` and `EVAL_REWORD` name files by the hash of their path and
+    rewordings as hashed passages, like the tasks, so no private name or phrase is in the repo. The
+    stamp records `eval_notes_stripped`.
+  - **Docs:** PLAN's task and check tables, and the README's `index` row.
+  - **Brain** (`cf82fb9`):
+    - A guideline ask counts unless the item is a fetched page (`fetch: ok`). A pasted rule with a
+      link got a URL `source:` and lost its ask.
+    - The `projects/` example is a plain fact.
+    - `AGENTS.md` and `decisions/README.md` name the back-link fields lint checks.
+  - Not fixed: empty/null/commented YAML values, status case, nested keys and lint's speed (the
+    brain uses none of those forms); a mixed item's project rule lives only in `sources/` and her
+    report (the cost of not asking); the exemption needing readable front matter (by design);
+    exact-text rewording (the leak check stops the run if it misses); two front-matter parsers.
+  - 132 tests pass.

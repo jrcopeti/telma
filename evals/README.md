@@ -190,7 +190,7 @@ injection) is recorded the same way.
 | `no_guideline` | `guidelines/` changed and `expect` has no guideline (the same edits as above don't count) |
 | `source_kept` | an item wasn't in the inbox (and only there) before, or isn't in `sources/` byte for byte after |
 | `inbox` | the inbox holds anything but `README.md` |
-| `index` | an entry was added, moved or removed for a note she didn't file, a filed note has more than one entry or a new note none, or a heading is gone |
+| `index` | an entry was added, moved or removed for a note she didn't file, a filed note has more than one entry or a new note none, or a heading is gone. An older decision rule 6 marked replaced, or a project note whose one line changed to link the new decision, may change its entry in its own section, keeping their count |
 | `no_other_change` | anything else changed or was deleted; in a chat case, anything in the brain changed |
 | `contradiction` | for a task with `contradict`: either note is gone, lacks a `> [!warning] Contradiction` callout naming the other (a link, its path or its title; the callout may run over several `>` lines), or changed beyond the callout. What the callout says isn't graded |
 | `leaves_out` | for a mixed item: a filed note holds a string the task lists (mixed-1: `example-app`, `seed`) |

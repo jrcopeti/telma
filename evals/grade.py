@@ -172,7 +172,7 @@ def without_amendments(path, old, new, before, after):
 def front(text):
     """A note's front matter lines and its body; lint's banner may sit above the front matter, and
     stays in the body."""
-    m = re.match(r"((?:(?i:%s).*\n(?:\s*>.*\n)*|\s*\n)*)---\n(.*?\n)---\n" % BANNER.pattern, text, re.S)
+    m = re.match(r"((?:(?i:%s)[^\n]*\n(?:[ \t]*>[^\n]*\n)*|[ \t]*\n)*)---\n(.*?\n)---\n" % BANNER.pattern, text, re.S)
     return (m.group(2).splitlines(), m.group(1) + text[m.end():]) if m else ([], text)
 
 
@@ -280,7 +280,6 @@ def side_edit(path, old, new, before, after):
     # A link's label is its text: a removed link keeps it, an added one brings it. Only a dead link's
     # old label may go, and new words sit in one run with a new link's label.
     a, b = labelled(old, gone), labelled(new, came)
-    free = 0
     for deleted, inserted, span in edit_runs(a, b):
         if not all(in_label for _, in_label, _ in deleted):
             return False
@@ -288,8 +287,10 @@ def side_edit(path, old, new, before, after):
         run = [(t, par) for t, _, par in inserted if t not in LINK_MARKS and t.lower() not in allowed]
         if any(par not in pars for _, par in run):
             return False
-        free += sum(bool(re.match(r"\w", t)) for t, _ in run)
-    return free <= LINK_LINE_WORDS * sum(came.values())
+        per_par = Counter(par for t, par in run if re.match(r"\w", t))
+        if any(n > LINK_LINE_WORDS for n in per_par.values()):
+            return False
+    return True
 
 
 def edit_runs(a, b, gap=2):
@@ -314,12 +315,16 @@ def project_line(path, old, new, before, after):
     status, its owner). The reasoning stays in the decision."""
     if not path.startswith("projects/"):
         return False
-    a, b = old.decode(errors="replace").splitlines(), new.decode(errors="replace").splitlines()
+    a = without_banners(old.decode(errors="replace"), path, after).splitlines()
+    b = without_banners(new.decode(errors="replace"), path, after).splitlines()
     ops = [op for op in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes() if op[0] != "equal"]
-    if len(ops) != 1 or ops[0][0] not in ("replace", "insert") or ops[0][2] - ops[0][1] > 1 or ops[0][4] - ops[0][3] != 1:
+    if len(ops) != 1 or ops[0][0] != "replace" or ops[0][2] - ops[0][1] != 1 or ops[0][4] - ops[0][3] != 1:
         return False
-    line = b[ops[0][3]]
-    return any(new_decision(path, target, before, after) for _, target in LINK.findall(line))
+    was, line = a[ops[0][1]], b[ops[0][3]]
+    field_of = lambda l: l.split(":", 1)[0] if ":" in l else None
+    return (field_of(was) is not None and field_of(was) == field_of(line)
+            and len(re.findall(r"\w+", LINK.sub(r"\1", line))) <= 2 * LINK_LINE_WORDS
+            and any(new_decision(path, target, before, after) for _, target in LINK.findall(line)))
 
 
 def labelled(text, links):
@@ -414,8 +419,10 @@ def check_triage(task, before, after, report, out):
     if not out["inbox"]:
         out["detail"].append(f"inbox holds {inbox}")
 
+    # Notes whose index line may change with them: older decisions rule 6 replaced, project lines.
     replaced = [k for k in before if k in after and before[k] != after[k]
-                and replaced_how(k, after[k].decode(errors="replace"), before, after)]
+                and (replaced_how(k, after[k].decode(errors="replace"), before, after)
+                     or project_line(k, before[k], after[k], before, after))]
     check_index(before, after, filed, out, replaced)
 
     allowed = {"index.md", *filed, *(f"{d}/{i}" for i in items for d in ("inbox", "sources"))}
@@ -430,7 +437,9 @@ def check_triage(task, before, after, report, out):
     text = re.sub(r"https?://\S+", "", report or "")
     if task.get("leaves_out"):
         # A mixed item: what's filed keeps only the general part, never naming the project.
-        kept = [(k, s) for k in filed for s in task["leaves_out"] if s.lower() in after[k].decode(errors="replace").lower()]
+        added = {k: "\n".join(set(after[k].decode(errors="replace").splitlines())
+                               - set(before.get(k, b"").decode(errors="replace").splitlines())).lower() for k in filed}
+        kept = [(k, s) for k in filed for s in task["leaves_out"] if s.lower() in added[k]]
         out["leaves_out"] = not kept
         out["detail"] += [f"{k} keeps {s!r}, which belongs to one project" for k, s in kept]
     if task.get("tells"):

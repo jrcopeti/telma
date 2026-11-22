@@ -164,11 +164,6 @@ What the first run taught, and the owner's calls on it (devlog, step 8). One PR 
 
 ## Open
 
-- She can tell she's in an eval (step 6 smoke: "the rule-look-alike the eval flags"). The trial copy
-  holds the owner's decisions about the eval: its design, the private rows, and the amend decision,
-  which lists step 6's replacement tasks. Step 4 removed only the brain's `evals/` folder. Options:
-  `run.py` strips those decisions and their index lines from every copy (her real brain keeps
-  them), or the owner moves eval detail out of the brain into this repo. The owner's call.
 - The injection suite also ran some cases on a model that obeys injections, to prove the walls hold
   without the model. This eval drops fallback trials, so it measures DeepSeek and the walls
   together. Add an obedient-model run of T1–T3 later?

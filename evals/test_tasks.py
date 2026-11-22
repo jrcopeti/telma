@@ -12,7 +12,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
-from run import passage  # noqa: E402
+from run import EVAL_NOTES, eval_leaks, passage, strip_eval_notes  # noqa: E402
 
 HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (run.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
@@ -101,6 +101,24 @@ class PassageTest(unittest.TestCase):
         self.assertIsNone(passage("abc", self.spec("x")))
         self.assertIsNone(passage("ab ab", self.spec("ab")))
         self.assertIsNone(passage("a", self.spec("longer")))
+
+
+class EvalNotesTest(unittest.TestCase):
+    """Her copy holds no note about this eval, so nothing tells her she's being tested."""
+
+    def test_strips_the_notes_and_their_index_lines_and_finds_what_is_left(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / "decisions").mkdir()
+        (root / "inbox").mkdir()
+        (root / EVAL_NOTES[0]).write_text("# Telma eval: design\n")
+        (root / "decisions/other.md").write_text("# Other\n\nSee docs/evals/PLAN.md.\n")
+        (root / "inbox/x.md").write_text("eval-v1 step 6\n")
+        (root / "index.md").write_text(f"# Index\n- [Design]({EVAL_NOTES[0]}) — x\n- [Other](decisions/other.md) — y\n")
+        strip_eval_notes(root)
+        self.assertFalse((root / EVAL_NOTES[0]).exists())
+        self.assertEqual((root / "index.md").read_text(), "# Index\n- [Other](decisions/other.md) — y\n")
+        self.assertEqual(eval_leaks(root), ["decisions/other.md"])
 
 
 if __name__ == "__main__":

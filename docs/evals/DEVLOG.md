@@ -742,3 +742,9 @@
 - She twice called the item "the rule-look-alike the eval flags". The copy holds the owner's
   decisions about the eval (eval design, private rows, the amend decision listing step 6's three
   replacement tasks). Step 4 removed the brain's `evals/` folder, not these. Open, see PLAN.
+- Decided (owner, 2026-11-22): `run.py` strips the owner's notes about the eval from every copy
+  (`EVAL_NOTES`: the eval-design, private-rows and amend decisions, their five sources and three
+  index lines; they link only to each other). It rewords one phrase in the gateway-gotcha source,
+  which the gotchas note links to. Before any trial, the run stops if a copied file outside the inbox
+  still names the eval (`EVAL_WORDS`). Her real brain keeps them all. Copies from here on lack three
+  decisions the baseline's had, one more reason to read a newly failing task's diff first.

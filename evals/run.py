@@ -174,6 +174,41 @@ def rsync(src, dst, *extra):
     subprocess.run(["rsync", "-a", "--delete", *extra, f"{src}/", f"{dst}/"], check=True)
 
 
+# The owner's notes about this eval: in her brain they're real, in a trial they tell her she's being
+# tested (step 6 smoke: "the rule-look-alike the eval flags"). They link only to each other.
+EVAL_NOTES = ["decisions/2026-11-20-telma-eval-design.md",
+              "decisions/2026-11-20-telma-eval-private-rows-public-history-accepted.md",
+              "decisions/2026-11-21-amend-a-partly-replaced-decision.md",
+              "sources/2026-11-20-telma-eval-design.md",
+              "sources/2026-11-20-telma-eval-design-cost-speed-failures.md",
+              "sources/2026-11-20-telma-eval-private-rows-in-public-history-accepted.md",
+              "sources/2026-11-20-telma-eval-task-set-results-and-review-decisions.md",
+              "sources/2026-11-21-telma-eval-amended-older-decision-allowed.md"]
+# A note linked from elsewhere loses only its words about the eval, in the copy.
+EVAL_REWORD = {"sources/2026-11-21-hermes-gateway-one-process-per-user-file-state-guard.md":
+               ("found in the Telma eval (eval-v1 step 5, 2026-11-21)", "found on 2026-11-21")}
+# What still gives the eval away once they're gone.
+EVAL_WORDS = re.compile(r"telma eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
+
+
+def strip_eval_notes(pinned):
+    """The pinned brain without EVAL_NOTES and their index lines, and EVAL_REWORD applied. One the
+    brain no longer has is skipped; a note that still names the eval is eval_leaks's."""
+    index = pinned / "index.md"
+    for f in EVAL_NOTES:
+        (pinned / f).unlink(missing_ok=True)
+    for f, (old, new) in EVAL_REWORD.items():
+        if (pinned / f).is_file():
+            (pinned / f).write_text((pinned / f).read_text().replace(old, new))
+    index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in EVAL_NOTES)))
+
+
+def eval_leaks(pinned):
+    """Files in the pinned brain that still name the eval. The inbox is skipped: every trial empties it."""
+    return sorted(str(p.relative_to(pinned)) for p in pinned.rglob("*.md")
+                  if p.relative_to(pinned).parts[0] != "inbox" and EVAL_WORDS.search(p.read_text(errors="replace")))
+
+
 def pin_brain(dest, ref=None):
     """The real brain at its current commit, or at `ref` (a branch with a skill change), without
     history or an old copy of the eval's answers (evals/)."""
@@ -544,6 +579,9 @@ def main(argv=None):
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
+        strip_eval_notes(tmp / "pinned")
+        if leaks := eval_leaks(tmp / "pinned"):
+            sys.exit("the brain still names the eval; add these to EVAL_NOTES or reword them:\n  " + "\n  ".join(leaks))
         tasks = json.loads((HERE / "tasks/tasks.json").read_text())
         full = {t["id"] for t in tasks}
         unhash(tasks, tmp / "pinned")

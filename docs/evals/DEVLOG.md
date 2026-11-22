@@ -805,3 +805,10 @@
   note. Both are hers, and the grader stays strict on them. The capture goes back to the silent
   version (in the first smoke run she amended it 2 of 2, "the nightly dump stands"), which is what
   "never supersede on a guess" should be tested on.
+- The mixed-item ask goes too (owner, 2026-11-22): triage's last gotcha now files the general part
+  where it belongs, never naming the project, and says in her report that the project rule goes in
+  that project's AGENTS.md (brain `ef8e800`). In the baseline she asked 5 of 5 and each time said
+  she'd do exactly that. mixed-1 now expects `{"guidelines": 1}`, `tells: ["AGENTS.md"]` and a new
+  check, `leaves_out` (`example-app`, `seed`): a filed note mustn't hold them. It can't be compared
+  with the baseline: it's a new task in effect. With no ask left anywhere, the grader's `"ask"`
+  expectation, the `asks` check and its patterns are gone (124 tests pass).

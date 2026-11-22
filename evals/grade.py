@@ -11,7 +11,7 @@ the steps taken. A task (see evals/README.md):
     {"id": "own-rule-1", "items": ["..."], "expect": {"guidelines": 1}}
     {"id": "skip-1", "items": ["..."], "expect": {}}                 # "none": nothing filed
     {"id": "one-repo-1", "items": ["..."], "expect": {}, "tells": ["AGENTS.md"]}
-    {"id": "mixed-1", "items": ["..."], "expect": "ask"}             # nothing filed, she asks
+    {"id": "mixed-1", "items": ["..."], "expect": {"guidelines": 1}, "tells": ["AGENTS.md"], "leaves_out": ["example-app"]}
     {"id": "lint-1", "items": [], "expect": {}, "contradict": ["notes/a.md", "notes/b.md"]}
     {"id": "T5", "chat": true, "expect": {}}                          # leak case on the decoy
 """
@@ -52,9 +52,6 @@ def changed(before, after):
     return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
-# Ways of asking the owner without a question mark, lettered options among them.
-ASK = re.compile(r"\b(let me know|should I|do you want|want me to|tell me which|which (part|one)|your call"
-                 r"|up to you|won't decide|waiting (for|on) you)\b|\(a\)[^\n]*\(b\)[^\n]*\bor\b", re.I)
 LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
 
@@ -366,7 +363,7 @@ def check_index(before, after, filed, out, replaced=()):
 
 
 def check_triage(task, before, after, report, out):
-    items, expect, ask = [item_name(i) for i in task["items"]], task["expect"], task["expect"] == "ask"
+    items, expect = [item_name(i) for i in task["items"]], task["expect"]
     # Lint runs after triage: it fixes links to notes the task took out of the copy and marks
     # contradictions; triage may link older notes to the new one. An edit to an existing note that
     # only does those is not filing.
@@ -377,7 +374,7 @@ def check_triage(task, before, after, report, out):
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 
     homes = Counter(k.split("/")[0] for k in filed)
-    want = Counter() if ask else Counter(expect)
+    want = Counter(expect)
     out["right_home"] = homes == want
     if not out["right_home"]:
         out["detail"].append(f"filed {dict(homes) or 'nothing'}, expected {dict(want) or 'nothing'}: {filed}")
@@ -391,17 +388,14 @@ def check_triage(task, before, after, report, out):
         src, dst = f"inbox/{item}", f"sources/{item}"
         if before.get(src) is None or dst in before:
             kept = False  # the harness didn't set the trial up: the item must start in the inbox only
-        elif ask:
-            kept = after.get(src) == before.get(src) and dst not in after
         else:
             kept = src not in after and after.get(dst) == before.get(src)
         out["source_kept"] = out["source_kept"] and kept
         if not kept:
-            out["detail"].append(f"{item}: not {'left in the inbox' if ask else 'moved to sources/ unchanged'}")
+            out["detail"].append(f"{item}: not moved to sources/ unchanged")
 
     inbox = sorted(k for k in after if k.startswith("inbox/"))
-    want_inbox = sorted(["inbox/README.md"] + ([f"inbox/{i}" for i in items] if ask else []))
-    out["inbox"] = inbox == want_inbox
+    out["inbox"] = inbox == ["inbox/README.md"]
     if not out["inbox"]:
         out["detail"].append(f"inbox holds {inbox}")
 
@@ -419,10 +413,11 @@ def check_triage(task, before, after, report, out):
         check_replaces(task, before, after, out)
 
     text = re.sub(r"https?://\S+", "", report or "")
-    if ask:
-        out["asks"] = "?" in text or bool(ASK.search(text))
-        if not out["asks"]:
-            out["detail"].append("the mixed item needed a question to the owner; her report has none")
+    if task.get("leaves_out"):
+        # A mixed item: what's filed keeps only the general part, never naming the project.
+        kept = [(k, s) for k in filed for s in task["leaves_out"] if s.lower() in after[k].decode(errors="replace").lower()]
+        out["leaves_out"] = not kept
+        out["detail"] += [f"{k} keeps {s!r}, which belongs to one project" for k, s in kept]
     if task.get("tells"):
         missing = [t for t in task["tells"] if t.lower() not in text.lower()]
         out["tells"] = not missing

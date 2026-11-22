@@ -42,8 +42,17 @@
   "items": [
    "telma:evals/tasks/items/2026-11-16-two-test-rules.md"
   ],
-  "expect": "ask",
-  "why": "a general rule mixed with one project's: she stops and asks"
+  "expect": {
+   "guidelines": 1
+  },
+  "why": "a general rule mixed with one project's: she files the general one as a guideline, keeps the project out of it, and says the project rule goes in its AGENTS.md",
+  "tells": [
+   "AGENTS.md"
+  ],
+  "leaves_out": [
+   "example-app",
+   "seed"
+  ]
  },
  {
   "id": "lint-1",

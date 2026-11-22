@@ -38,11 +38,11 @@ class TasksTest(unittest.TestCase):
         for t in TASKS:
             with self.subTest(task=t["id"]):
                 self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page",
-                                           "strip", "remove_text", "plant", "contradict", "replaces"}, set(t))
+                                           "strip", "remove_text", "plant", "contradict", "replaces", "leaves_out"}, set(t))
                 e = t["expect"]
-                self.assertTrue(e == "ask" or (isinstance(e, dict) and set(e) <= FOLDERS
-                                               and all(isinstance(n, int) and n > 0 for n in e.values())))
-                for key in ("targets", "tells"):
+                self.assertTrue(isinstance(e, dict) and set(e) <= FOLDERS
+                                and all(isinstance(n, int) and n > 0 for n in e.values()))
+                for key in ("targets", "tells", "leaves_out"):
                     self.assertTrue(all(isinstance(s, str) and s for s in t.get(key, [])))
                 if t.get("chat"):
                     self.assertEqual(e, {})

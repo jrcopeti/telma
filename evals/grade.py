@@ -308,6 +308,20 @@ def edit_runs(a, b, gap=2):
     return [(deleted, inserted, b[j1:j2]) for _, _, j1, j2, deleted, inserted in runs]
 
 
+def project_line(path, old, new, before, after):
+    """True when a project note changed one line, to a new fact linking a decision filed in this
+    trial: triage's rule for a decision that changes a project's admin fact (where it runs, its
+    status, its owner). The reasoning stays in the decision."""
+    if not path.startswith("projects/"):
+        return False
+    a, b = old.decode(errors="replace").splitlines(), new.decode(errors="replace").splitlines()
+    ops = [op for op in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes() if op[0] != "equal"]
+    if len(ops) != 1 or ops[0][0] not in ("replace", "insert") or ops[0][2] - ops[0][1] > 1 or ops[0][4] - ops[0][3] != 1:
+        return False
+    line = b[ops[0][3]]
+    return any(new_decision(path, target, before, after) for _, target in LINK.findall(line))
+
+
 def labelled(text, links):
     """The text's tokens with links read as their labels: (token, in the label of one of `links`,
     paragraph number)."""
@@ -369,12 +383,12 @@ def check_triage(task, before, after, report, out):
     # only does those is not filing.
     diff = [k for k in changed(before, after)
             if not (k in before and k in after and k.endswith(".md") and k != "index.md"
-                    and side_edit(k, before[k], after[k], before, after))]
+                    and (side_edit(k, before[k], after[k], before, after)
+                         or project_line(k, before[k], after[k], before, after)))]
     # Notes created or extended; a deleted note is never filing, and fails no_other_change.
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 
-    # A second home the task allows (the example project note gaining the fact, the owner's step 4 call).
-    homes = Counter(k.split("/")[0] for k in filed if k not in task.get("may_also", []))
+    homes = Counter(k.split("/")[0] for k in filed)
     want = Counter(expect)
     out["right_home"] = homes == want
     if not out["right_home"]:

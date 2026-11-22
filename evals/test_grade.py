@@ -450,12 +450,23 @@ class GradeTest(unittest.TestCase):
                             .replace("Host on Render.\n", "Host on Render.\n" + line.strip() + "\n"))
         self.assertTrue(self.replacement(inline, new_fm="supersedes: decisions/old.md")("superseded")["pass"])
 
-    def test_an_optional_second_home_may_also_be_filed(self):
-        self.before.write("projects/app.md", "# App\n\n- Runs on: your hosting\n")
-        self.after.write("projects/app.md", "# App\n\n- Runs on: Fly.io, Frankfurt\n")
-        self.file_as_note()
-        self.assertTrue(self.run_grade({"notes": 1}, task={"may_also": ["projects/app.md"]})["pass"])
-        self.assertFalse(self.run_grade({"notes": 1})["right_home"])
+    def test_a_project_line_changed_with_a_link_to_the_new_decision_is_not_filing(self):
+        before = "# App\n\n- **Runs on:** your hosting\n- **Status:** active\n"
+        self.before.write("projects/app.md", before)
+        self.after.write("decisions/new.md", "---\ndate: 2026-11-20\n---\n# New\n")
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        for after, ok in (
+            ("- **Runs on:** Fly.io, Frankfurt (since 2026-11-20, [decision](../decisions/new.md))\n", True),
+            ("- **Runs on:** Fly.io, Frankfurt\n", False),  # no link
+            ("- **Runs on:** Fly.io ([decision](../decisions/new.md))\n- **Status:** moving\n", False),  # two lines
+        ):
+            with self.subTest(after=after):
+                text = before.replace("- **Runs on:** your hosting\n", after)
+                if "Status:** moving" in after:
+                    text = text.replace("- **Status:** active\n", "")
+                self.after.write("projects/app.md", text)
+                self.assertEqual(self.run_grade({"decisions": 1})["right_home"], ok)
 
     def test_a_replaced_decisions_index_line_may_change(self):
         index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"

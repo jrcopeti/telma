@@ -824,3 +824,18 @@
   - #2 also set the example project note's "Runs on" to Fly.io. By the owner's step 4 call that's
     a fair reading, so replace-1 and replace-2 now allow it (`may_also`).
 - Regraded with this grader: #2 passes, #5 still fails (no link). 126 tests pass.
+
+### Smoke 2 `2026-11-22T1345-9433082` (brain `3131249`: mixed change and Superseded line; × 5)
+
+- mixed-1 5 of 5: files the `.tool-versions` guideline and says the seed rule goes in example-app's
+  AGENTS.md, never asking. replace-1 5 of 5, but #2 and #5 changed the example project note again
+  and passed only on `may_also` (2 of 5 both runs).
+- Why she does it: triage's table gives `projects/` the example "the app moved to a new server",
+  and rule 2 says to update a note the item changes, while rule 1 says one home. A real project's
+  note should change: its "Runs on" line is what an agent reads first. So the skill now says it
+  (owner, 2026-11-22, brain `07a88a4`): a decision that changes a project's admin fact has one
+  home, `decisions/`; if the project note states the fact, that one line changes to the new fact
+  with a link to the decision, and nothing more.
+- Grader: `may_also` is gone. A project note changing one line that links a decision filed in the
+  trial isn't filing (`project_line`); without the link, or more than one line, it is. 126 tests
+  pass.

@@ -748,3 +748,26 @@
   which the gotchas note links to. Before any trial, the run stops if a copied file outside the inbox
   still names the eval (`EVAL_WORDS`). Her real brain keeps them all. Copies from here on lack three
   decisions the baseline's had, one more reason to read a newly failing task's diff first.
+- Third review, on both PRs (default effort, no cap): 17 on the brain, 10 here. Fixed with the
+  owner's yes (2026-11-22):
+  - **Brain triage:** a guideline ask in `note:` counts only on an item captured from a
+    conversation (`source: conversation` or `pasted`), never on a fetched page. Quoting the rule in
+    the `note:` is fine; a `note:` that only repeats the captured text's own ask doesn't count. The
+    amend link is relative to `decisions/`.
+  - **Brain lint:** one front-matter parser (quotes read alike), and superseded links are checked
+    both ways like amended ones. Every entry must resolve to a decision file (`./` paths too), with
+    no self-links, and `superseded_by:` needs `status: superseded`. Errors name the decision at fault
+    (brain `938d552`, suite 63 pass, real brain clean).
+  - **Grader:**
+    - A replaced decision keeps its index line.
+    - "ask" allows no new words in the old decision.
+    - Front matter is read below lint's banner.
+    - A list stops at the next field.
+    - Edits up to 2 shared tokens apart are one run.
+    - 15 words per new link.
+  - **Leak check:** also matches `telma-eval` and links to a stripped note.
+  - 128 tests pass; 5 of the new grader tests fail on the previous grader.
+  - Skipped: inline YAML comments, an amended-and-superseded decision, CRLF, and the hard-coded
+    `EVAL_NOTES` (kept: small and visible; the leak check stops a run when it goes stale). The ask
+    path's open question stays in the new decision and her report.
+  - Regraded: baseline 7, smoke replace-1 both pass, as before.

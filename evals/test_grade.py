@@ -353,6 +353,27 @@ class GradeTest(unittest.TestCase):
         r = self.run_grade({"notes": 1})
         self.assertTrue(r["pass"], r["detail"])
 
+    def test_a_see_also_sentence_cut_by_a_shared_word_is_not_filing(self):
+        new_file = {"notes/new.md": b"# New\n"}
+        old = "Use the real database, the one in production.\n"
+        new = "Use the real database, the one in production. See also [New](new.md), the commit-message counterpart.\n"
+        self.assertTrue(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
+
+    def test_changes_a_shared_token_apart_are_one_run(self):
+        from grade import edit_runs
+        tok = lambda *ts: [(t, False, 0) for t in ts]
+        runs = edit_runs(tok("a", ",", "z"), tok("a", "P", ",", "Q", "z"))  # difflib keeps the "," between
+        self.assertEqual([[t for t, *_ in ins] for _, ins, _ in runs], [["P", "Q"]])
+        runs = edit_runs(tok("a", "b", "c", "d", "z"), tok("a", "P", "b", "c", "d", "Q", "z"))
+        self.assertEqual(len(runs), 2)
+
+    def test_each_new_link_brings_its_own_fifteen_words(self):
+        new_file = {"notes/x.md": b"# X\n", "notes/y.md": b"# Y\n"}
+        old = "old\n"
+        new = ("old\n\nSee [X](x.md), which covers how the deploy pipeline handles a failed migration.\n\n"
+               "See [Y](y.md), which covers how the test suite seeds its own database fixtures.\n")
+        self.assertTrue(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
+
     def test_a_link_with_a_longer_passage_is_filing(self):
         self.file_as_note()
         long = "it starts a real Postgres in a container for every test, so the queries run as they do in production"
@@ -418,6 +439,32 @@ class GradeTest(unittest.TestCase):
         # Not when it wasn't marked replaced, or the line moved section.
         self.after.write("decisions/old.md", self.before.root.joinpath("decisions/old.md").read_text())
         self.assertFalse(grade_as("ask")["index"])
+
+    def test_a_replaced_decisions_index_line_may_not_go(self):
+        index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
+        self.before.write("index.md", index)
+        superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+        grade_as = self.replacement(superseded, new_fm="supersedes: decisions/old.md")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        self.assertFalse(grade_as("superseded")["index"])
+
+    def test_an_unclear_replacement_settled_in_the_old_decision_is_not_ask(self):
+        settle = lambda t: t + "\nSee [New](new.md): the nightly dump is no longer needed, drop it.\n"
+        r = self.replacement(settle, report="Which?")("ask")
+        self.assertFalse(r["replaces"], r["detail"])
+        bare = lambda t: t + "\nSee [New](new.md).\n"
+        self.assertTrue(self.replacement(bare, report="Which?")("ask")["replaces"])
+
+    def test_a_banner_above_the_front_matter_still_reads_the_replacement(self):
+        marked = lambda t: ("> [!warning] Contradiction: [New](new.md)\n"
+                            + t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md"))
+        r = self.replacement(marked, new_fm="supersedes: decisions/old.md")("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_later_fields_list_is_not_read_as_amended_by(self):
+        from grade import values
+        fm = ["amended_by:", "  - decisions/a.md", "tags:", "  - decisions/b.md"]
+        self.assertEqual(values(fm, "amended_by"), ["decisions/a.md"])
 
     def test_amended_needs_amends_back_and_reads_a_list(self):
         amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")

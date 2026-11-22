@@ -108,17 +108,21 @@ class EvalNotesTest(unittest.TestCase):
 
     def test_strips_the_notes_and_their_index_lines_and_finds_what_is_left(self):
         import tempfile
-        root = Path(tempfile.mkdtemp())
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
         (root / "decisions").mkdir()
         (root / "inbox").mkdir()
         (root / EVAL_NOTES[0]).write_text("# Telma eval: design\n")
         (root / "decisions/other.md").write_text("# Other\n\nSee docs/evals/PLAN.md.\n")
         (root / "inbox/x.md").write_text("eval-v1 step 6\n")
+        (root / "notes").mkdir()
+        (root / "notes/linker.md").write_text(f"# L\n\n[amend rule](../{EVAL_NOTES[2]})\n")
         (root / "index.md").write_text(f"# Index\n- [Design]({EVAL_NOTES[0]}) — x\n- [Other](decisions/other.md) — y\n")
         strip_eval_notes(root)
         self.assertFalse((root / EVAL_NOTES[0]).exists())
         self.assertEqual((root / "index.md").read_text(), "# Index\n- [Other](decisions/other.md) — y\n")
-        self.assertEqual(eval_leaks(root), ["decisions/other.md"])
+        self.assertEqual(eval_leaks(root), ["decisions/other.md", "notes/linker.md"])
 
 
 if __name__ == "__main__":

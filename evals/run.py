@@ -188,7 +188,7 @@ EVAL_NOTES = ["decisions/2026-11-20-telma-eval-design.md",
 EVAL_REWORD = {"sources/2026-11-21-hermes-gateway-one-process-per-user-file-state-guard.md":
                ("found in the Telma eval (eval-v1 step 5, 2026-11-21)", "found on 2026-11-21")}
 # What still gives the eval away once they're gone.
-EVAL_WORDS = re.compile(r"telma eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
+EVAL_WORDS = re.compile(r"telma[ -]eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
 
 
 def strip_eval_notes(pinned):
@@ -204,9 +204,13 @@ def strip_eval_notes(pinned):
 
 
 def eval_leaks(pinned):
-    """Files in the pinned brain that still name the eval. The inbox is skipped: every trial empties it."""
+    """Files in the pinned brain that still name the eval or link to a stripped note (a dead link lint
+    would fix in every trial). The inbox is skipped: every trial empties it."""
+    stripped = [Path(f).name for f in EVAL_NOTES]
+    def leaks(text):
+        return EVAL_WORDS.search(text) or any(name in text for name in stripped)
     return sorted(str(p.relative_to(pinned)) for p in pinned.rglob("*.md")
-                  if p.relative_to(pinned).parts[0] != "inbox" and EVAL_WORDS.search(p.read_text(errors="replace")))
+                  if p.relative_to(pinned).parts[0] != "inbox" and leaks(p.read_text(errors="replace")))
 
 
 def pin_brain(dest, ref=None):

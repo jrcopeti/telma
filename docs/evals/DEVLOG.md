@@ -641,3 +641,15 @@
 - The baseline's files carry `-baseline` in their name (the owner's call): `results/` and
   `results/private/`, the `.jsonl`, the `.md` and the diffs folder, with the rows' diff links
   renamed to match. `report.py` reads the name only to sort and title, so it still finds the run.
+- The owner's calls after the baseline:
+  1. A link with a few words describing it ("See also [Conventional Commits](…), the
+     commit-message counterpart") is fine, on a note or a guideline. The grader learns it in step 6:
+     one short line of new words around the link; a longer passage is still filing.
+  2. Prices, corrected (step 4 and this log had them wrong): OpenRouter sells each model id through
+     35 to 50 providers, and the model page shows the cheapest. On 2026-11-22 the alias's cheapest
+     was $0.0498/$0.1992, a Baidu endpoint at 83% off for the weekend; most providers charge
+     $0.30/$1.20. `-1017`'s cheapest is $0.036/$0.50, with no discount. So the second run and the
+     baseline ran on the deal, and the first run likely didn't. Neither brain note had the whole
+     picture; captured for triage.
+  3. Pinning her to `-1017`: not with the skill change (two changes at once can't be told apart).
+     It becomes step 7, after the owner picks the providers allowed to see brain notes.

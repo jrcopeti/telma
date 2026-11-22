@@ -812,3 +812,15 @@
   check, `leaves_out` (`example-app`, `seed`): a filed note mustn't hold them. It can't be compared
   with the baseline: it's a new task in effect. With no ask left anywhere, the grader's `"ask"`
   expectation, the `asks` check and its patterns are gone (124 tests pass).
+
+### Smoke 1 `2026-11-22T1316-dc0d64b` (brain `f0a09cc`: rule 6 only, no mixed change; × 5)
+
+- replace-2 5 of 5 (amended, the dump stands), decision-2 5 of 5, replace-1 3 of 5. No regression:
+  replace-1 was superseded correctly all five times.
+  - #5 added "**Superseded** 2026-11-20: Render's free tier is gone…" with no link, so it counted
+    as filing. Rule 6 now gives the line a format like the amend line,
+    `**Superseded YYYY-MM-DD:** → [<new>](<file>)` (brain `3131249`). The grader takes a
+    `**Superseded` line on the same terms as `**Amended`.
+  - #2 also set the example project note's "Runs on" to Fly.io. By the owner's step 4 call that's
+    a fair reading, so replace-1 and replace-2 now allow it (`may_also`).
+- Regraded with this grader: #2 passes, #5 still fails (no link). 126 tests pass.

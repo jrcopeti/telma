@@ -439,6 +439,24 @@ class GradeTest(unittest.TestCase):
                 self.assertEqual(r["replaces"], ok, r["detail"])
                 self.assertEqual(r["pass"], ok, r["detail"])
 
+    def test_a_superseded_line_linking_the_new_decision_is_not_filing(self):
+        line = "\n**Superseded 2026-11-20:** Render's free tier is gone, so the app moves → [New](new.md)\n"
+        marked = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md") + line
+        r = self.replacement(marked, new_fm="supersedes: decisions/old.md")("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+        unlinked = lambda t: marked(t).replace(" → [New](new.md)", ", and it deploys with its own CI workflow now")
+        self.assertFalse(self.replacement(unlinked, new_fm="supersedes: decisions/old.md")("superseded")["right_home"])
+        inline = lambda t: (t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+                            .replace("Host on Render.\n", "Host on Render.\n" + line.strip() + "\n"))
+        self.assertTrue(self.replacement(inline, new_fm="supersedes: decisions/old.md")("superseded")["pass"])
+
+    def test_an_optional_second_home_may_also_be_filed(self):
+        self.before.write("projects/app.md", "# App\n\n- Runs on: your hosting\n")
+        self.after.write("projects/app.md", "# App\n\n- Runs on: Fly.io, Frankfurt\n")
+        self.file_as_note()
+        self.assertTrue(self.run_grade({"notes": 1}, task={"may_also": ["projects/app.md"]})["pass"])
+        self.assertFalse(self.run_grade({"notes": 1})["right_home"])
+
     def test_a_replaced_decisions_index_line_may_change(self):
         index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
         self.before.write("index.md", index)

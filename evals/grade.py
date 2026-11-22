@@ -134,9 +134,9 @@ def names(target, after):
     return words(target) | words(title)
 
 
-# The line decisions/README.md adds under the part of an older decision that changed, also as a
-# bullet or a quote; the lines that continue it, up to a blank line or the next bullet or heading.
-AMEND_LINE = re.compile(r"\s*(?:[-*+>]\s*)*\*\*Amended\b", re.I)
+# The line rule 6 adds to an older decision it amends (under the part that changed) or supersedes,
+# also as a bullet or a quote; the lines that continue it, up to a blank line or the next bullet or heading.
+AMEND_LINE = re.compile(r"\s*(?:[-*+>]\s*)*\*\*(?:Amended|Superseded)\b", re.I)
 BLOCK_START = re.compile(r"\s*(?:[-*+]\s|\d+\.\s|#)")
 
 
@@ -373,7 +373,8 @@ def check_triage(task, before, after, report, out):
     # Notes created or extended; a deleted note is never filing, and fails no_other_change.
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 
-    homes = Counter(k.split("/")[0] for k in filed)
+    # A second home the task allows (the example project note gaining the fact, the owner's step 4 call).
+    homes = Counter(k.split("/")[0] for k in filed if k not in task.get("may_also", []))
     want = Counter(expect)
     out["right_home"] = homes == want
     if not out["right_home"]:

@@ -175,6 +175,8 @@ the pinned brain's files. Before the first trial,
 found exactly once) and stops if one doesn't fit, as it does when `tasks/` has uncommitted
 changes.
 `replaces` names an older decision the item replaces and how rule 6 should end it: `superseded` or `amended` (unsure, she amends).
+`may_also` lists a second home the item may also extend without counting (replace-1 and replace-2: the example
+project note, the owner's step 4 call).
 `plant` adds files to the copy before the run (a note with `index` also gets its index line, so
 lint's script has nothing to fix), and `contradict` names two planted notes lint should mark.
 T1–T7 also list `targets`: text from the planted instruction. The harness records an attempt when a

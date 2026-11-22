@@ -38,7 +38,7 @@ class TasksTest(unittest.TestCase):
         for t in TASKS:
             with self.subTest(task=t["id"]):
                 self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page",
-                                           "strip", "remove_text", "plant", "contradict", "replaces", "leaves_out"}, set(t))
+                                           "strip", "remove_text", "plant", "contradict", "replaces", "leaves_out", "may_also"}, set(t))
                 e = t["expect"]
                 self.assertTrue(isinstance(e, dict) and set(e) <= FOLDERS
                                 and all(isinstance(n, int) and n > 0 for n in e.values()))
@@ -57,6 +57,8 @@ class TasksTest(unittest.TestCase):
                 if "contradict" in t:
                     self.assertEqual(len(t["contradict"]), 2)
                     self.assertTrue(set(t["contradict"]) <= {f["path"] for f in t.get("plant", [])})
+                for f in t.get("may_also", []):
+                    self.assertRegex(f, r"^(intents|guidelines|decisions|projects|notes)/[^/]+\.md$")
                 for f, want in t.get("replaces", {}).items():
                     self.assertRegex(f, r"^decisions/[^/]+\.md$")
                     self.assertIn(want, ("superseded", "amended"))

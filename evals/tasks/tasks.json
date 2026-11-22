@@ -386,6 +386,9 @@
     "index": "the example app runs on Render's free tier."
    }
   ],
+  "may_also": [
+   "projects/example-app.md"
+  ],
   "replaces": {
    "decisions/2026-11-05-example-app-hosted-on-render.md": "superseded"
   }
@@ -405,6 +408,9 @@
     "from": "telma:evals/tasks/items/replace-ask-1/2026-11-12-example-app-database-on-neon.md",
     "index": "Postgres on Neon, with a nightly dump to S3."
    }
+  ],
+  "may_also": [
+   "projects/example-app.md"
   ],
   "replaces": {
    "decisions/2026-11-12-example-app-database-on-neon.md": "amended"

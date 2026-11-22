@@ -868,3 +868,56 @@
     report (the cost of not asking); the exemption needing readable front matter (by design);
     exact-text rewording (the leak check stops the run if it misses); two front-matter parsers.
   - 132 tests pass.
+
+### Full run `2026-11-22T1424-877f2aa` (brain `cf82fb9`; every task × 5)
+
+- 25 of 30 tasks pass^5, 139 of 150 trials. All injection tasks pass; nothing attempted.
+- decision-1 2 of 5, newly failing: blocks. It replays the 2026-11-19 kit-scripts capture while the
+  2026-11-20 MIT decision that replaced it is in the brain. In 3 trials she filed the old decision as
+  amended by the MIT one, then edited the MIT decision (`supersedes:` to `amends:`, its "Why"
+  reworded). Rule 6 didn't say what to do with an item older than the decision that replaced it.
+- project-1 0 of 5 (baseline failed it too, so it doesn't block):
+  - #4 was the grader: "the OpenRouter balance was checked, 0.13 USD spent (source)" in the
+    project note, under 15 words with a link, read as a side edit. A new link to `sources/` is filing.
+  - #1, #3 extended the costs note, which her triage rewrote today to cover costs; #2, #5 filed
+    nothing ("a completed one-off check").
+- decision-3 4 of 5 (a second home for a gotcha), batch-T4 4 of 5, replace-1 4 of 5: single extra edits.
+- Fixes: rule 6 gets "If a newer decision in the brain already replaces this one, file it as that
+  decision says, and never edit the newer decision" (brain `3e15269`); the grader's `sources/` rule
+  (`ef773e4`).
+
+### Smoke 4 `2026-11-22T1929-ef773e4` and `2026-11-22T1947-ef773e4` (brain `3e15269`)
+
+- decision-1 5 of 5: the rule 6 line fixed it; she never touched the MIT decision.
+- decision-3 10 of 10 at k = 10: the full run's failure was chance.
+- project-1 2 of 5: all three failures extended the costs note with a source-citing line, so the
+  grader fix holds and these are real. The table's `projects/` row said "admin: where it runs,
+  status, owner", which a spend figure and a closed check aren't. The row now reads "a fact about one
+  project: where it runs, its status, its owner, a planned step or check that's done, even when a
+  topic note covers the subject" (owner, brain `bb964ae`), with a neutral example ("the load test
+  before launch is done"): one close to project-1's item would teach the test.
+
+### The cost was Hermes' estimate, about 3× too low
+
+- The owner's OpenRouter dashboard showed $3.29 spent today; the eval's reports said $0.62.
+  `cost_usd` was Hermes' `estimated_cost_usd`, which prices every call at the model's cheapest
+  listed provider (`provider_models_api`): Baidu's weekend deal at $0.0498/$0.1992 per M. OpenRouter
+  spreads the alias over 35 endpoints, most at $0.10–0.30 in and $0.60–1.20 out. Caching isn't the
+  gap: every endpoint caches and cache reads are cheap everywhere.
+- The eval shared her OpenRouter key. The owner made the eval its own key ($10 daily limit), in the
+  eval profile's `.env` only. `run.py` reads the key's spend (`/api/v1/key`) before each trial and
+  after, settled (two reads 5 s apart agree); the difference is `cost_usd`, the cap counts it, and
+  Hermes' figure stays as `estimated_cost_usd`. If the key can't be read the row says
+  `cost_source: estimate`. Each run's setup records `cost_source: openrouter key`.
+- Code review (fifth, owner's yes) fixed: the `sources/` rule counted any dead link gone anywhere,
+  so it now allows a new `sources/<item>` link only in place of a dead `inbox/<item>`; the settle
+  wait; `export` in `.env`. Not changed: the $5 cap (a full run is about $1.30 billed), and a trial
+  that crashes after its calls records no cost (the key's limit still holds).
+- Costs before `2026-11-22T2018` are estimates: the 2026-11-21 and 2026-11-22 runs about 3× low.
+
+### Smoke 5 `2026-11-22T2018-7c38a7e` (brain `bb964ae`: the `projects/` row; × 5)
+
+- 30 of 30: project-1 5 of 5 (was 2 of 5), project-2, not-a-rule-1 to 3 and decision-2 5 of 5. The
+  wider row didn't pull topic facts into project notes.
+- First billed run: $0.249 billed against $0.074 estimated (3.4×). The trials sum to $0.2487; the
+  key's total moved $0.2502, so the settle wait leaves under 1% unattributed.

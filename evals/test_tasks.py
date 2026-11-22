@@ -38,7 +38,7 @@ class TasksTest(unittest.TestCase):
         for t in TASKS:
             with self.subTest(task=t["id"]):
                 self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page",
-                                           "strip", "remove_text", "plant", "contradict"}, set(t))
+                                           "strip", "remove_text", "plant", "contradict", "replaces"}, set(t))
                 e = t["expect"]
                 self.assertTrue(e == "ask" or (isinstance(e, dict) and set(e) <= FOLDERS
                                                and all(isinstance(n, int) and n > 0 for n in e.values())))
@@ -57,6 +57,10 @@ class TasksTest(unittest.TestCase):
                 if "contradict" in t:
                     self.assertEqual(len(t["contradict"]), 2)
                     self.assertTrue(set(t["contradict"]) <= {f["path"] for f in t.get("plant", [])})
+                for f, want in t.get("replaces", {}).items():
+                    self.assertRegex(f, r"^decisions/[^/]+\.md$")
+                    self.assertIn(want, ("superseded", "amended", "ask"))
+                    self.assertTrue(isinstance(e, dict) and e.get("decisions"), "a replacement files a decision")
                 for item in t.get("items", []):
                     # The brain's evals/ never reaches the copy, so an item from there would be missing.
                     self.assertTrue(item.startswith("telma:") or item.startswith(("sources/", "inbox/"))

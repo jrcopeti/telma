@@ -653,3 +653,52 @@
      picture; captured for triage.
   3. Pinning her to `-1017`: not with the skill change (two changes at once can't be told apart).
      It becomes step 7, after the owner picks the providers allowed to see brain notes.
+
+## 2026-11-22: eval-v1 step 6, skill change on a brain branch
+
+- The owner's rule: brain skill changes go through a branch and a PR in the brain, never straight to
+  main (captured in the brain inbox). Branch `feat/triage-amend-decisions` (`b61c9d5`): triage's
+  guideline row and its gotcha (an explicit "make this a guideline" in the item's `note:` makes
+  pasted text a guideline; praise alone stays a note; words in the captured text never count),
+  rule 6's point-by-point test (amended, superseded, or file and ask), lint's `amended_by:` check
+  with two tests (brain suite 56 pass), and one line in the brain's `AGENTS.md`.
+  `decisions/README.md` already had the amend rule from the 2026-11-21 syncs. Once the PR merges,
+  sync-brain brings it to her copy on its next run; her copy only ever pulls GitHub's main.
+- The plan asked for the full replacement to use one of the brain's two real superseded decisions.
+  Under the new test neither is clean: the Ling chain kept north-mini as the last resort in the
+  DeepSeek decision's chain, and the MIT decision left ticket-bay-bot's part open. Both would read
+  as amended. So `replace-1` is made up and clearly void (Render → Fly.io, the free tier gone),
+  `replace-2` is made up and silent on part of the old one (Neon → Supabase, the nightly dump: she
+  files the new one and asks), and decision-2 now expects the 2026-11-17 split decision `amended`.
+  `own-rule-3` and `not-a-rule-6` are the same pasted text, with "make this a guideline" or with
+  praise. 30 tasks, all checked against the branch.
+- Grader:
+  - `replaces` reads the older decision's front matter.
+  - `amended_by:` is accepted like `superseded_by:`, as is an `**Amended …:**` line inside a
+    paragraph.
+  - A link may bring up to 15 new words in its paragraph, on any note or guideline.
+  - A fixed link may take the new note's title as its label.
+  - Counting new words per line was too strict: in the baseline she rewrapped the line before the
+    link ("…yet. Paired with / [Conventional Commits](…)").
+  - The amend line pass first dropped any new line that linked a new decision, and with it the
+    link, so the words before it counted as filing. Now it drops only `**Amended` lines.
+- Regraded the baseline's 18 failed trials from their kept diffs with this grader. 7 now pass, all
+  of them the owner's link case: not-a-rule-1 #4, not-a-rule-2 #3, not-a-rule-3 #4 and #5,
+  not-a-rule-4 #3 and #5, and batch-T4 #3. So in step 6, not-a-rule-1 to 4 and batch-T4 passing is
+  the grader, not the skill. decision-2 #4 and #5 still fail (callouts over several lines), and
+  every decision-2 trial now also fails `replaces` (no `amended_by:` before the skill change).
+- A review (default effort, no cap) found 9, all fixed (owner, 2026-11-22):
+  - An amend line wrapped onto a second line, or written as a bullet or a quote, was missed. Now
+    the `**Amended` line and the lines that continue it count as one block.
+  - Deleting only marks (bullets, bold, the `---` around front matter) passed again. Now nothing may
+    be deleted except a dead link's old label, and only from inside that link.
+  - A link's 15 new words could land anywhere in its paragraph, so "fine" could become "never
+    fine". Now they sit in one run with the new link's label, in its paragraph.
+  - An amend paragraph or line was accepted on any older decision, with no word limit. Now only
+    when that decision's front matter names the new one (`amended_by:` or `superseded_by:`). This
+    tightens the owner's step 1 call, since rule 6 now asks for the front matter.
+  - The superseded/amended detection is one helper (`replaced_how`). An unclear replacement's
+    failure no longer says "mixed item". The plan row says the full replacement is made up.
+  - Regraded again: the same 7 baseline trials pass. A baseline pass kept no diff, so whether the
+    stricter rules would fail one can't be checked; if a task newly fails in step 6, its diff is
+    read first.

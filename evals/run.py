@@ -183,10 +183,15 @@ EVAL_NOTES = ["decisions/2026-11-20-telma-eval-design.md",
               "sources/2026-11-20-telma-eval-design-cost-speed-failures.md",
               "sources/2026-11-20-telma-eval-private-rows-in-public-history-accepted.md",
               "sources/2026-11-20-telma-eval-task-set-results-and-review-decisions.md",
-              "sources/2026-11-21-telma-eval-amended-older-decision-allowed.md"]
+              "sources/2026-11-21-telma-eval-amended-older-decision-allowed.md",
+              "decisions/2026-11-22-brain-skill-changes-go-through-a-pr.md",
+              "sources/2026-11-22-brain-skill-changes-go-through-a-pr-never-straight-to-main.md"]
 # A note linked from elsewhere loses only its words about the eval, in the copy.
 EVAL_REWORD = {"sources/2026-11-21-hermes-gateway-one-process-per-user-file-state-guard.md":
-               ("found in the Telma eval (eval-v1 step 5, 2026-11-21)", "found on 2026-11-21")}
+               [("found in the Telma eval (eval-v1 step 5, 2026-11-21)", "found on 2026-11-21")],
+               "notes/telma-model-comparisons-and-costs.md": [("(telma\nrepo, eval-v1 step 7)", "(telma\nrepo)")],
+               "sources/2026-11-22-deepseek-v4-1-flash-price-depends-on-the-openrouter-provider.md":
+               [("(telma repo, eval-v1 step 7)", "(telma repo)")]}
 # What still gives the eval away once they're gone.
 EVAL_WORDS = re.compile(r"telma[ -]eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
 
@@ -197,9 +202,12 @@ def strip_eval_notes(pinned):
     index = pinned / "index.md"
     for f in EVAL_NOTES:
         (pinned / f).unlink(missing_ok=True)
-    for f, (old, new) in EVAL_REWORD.items():
+    for f, pairs in EVAL_REWORD.items():
         if (pinned / f).is_file():
-            (pinned / f).write_text((pinned / f).read_text().replace(old, new))
+            text = (pinned / f).read_text()
+            for old, new in pairs:
+                text = text.replace(old, new)
+            (pinned / f).write_text(text)
     index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in EVAL_NOTES)))
 
 

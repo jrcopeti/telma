@@ -771,3 +771,20 @@
     `EVAL_NOTES` (kept: small and visible; the leak check stops a run when it goes stale). The ask
     path's open question stays in the new decision and her report.
   - Regraded: baseline 7, smoke replace-1 both pass, as before.
+
+### Smoke run `2026-11-22T1204-68d38e4` (brain `938d552`, 10 tasks × 2)
+
+- 17 pass, 3 fail, $0.06, 20 min. 2 of 2: own-rule-3, not-a-rule-6, replace-1, decision-2,
+  lint-1, not-a-rule-3, T1, T4.
+- own-rule-1 now files the guideline both times (the `note:` wording works). #2 failed on the
+  brain: lint found the DeepSeek price contradiction (gotchas vs comparisons note) and wrote a
+  three-line banner. The fix had been captured at 09:52 UTC, after the 09:00 triage. With the
+  owner's yes her brain-triage job ran by hand (`hermes cron run`), filed it, and both notes now
+  agree (brain `f68e38b`, lint clean). main is merged into the branch (`3e81db9`).
+- replace-2 0 of 2: she decided instead of asking. #1 amended ("the Postgres engine stands"); #2
+  superseded ("Supabase's own backups replace the dump"). Rule 6 already says ask when the item
+  doesn't say; she infers. Whether to tighten rule 6 is the owner's call.
+- Her triage filed the owner's PR rule as a decision whose context names eval-v1 step 6, and the
+  price fix names step 7. `EVAL_NOTES` now strips the PR-rule decision and its source, and
+  `EVAL_REWORD` drops "eval-v1 step 7" from the comparisons note and its source. The leak check
+  caught both before a run.

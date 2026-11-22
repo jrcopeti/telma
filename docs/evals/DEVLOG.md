@@ -795,3 +795,13 @@
   `f0a09cc`; the brain's `AGENTS.md` says "unsure which, amend". replace-2 expects `amended`; the
   grader's `replaces: ask` path and its tests are gone (126 pass). Next, in this step: the
   mixed-item ask (triage's last gotcha), after a smoke of own-rule-1 and replace-2 at k = 5.
+
+### Smoke run `2026-11-22T1252-7d5bc29` (brain `f0a09cc`, own-rule-1 and replace-2 × 5)
+
+- own-rule-1 5 of 5: the `note:` fix holds on the owner's real note.
+- replace-2 1 of 5. #1, #4 and #5 superseded, reading "Supabase keeps its own daily backups" as
+  replacing the dump: a fair reading of the line added for the ask case. #2 amended correctly but
+  changed the old "Why" line ("fits" → "fit"); #1 also put a database line in the example project
+  note. Both are hers, and the grader stays strict on them. The capture goes back to the silent
+  version (in the first smoke run she amended it 2 of 2, "the nightly dump stands"), which is what
+  "never supersede on a guess" should be tested on.

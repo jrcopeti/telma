@@ -6,4 +6,5 @@ note: "decided today"
 fetch: text-only
 ---
 
-Decision: the example app's database moves from Neon to Supabase. Why: Neon's pricing changed.
+Decision: the example app's database moves from Neon to Supabase, which keeps its own daily backups.
+Why: Neon's pricing changed.

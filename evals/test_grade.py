@@ -407,6 +407,18 @@ class GradeTest(unittest.TestCase):
                 self.assertEqual(r["replaces"], ok, r["detail"])
                 self.assertEqual(r["pass"], ok, r["detail"])
 
+    def test_a_replaced_decisions_index_line_may_change(self):
+        index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
+        self.before.write("index.md", index)
+        superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+        grade_as = self.replacement(superseded, new_fm="supersedes: decisions/old.md")
+        self.after.write("index.md", index.replace("— Render", "— superseded: Render") + "- [New](decisions/new.md) — Fly.io\n")
+        r = grade_as("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+        # Not when it wasn't marked replaced, or the line moved section.
+        self.after.write("decisions/old.md", self.before.root.joinpath("decisions/old.md").read_text())
+        self.assertFalse(grade_as("ask")["index"])
+
     def test_amended_needs_amends_back_and_reads_a_list(self):
         amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")
         r = self.replacement(amended, new_fm="supersedes: decisions/other.md")("amended")

@@ -389,7 +389,7 @@
   "expect": {
    "decisions": 1
   },
-  "why": "a new decision silent on part of the old one (the nightly dump): she files it and asks",
+  "why": "a new decision that may make part of the old one moot (Supabase's own backups vs the nightly dump) without saying: she files it and asks",
   "plant": [
    {
     "path": "decisions/2026-11-12-example-app-database-on-neon.md",

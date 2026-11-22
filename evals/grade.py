@@ -321,19 +321,21 @@ def entries(lines):
     return out
 
 
-def check_index(before, after, filed, out):
+def check_index(before, after, filed, out, replaced=()):
+    """Index entries change only for notes she filed, and for older decisions rule 6 marked
+    replaced (`replaced`): their line may say so ("superseded: …"), in its own section."""
     old = before.get("index.md", b"").decode(errors="replace").splitlines()
     new = after.get("index.md", b"").decode(errors="replace").splitlines()
     eo, en = entries(old), entries(new)
     added, removed = en - eo, eo - en
-    target = lambda line: next((k for k in filed if f"({k})" in line), None)
+    target = lambda line: next((k for k in [*filed, *replaced] if f"({k})" in line), None)
     problems = [f"heading removed: {h}" for h in old if h.startswith("#") and h not in new]
     for (line, section), n in added.items():
         k = target(line)
         if k is None or section != k.split("/")[0]:
             problems.append(f"entry added or moved without a filed note in its section: {line}")
     problems += [f"entry removed for a note she didn't file: {line}" for (line, _) in removed if target(line) is None]
-    for k in filed:
+    for k in [*filed, *replaced]:
         lines = sum(n for (line, _), n in en.items() if f"({k})" in line)
         if lines > 1 or (k not in before and lines == 0):
             problems.append(f"{k} has {lines} index entries")
@@ -381,7 +383,9 @@ def check_triage(task, before, after, report, out):
     if not out["inbox"]:
         out["detail"].append(f"inbox holds {inbox}")
 
-    check_index(before, after, filed, out)
+    replaced = [k for k in before if k in after and before[k] != after[k]
+                and replaced_how(k, after[k].decode(errors="replace"), before, after)]
+    check_index(before, after, filed, out, replaced)
 
     allowed = {"index.md", *filed, *(f"{d}/{i}" for i in items for d in ("inbox", "sources"))}
     other = [k for k in diff if k not in allowed]

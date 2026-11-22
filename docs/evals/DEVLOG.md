@@ -724,3 +724,21 @@
   - Grader tests: 119 pass. Regraded again: the same 7.
   - Skipped: an amended-and-superseded decision isn't flagged; CRLF front matter; stricter
     grading against the baseline (already above).
+
+### Smoke run `2026-11-22T1100-d8c572e` (brain `4f3b50b`, 9 tasks × 2)
+
+- 11 pass, 7 fail, $0.05, 23 min. T1, T4, decision-2 (amended both times), not-a-rule-3 and
+  not-a-rule-6 pass both trials.
+- own-rule-1 0 of 2, own-rule-3 1 of 2: the review's guard backfired. Every item says
+  `captured_by: agent`, so she read "make this a guideline" as possibly an agent's words and filed a
+  note. Capture writes the user's words into `note:` verbatim, so triage now reads it that way;
+  only a `note:` that repeats the captured text doesn't count (brain `46cf8b7`).
+- replace-1 0 of 2, grader: she superseded correctly and updated the old decision's index line
+  ("superseded: …"), as the real brain's index does. The index check now lets a decision rule 6
+  marked replaced change its line, in its own section. Regraded, both pass.
+- replace-2 0 of 2, task: she amended ("the provider moved; the nightly S3 dump stands"), a fair
+  reading, since nothing in the capture made the dump doubtful. The capture now says Supabase
+  keeps its own daily backups, so whether the dump is still needed is unclear.
+- She twice called the item "the rule-look-alike the eval flags". The copy holds the owner's
+  decisions about the eval (eval design, private rows, the amend decision listing step 6's three
+  replacement tasks). Step 4 removed the brain's `evals/` folder, not these. Open, see PLAN.

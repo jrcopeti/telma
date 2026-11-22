@@ -603,7 +603,7 @@
   the eval-design decision, the showcase intent), which look like part of step 6. A `--brain-ref`
   run is a branch run, so step 6 compares with it by `--since`.
 
-### The baseline: run `2026-11-21T2308-498f052`
+### The baseline: run `2026-11-21T2308-498f052-baseline`
 
 - 130 trials on the fixed harness, brain `169247b`: **FAIL**, 16 of 26 tasks pass^5, 112 pass, 18
   fail, no errors; $0.31, 132 min. No refused write and no guard warning in the eval's logs; her
@@ -638,3 +638,6 @@
   Left: the guard off (as before); the reseed adds and overwrites but never removes a file; and
   `state.db` and sessions build up in the eval home across trials, as they did in the old profile
   in every earlier run, so a chat trial could search an earlier trial's session.
+- The baseline's files carry `-baseline` in their name (the owner's call): `results/` and
+  `results/private/`, the `.jsonl`, the `.md` and the diffs folder, with the rows' diff links
+  renamed to match. `report.py` reads the name only to sort and title, so it still finds the run.

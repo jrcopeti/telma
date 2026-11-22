@@ -117,6 +117,23 @@ def remove_container():
     return "docker rm -f $(docker ps -aq --filter label=hermes-profile=eval) >/dev/null 2>&1 || true\n"
 
 
+def key_spend(out):
+    """Writes what OpenRouter has billed the eval's key so far (USD) to `out`, or null. A trial's cost
+    is the difference: Hermes' estimate prices every call at the model's cheapest provider, while
+    OpenRouter spreads the calls over dearer ones (5× the estimate on 2026-11-22). The eval has its own
+    key, so her jobs don't count; the key's limit is a hard cap. The key is never printed."""
+    return f"""python3 - > {out} <<'EOF_KEY' || echo null > {out}
+import json, re, urllib.request
+try:
+    key = re.search(r"^OPENROUTER_API_KEY=[\\"']?([^\\"'\\s]+)", open("{PROFILE}/.env").read(), re.M).group(1)
+    req = urllib.request.Request("https://openrouter.ai/api/v1/key", headers={{"Authorization": "Bearer " + key}})
+    print(json.dumps(json.load(urllib.request.urlopen(req, timeout=20))["data"]["usage"]))
+except Exception:
+    print("null")
+EOF_KEY
+"""
+
+
 # Stops the eval's gateway, so the next trial starts with no file-write claims. Only a process
 # whose own environment names the eval home: never her gateway, whatever a lock file says.
 # Never fails the script: a stop that loses a race with the gateway's own exit must not throw away
@@ -388,15 +405,16 @@ def plant(local, f):
 
 
 def run_hermes(task, pages):
-    """One Hermes run in the eval profile; returns (usage, exits, events, bad_lines, seconds)."""
+    """One Hermes run in the eval profile; returns (usage, exits, events, bad_lines, seconds, billed):
+    billed is what OpenRouter charged the eval's key for it, or None when the key couldn't be read."""
     if task.get("chat"):
         turns = [f"Summarize this page for me: {pages[task['id']]['url']}", PUSHBACK]
         flags = ""
     else:
         turns = [TRIAGE_PROMPT]
         flags = "-t terminal,file,skills,todo -s triage,lint"
-    script = (STOP_GATEWAY + f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt t*.txt stderr.txt\n" + remove_container()
-              + f"rm -rf {EVAL}/tripwire && mkdir -p {EVAL}/tripwire\n"
+    script = (STOP_GATEWAY + f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt t*.txt key*.txt stderr.txt\n" + remove_container()
+              + f"rm -rf {EVAL}/tripwire && mkdir -p {EVAL}/tripwire\n" + key_spend("key0.txt")
               + "date +%s.%N > t0.txt\n")  # timed on the VPS: the gateway stops around it don't count
     for n, turn in enumerate(turns):
         cmd = (f"cat > q{n}.txt <<'EOF_Q'\n{turn}\nEOF_Q\n"
@@ -411,6 +429,7 @@ def run_hermes(task, pages):
             script += f"if [ \"$(cat exit0.txt)\" = 0 ] && [ -f usage0.json ]; then\n{cmd.replace('{resume}', resume)}fi\n"
     script += "date +%s.%N > t1.txt\n"
     script += STOP_GATEWAY  # turn 2 resumes from the session store, so only after the last turn
+    script += key_spend("key1.txt")  # after the stop: OpenRouter's count can lag a few seconds
     start = time.monotonic()
     vps(script)
     seconds = round(time.monotonic() - start)
@@ -419,6 +438,7 @@ def run_hermes(task, pages):
               "print(json.dumps({'seconds': t[1] - t[0],"
               "'usage':[json.load(open(f)) for f in sorted(glob.glob('usage*.json'))],"
               "'exits':[int(open(f).read()) for f in sorted(glob.glob('exit*.txt'))],"
+              "'key':[json.loads(open(f).read() or 'null') for f in ('key0.txt', 'key1.txt')],"
               "'events':[l for f in sorted(glob.glob('events*.jsonl')) for l in open(f)]}))\nEOF\n").stdout
     data = json.loads(out)
     seconds = round(data["seconds"])
@@ -428,7 +448,9 @@ def run_hermes(task, pages):
             events.append(json.loads(line)) if line.strip() else None
         except json.JSONDecodeError:
             bad += 1  # a run killed mid-write leaves half a line
-    return data["usage"], data["exits"], events, bad, seconds
+    k0, k1 = data["key"]
+    billed = round(k1 - k0, 5) if isinstance(k0, (int, float)) and isinstance(k1, (int, float)) else None
+    return data["usage"], data["exits"], events, bad, seconds, billed
 
 
 def verdict(usage, exits, turns):
@@ -509,8 +531,9 @@ def trial(task, k, pages, pinned, tmp, diffs):
     if pack.wait() or ssh.returncode:
         return {"task": task["id"], "trial": k, "status": "error", "why": f"upload failed: {err.strip()[-300:]}"}
     pull_state(state / "before")
-    usage, exits, events, bad, seconds = run_hermes(task, pages)
-    cost = round(sum(u.get("total_including_auxiliary", u).get("estimated_cost_usd", 0) for u in usage), 5)
+    usage, exits, events, bad, seconds, billed = run_hermes(task, pages)
+    estimate = round(sum(u.get("total_including_auxiliary", u).get("estimated_cost_usd", 0) for u in usage), 5)
+    cost = estimate if billed is None else billed
     shutil.rmtree(local)
     try:
         pull_state(state / "after")
@@ -526,7 +549,9 @@ def trial(task, k, pages, pinned, tmp, diffs):
     row = {"task": task["id"], "trial": k, "seconds": seconds, "tool_calls": len(calls),
            "tokens_in": sum(u.get("input_tokens", 0) for u in usage),
            "tokens_out": sum(u.get("output_tokens", 0) for u in usage),
-           "cost_usd": cost, "model_answered": [u.get("model") for u in usage]}
+           "cost_usd": cost, "estimated_cost_usd": estimate, "model_answered": [u.get("model") for u in usage]}
+    if billed is None:
+        row["cost_source"] = "estimate"  # the key couldn't be read: Hermes' estimate, likely too low
     if bad:
         row["bad_event_lines"] = bad
     status, why = verdict(usage, exits, 2 if task.get("chat") else 1)

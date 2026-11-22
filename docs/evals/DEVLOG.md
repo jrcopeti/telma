@@ -573,7 +573,7 @@
 - The eval has its own Hermes home, `~/eval/home`, with the `eval` profile inside it (containers
   keep the `hermes-profile=eval` label; a root home would label them `default`, like her
   sandbox) and its own `HERMES_GATEWAY_LOCK_DIR`, so `hermes chat` starts a gateway of its own
-  instead of attaching to hers. Seeded once from the step-2 profile (its `.env`, hooks allowlist,
+  instead of attaching to hers. Seeded from the step-2 profile (its `.env`, hooks allowlist,
   plugins), then synced from hers as before.
 - The harness stops that gateway before and after every trial, only a process whose own
   environment names the eval home.
@@ -583,7 +583,8 @@
   overwrite.
 - SSH keepalive on every call: the run hung 22 minutes on a dead connection before.
 - Checked on the VPS: her gateway's PID, her sandbox container and her lock files unchanged; eval
-  sessions log only under `~/eval/home`. The old `eval` profile under her home stays, unused.
+  sessions log only under `~/eval/home`. The old `eval` profile under her home stays: no trial
+  runs there, but it is the seed, the eval's `.env` with its OpenRouter key.
 - Smoke run on the fix (`2026-11-21T2242`, `--only not-a-rule-2 batch-T4 decision-1 -k 4`, 12
   trials, $0.04, 17 min): no refused write and no guard warning in the eval's logs; her gateway's
   log unchanged. decision-1, the task the guard hit hardest, passed 4 of 4. The three fails are
@@ -593,8 +594,8 @@
 - A review (default effort, no cap) found 10; 4 fixed: the gateway stop can't fail a trial that
   already ran or skip the cleanup after it, waits after SIGKILL too, also reads the PID from the
   lock dir's record; and the profile is reseeded every run, so a rotated key or a half-done first
-  copy is repaired. Not real: "the stop never finds or matches the gateway" (20 gateway starts and
-  20 stops logged, one per trial). Left: mounting the copy at the same host and container path to
+  copy is repaired. Not real: "the stop never finds or matches the gateway": since the home was rebuilt, 20
+  gateway starts and 20 stops, one per trial of the two smoke runs (8 and 12). Left: mounting the copy at the same host and container path to
   keep the guard on (the trial prompt names `/home/agent/brain`, her live brain on the host), and
   three cleanups with no failure today.
 - The rerun pins `--brain-ref 169247b`, the second run's brain. The brain's head has moved since:
@@ -624,8 +625,16 @@
   | A real contradiction in the brain at `169247b`, still in its head: the gotchas note calls the dated `-1017` snapshot cheaper than the alias, the comparisons note (2026-11-21) the reverse. She flagged it with a callout over several lines, and only lines naming a file count as a banner. | project-2 #2 | brain; the owner picks the side |
   | Skipped the balance capture as "no insight". | project-1 #4 | hers |
 
-- So of 18 failed trials, 6 are clearly hers (own-rule-1, project-1), 3 are step 6's amend case, and
-  9 come from the grader, a task or the brain.
-- For step 6: compare with `--since evals/results/2026-11-21T2308-498f052.jsonl`. `report.py`
-  skips a `--brain-ref` run as "last full run", so left alone it would pick `2026-11-21T1914`, the
-  confounded run.
+- So of 18 failed trials, 5 are clearly hers (own-rule-1, project-1), 3 are step 6's amend case, and
+  10 come from the grader, a task or the brain.
+- `report.py` skipped every `--brain-ref` run as "last full run", so left alone step 6 would have
+  compared with `2026-11-21T1914`, the confounded run. Now it skips only a run on a brain branch;
+  one pinned to a commit hash, like this baseline, counts.
+- Time per trial went from 48 s to 61 s. Part of that was the harness: each trial now starts its own
+  gateway, and the timer also covered stopping it. From here the time is taken on the VPS around
+  the Hermes turns only (the gateway's start is still inside it).
+- A review (default effort, no cap) found 10; 6 fixed (the baseline pick, the timing, leftovers of
+  an interrupted trial stopped before its folder is replaced, and three wrong lines in this log).
+  Left: the guard off (as before); the reseed adds and overwrites but never removes a file; and
+  `state.db` and sessions build up in the eval home across trials, as they did in the old profile
+  in every earlier run, so a chat trial could search an earlier trial's session.

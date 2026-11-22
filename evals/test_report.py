@@ -224,6 +224,13 @@ class FilesTest(unittest.TestCase):
         text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
         self.assertIn("Compared with 2026-11-01T1000-aaa", text)
 
+    def test_a_run_pinned_to_a_commit_is_a_baseline(self):
+        pinned = [{**r, "setup": {**SETUP, "brain_ref": "169247b"}} for r in run({"a": ["pass"] * 3})]
+        self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))
+        self.put("2026-11-02T1000-bbb.jsonl", pinned)
+        text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
+        self.assertIn("Compared with 2026-11-02T1000-bbb", text)
+
     def test_a_kept_diff_is_linked(self):
         rows = run({"a": ["fail"]}, k=1)
         rows[0].update(why="filed notes/x.md", diff="2026-11-02T1000-bbb/a-1.diff")

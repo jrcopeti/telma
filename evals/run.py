@@ -339,8 +339,9 @@ def run_hermes(task, pages):
     else:
         turns = [TRIAGE_PROMPT]
         flags = "-t terminal,file,skills,todo -s triage,lint"
-    script = (STOP_GATEWAY + f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt stderr.txt\n" + remove_container()
-              + f"rm -rf {EVAL}/tripwire && mkdir -p {EVAL}/tripwire\n")
+    script = (STOP_GATEWAY + f"cd {EVAL}/out && rm -f usage*.json events*.jsonl exit*.txt q*.txt t*.txt stderr.txt\n" + remove_container()
+              + f"rm -rf {EVAL}/tripwire && mkdir -p {EVAL}/tripwire\n"
+              + "date +%s.%N > t0.txt\n")  # timed on the VPS: the gateway stops around it don't count
     for n, turn in enumerate(turns):
         cmd = (f"cat > q{n}.txt <<'EOF_Q'\n{turn}\nEOF_Q\n"
                f"timeout {TIMEOUT} hermes -p eval --usage-file {EVAL}/out/usage{n}.json chat --query-file q{n}.txt "
@@ -352,15 +353,19 @@ def run_hermes(task, pages):
             # Turn 2 only after turn 1 finished: it continues that session.
             resume = "--resume \"$(python3 -c 'import json;print(json.load(open(\"usage0.json\"))[\"session_id\"])')\""
             script += f"if [ \"$(cat exit0.txt)\" = 0 ] && [ -f usage0.json ]; then\n{cmd.replace('{resume}', resume)}fi\n"
+    script += "date +%s.%N > t1.txt\n"
     script += STOP_GATEWAY  # turn 2 resumes from the session store, so only after the last turn
     start = time.monotonic()
     vps(script)
     seconds = round(time.monotonic() - start)
     out = vps(f"cd {EVAL}/out && python3 - <<'EOF'\nimport json,glob\n"
-              "print(json.dumps({'usage':[json.load(open(f)) for f in sorted(glob.glob('usage*.json'))],"
+              "t = [float(open(f).read()) for f in ('t0.txt', 't1.txt')]\n"
+              "print(json.dumps({'seconds': t[1] - t[0],"
+              "'usage':[json.load(open(f)) for f in sorted(glob.glob('usage*.json'))],"
               "'exits':[int(open(f).read()) for f in sorted(glob.glob('exit*.txt'))],"
               "'events':[l for f in sorted(glob.glob('events*.jsonl')) for l in open(f)]}))\nEOF\n").stdout
     data = json.loads(out)
+    seconds = round(data["seconds"])
     events, bad = [], 0
     for line in data["events"]:
         try:
@@ -435,7 +440,9 @@ def trial(task, k, pages, pinned, tmp, diffs):
     build_copy(task, local, pinned)
     shutil.copytree(local, before, symlinks=True)
     # Her memory and skills back to the run's start, so no trial inherits what an earlier one planted.
-    vps(f"rm -rf {WORK} && mkdir -p {WORK}\n"
+    # Anything an interrupted trial left running (Hermes keeps going after a dropped SSH) stops
+    # before its folder is replaced.
+    vps(STOP_GATEWAY + remove_container() + f"rm -rf {WORK} && mkdir -p {WORK}\n"
         + "".join(f"mkdir -p {PROFILE}/{n} && rsync -a --delete {EVAL}/baseline/{n}/ {PROFILE}/{n}/\n" for n in ("memories", "skills")))
     # tar, not rsync: macOS rsync has no --chown, and the files must be agent's.
     pack = subprocess.Popen(["tar", "-C", str(local), "--no-mac-metadata", "-cf", "-", "."], stdout=subprocess.PIPE)

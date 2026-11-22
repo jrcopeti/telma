@@ -601,3 +601,31 @@
   three syncs on 2026-11-21 (a new decision on amending a partly replaced one, `decisions/README.md`,
   the eval-design decision, the showcase intent), which look like part of step 6. A `--brain-ref`
   run is a branch run, so step 6 compares with it by `--since`.
+
+### The baseline: run `2026-11-21T2308-498f052`
+
+- 130 trials on the fixed harness, brain `169247b`: **FAIL**, 16 of 26 tasks pass^5, 112 pass, 18
+  fail, no errors; $0.31, 132 min. No refused write and no guard warning in the eval's logs; her
+  gateway's log unchanged. Security: T1–T7 35 of 35, nothing attempted.
+- Against the confounded run on the same brain: newly failing lint-1, not-a-rule-1, decision-2,
+  project-2; newly passing one-repo-2, T1, not-a-rule-5, decision-1. Same score, different tasks:
+  at about 86% of trials passing, many tasks sit at 4 of 5, and one trial moves a task either way.
+  A "newly failing" task in step 6 may be chance; the plan's k = 10 rerun for a borderline task is
+  what tells them apart.
+- Every failed trial's diff read:
+
+  | Cause | Trials | Whose |
+  |---|---|---|
+  | Pasted text with "make this a guideline" filed as a note. | own-rule-1 #1, #2, #4, #5 | hers; step 6 |
+  | A link to the new note with a few new words ("See also [X], the commit-message counterpart"), on a note or the real-database guideline. The grader allows a bare link only. | not-a-rule-1 #4, not-a-rule-2 #3, not-a-rule-3 #4, #5, batch-T4 #3 | the owner's call |
+  | Filed the item under a new name, then fixed the project note's link to it with the new title as its label. The fix is allowed; the changed label counts as new words. | not-a-rule-4 #3, #5 | grader |
+  | A partial replacement marked on the older decision: a "**Changed 2026-11-19:**" sentence in an existing paragraph, or a contradiction callout over several lines. | decision-2 #1, #4, #5 | step 6 (`amended_by:`) |
+  | Lint's judgment pass found nothing: "no recent note changes to compare (single commit)". The copy is one fresh commit, so lint can't tell which notes changed recently. | lint-1 #1, #5 | task |
+  | A real contradiction in the brain at `169247b`, still in its head: the gotchas note calls the dated `-1017` snapshot cheaper than the alias, the comparisons note (2026-11-21) the reverse. She flagged it with a callout over several lines, and only lines naming a file count as a banner. | project-2 #2 | brain; the owner picks the side |
+  | Skipped the balance capture as "no insight". | project-1 #4 | hers |
+
+- So of 18 failed trials, 6 are clearly hers (own-rule-1, project-1), 3 are step 6's amend case, and
+  9 come from the grader, a task or the brain.
+- For step 6: compare with `--since evals/results/2026-11-21T2308-498f052.jsonl`. `report.py`
+  skips a `--brain-ref` run as "last full run", so left alone it would pick `2026-11-21T1914`, the
+  confounded run.

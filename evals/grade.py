@@ -162,7 +162,7 @@ def without_amendments(path, old, new, before, after):
     while i < len(lines):
         j = i + 1
         if AMEND_LINE.match(lines[i]):
-            while j < len(lines) and lines[j].strip() and not BLOCK_START.match(lines[j]):
+            while j < len(lines) and lines[j].strip() and not BLOCK_START.match(lines[j]) and lines[j] not in kept:
                 j += 1
             if amends("\n".join(lines[i:j])):
                 i = j
@@ -182,10 +182,41 @@ def field(fm, name):
     return next((l.split(":", 1)[1].strip().strip("'\"") for l in fm if l.startswith(name + ":")), None)
 
 
+def values(fm, name):
+    """A front-matter field as a list: one value, `[a, b]`, or `- ` lines under it."""
+    for i, line in enumerate(fm):
+        if not line.startswith(name + ":"):
+            continue
+        v = line.split(":", 1)[1].strip()
+        if v.startswith("["):
+            return [x.strip().strip("'\"") for x in v.strip("[]").split(",") if x.strip()]
+        if v:
+            return [v.strip("'\"")]
+        return [m.group(1).strip().strip("'\"") for m in map(re.compile(r"\s*-\s+(.+)").match, fm[i + 1:])
+                if m] if fm[i + 1:] and re.match(r"\s*-\s", fm[i + 1]) else []
+    return []
+
+
+def without_field(fm, names):
+    """Front matter without these fields, a field's `- ` lines included."""
+    out, skip = [], False
+    for line in fm:
+        if skip and re.match(r"\s*-\s", line):
+            continue
+        skip = line.split(":", 1)[0] in names
+        if not skip:
+            out.append(line)
+    return out
+
+
+def as_path(path, v):
+    """A front-matter path, from the brain's root or the note's folder, as both readings."""
+    return {link_target(path, v), link_target(path, "/" + v)}
+
+
 def by_new_decision(path, by, before, after):
-    """True when a front-matter field like `superseded_by:` names a decision filed in this trial,
-    from the brain's root or the decision's folder."""
-    return bool(by) and any(new_decision(path, t, before, after) for t in (by, "/" + by))
+    """The decisions filed in this trial that a front-matter field like `amended_by:` names."""
+    return {t for v in by for t in as_path(path, v) if t and t.startswith("decisions/") and t in after and t not in before}
 
 
 def replaced_how(path, text, before, after):
@@ -195,20 +226,21 @@ def replaced_how(path, text, before, after):
     if not path.startswith("decisions/"):
         return None
     fm = front(text)[0]
-    if field(fm, "status") == "superseded" and by_new_decision(path, field(fm, "superseded_by"), before, after):
+    if field(fm, "status") == "superseded" and by_new_decision(path, values(fm, "superseded_by"), before, after):
         return "superseded"
-    if by_new_decision(path, field(fm, "amended_by"), before, after):
+    if by_new_decision(path, values(fm, "amended_by"), before, after):
         return "amended"
     return None
 
 
-def without_replacing(path, old, new, before, after):
-    """An older decision without the front matter rule 6 sets when it is replaced."""
-    how = replaced_how(path, new, before, after)
+def without_replacing(how, old, new):
+    """An older decision without the front matter rule 6 set when it was replaced (`how`)."""
     if not how:
         return old, new
-    drop = ("status:", "superseded_by:") if how == "superseded" else ("amended_by:",)
-    strip = lambda text: "\n".join(l for l in front(text)[0] if not l.startswith(drop)) + "\n" + front(text)[1]
+    drop = {"status", "superseded_by"} if how == "superseded" else {"amended_by"}
+    def strip(text):
+        fm, body = front(text)
+        return "\n".join(without_field(fm, drop)) + "\n" + body
     return strip(old), strip(new)
 
 
@@ -224,7 +256,7 @@ def side_edit(path, old, new, before, after):
         return False
     old, new = old.decode(errors="replace"), new.decode(errors="replace")
     replaced = replaced_how(path, new, before, after)
-    old, new = without_replacing(path, old, new, before, after)
+    old, new = without_replacing(replaced, old, new)
     if replaced:
         new = without_amendments(path, old, new, before, after)
     old, new = without_banners(old, path, after), without_banners(new, path, after)
@@ -380,12 +412,19 @@ def check_replaces(task, before, after, out):
     for path, want in task["replaces"].items():
         if path not in before:
             raise ValueError(f"{path} isn't in the brain: the task's replaces and the brain disagree")
-        text = after.get(path, b"").decode(errors="replace")
-        got = replaced_how(path, text, before, after)
-        if got == "amended" and field(front(text)[0], "status") != field(front(before[path].decode(errors="replace"))[0], "status"):
-            got = "changed otherwise"
+        fm, old_fm = front(after.get(path, b"").decode(errors="replace"))[0], front(before[path].decode(errors="replace"))[0]
+        got = replaced_how(path, "---\n" + "\n".join(fm) + "\n---\n", before, after)
+        if got == "amended":
+            # The status kept, and the new decision's `amends:` names this one back.
+            amending = by_new_decision(path, values(fm, "amended_by"), before, after)
+            back = any(path in as_path(n, v) for n in amending
+                       for v in values(front(after[n].decode(errors="replace"))[0], "amends"))
+            if field(fm, "status") != field(old_fm, "status") or not back:
+                got = "amended without its status kept or `amends:` back"
         if got is None:
-            got = "ask" if after.get(path) == before[path] else "changed otherwise"
+            # Left as it was: lint's banner or a link to the new decision may still come.
+            same = path in after and (after[path] == before[path] or side_edit(path, before[path], after[path], before, after))
+            got = "ask" if same else "changed otherwise"
         if got != want:
             problems.append(f"{path}: {got}, expected {want}")
     out["replaces"] = not problems

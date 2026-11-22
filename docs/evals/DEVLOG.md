@@ -702,3 +702,25 @@
   - Regraded again: the same 7 baseline trials pass. A baseline pass kept no diff, so whether the
     stricter rules would fail one can't be checked; if a task newly fails in step 6, its diff is
     read first.
+- Second review, on both PRs (default effort, no cap): 10 on the brain, 9 here. Fixed with the
+  owner's yes:
+  - **Triage:** the "make this a guideline" rule stays, but a `note:` counts only as the owner's
+    own words; one an agent wrote, or one quoting the captured text, never does. A decision's
+    reason alone never keeps it alive in the amend test. The amend line carries its link. On the
+    ask path, the new decision links the old one and says the question is open.
+  - **`AGENTS.md`:** points to rule 6's test.
+  - **Lint:** checks decision links both ways (`amended_by:`/`amends:`, `superseded_by:`/
+    `supersedes:`), reads a list, and requires a decision file as the target (brain suite 59
+    pass).
+  - **Grader:**
+    - "ask" allows the edits `right_home` allows. Lint will likely mark Neon against Supabase,
+      and that banner failed a correct trial.
+    - An amend block stops at the first old line.
+    - `amended_by:` may be a list.
+    - "amended" needs `amends:` back.
+    - `run.py` refuses a task that strips the decision it replaces.
+  - **Tasks:** the praise item is renamed `2026-11-18-feature-flags-are-debt.md`; its name
+    hinted at the answer.
+  - Grader tests: 119 pass. Regraded again: the same 7.
+  - Skipped: an amended-and-superseded decision isn't flagged; CRLF front matter; stricter
+    grading against the baseline (already above).

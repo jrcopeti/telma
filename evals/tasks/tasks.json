@@ -354,7 +354,7 @@
  {
   "id": "not-a-rule-6",
   "items": [
-   "telma:evals/tasks/items/2026-11-19-feature-flags-are-debt-praise.md"
+   "telma:evals/tasks/items/2026-11-18-feature-flags-are-debt.md"
   ],
   "expect": {
    "notes": 1

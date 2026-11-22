@@ -1,6 +1,6 @@
 ---
 source: pasted
-captured_at: 2026-11-19T10:05:00Z
+captured_at: 2026-11-18T17:40:00Z
 captured_by: agent
 note: "great piece, so true"
 fetch: text-only

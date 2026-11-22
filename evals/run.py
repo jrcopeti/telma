@@ -239,7 +239,7 @@ def check_tasks(tasks, pinned):
         problems += [f"{t['id']}: no note {f} to strip" for f in t.get("strip", []) if not (pinned / f).is_file()]
         planted = {f["path"] for f in t.get("plant", [])}
         problems += [f"{t['id']}: no decision {f} to replace" for f in t.get("replaces", {})
-                     if not (pinned / f).is_file() and f not in planted]
+                     if (not (pinned / f).is_file() and f not in planted) or f in t.get("strip", [])]
         for f in t.get("plant", []):
             src = REPO / f["from"].removeprefix("telma:")
             section = "## " + f["path"].split("/")[0].capitalize()

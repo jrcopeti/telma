@@ -385,12 +385,12 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(side_edit(path, old.encode(), new.replace("Two agents.", "Three agents.").encode(), {}, new_file))
         self.assertFalse(side_edit("notes/split.md", old.encode(), new.encode(), {}, new_file))
 
-    def replacement(self, old_after, report=""):
+    def replacement(self, old_after, report="", new_fm="amends: decisions/old.md"):
         """A decision filed from the item that replaces decisions/old.md, which ends as `old_after`."""
         old = "---\ndate: 2026-11-05\nstatus: active\n---\n# Old\n\nHost on Render.\n"
         self.before.write("decisions/old.md", old)
         self.after.write("decisions/old.md", old_after(old))
-        self.after.write("decisions/new.md", "---\ndate: 2026-11-20\n---\n# New\n\nHost on Fly.io.\n")
+        self.after.write("decisions/new.md", f"---\ndate: 2026-11-20\n{new_fm}\n---\n# New\n\nHost on Fly.io.\n")
         if (self.after.root / f"inbox/{ITEM}").exists():
             self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
         self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
@@ -406,6 +406,35 @@ class GradeTest(unittest.TestCase):
                 r = self.replacement(how)(want)
                 self.assertEqual(r["replaces"], ok, r["detail"])
                 self.assertEqual(r["pass"], ok, r["detail"])
+
+    def test_amended_needs_amends_back_and_reads_a_list(self):
+        amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")
+        r = self.replacement(amended, new_fm="supersedes: decisions/other.md")("amended")
+        self.assertFalse(r["replaces"], r["detail"])
+        for by in ("[decisions/a.md, decisions/new.md]", "\n  - decisions/a.md\n  - decisions/new.md"):
+            with self.subTest(by=by):
+                twice = lambda t: t.replace("status: active", f"status: active\namended_by: {by}")
+                self.before.write("decisions/a.md", "a\n")
+                self.after.write("decisions/a.md", "a\n")
+                r = self.replacement(twice)("amended")  # a.md was there before the trial; new.md is filed in it
+                self.assertTrue(r["replaces"], r["detail"])
+
+    def test_an_unclear_replacement_may_still_gain_a_banner(self):
+        banner = lambda t: t.replace("# Old\n", "# Old\n> [!warning] Contradiction: [New](new.md)\n")
+        r = self.replacement(banner, report="Filed the new one. Does the nightly dump still hold?")("ask")
+        self.assertTrue(r["replaces"], r["detail"])
+        r = self.replacement(lambda t: t.replace("Render", "Fly.io"), report="Which?")("ask")
+        self.assertFalse(r["replaces"])
+
+    def test_an_amend_line_inside_a_prose_paragraph_is_not_filing(self):
+        old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nTwo agents split by trust.\n"
+               "Showcase: one repo for both agents.\nThe bot has no brain.\n")
+        amend = ("**Amended 2026-11-19:** the showcase part, one repo for both agents, no longer holds; each agent "
+                 "gets its own public repo → [repo split](2026-11-19-repo-split.md)\n")
+        new = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        new = new.replace("The bot has", amend + "The bot has")
+        self.assertTrue(side_edit("decisions/2026-11-17-split.md", old.encode(), new.encode(), {},
+                                  {"decisions/2026-11-19-repo-split.md": b"two\n"}))
 
     def test_an_unclear_replacement_leaves_the_old_decision_and_asks(self):
         r = self.replacement(lambda t: t, report="Filed the new one. Does the old backup rule still hold?")("ask")

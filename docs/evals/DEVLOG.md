@@ -921,3 +921,17 @@
   wider row didn't pull topic facts into project notes.
 - First billed run: $0.249 billed against $0.074 estimated (3.4×). The trials sum to $0.2487; the
   key's total moved $0.2502, so the settle wait leaves under 1% unattributed.
+
+### Full run `2026-11-22T2113-9c87f6a` stopped at 21 of 150 (brain `bb964ae`)
+
+- one-repo-2 3 of 5, newly failing: #2 and #3 filed the example-app `.env.local` migration rule into
+  `projects/example-app.md`, and her report didn't send it to AGENTS.md. The item names the project
+  and the note has its name; the widened row ("a fact about one project") no longer said "admin", so
+  how a repo runs now fit it. Stopped with the owner's yes; the cleanup ran, and nothing was left on
+  the VPS. The other 19 trials passed.
+- The row now reads "a fact about one project's admin or progress: … Never how its code is built,
+  run or tested: that goes in its AGENTS.md" (owner, brain `d53bcca`).
+
+### Smoke 6 `2026-11-22T2146-9c87f6a` (brain `d53bcca`; one-repo-2 and project-1 × 5)
+
+- one-repo-2 5 of 5, project-1 5 of 5.

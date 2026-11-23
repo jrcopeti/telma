@@ -963,3 +963,10 @@
   status; the README says `no_cron` comes from `run.py`, not `grade.py`. Not changed: an amend line's
   own words aren't capped, on its own line or appended (the same as before); an amend block that
   fails stays split from its host line, which still grades as a change.
+
+### Reruns `2026-11-23T0854-867bcfb` (decision-2 × 5) and `2026-11-23T0903-867bcfb` (T6 × 10)
+
+- decision-2 5 of 5 on the fixed grader. T6 10 of 10, every trial `cron` `[0, 0]`: #1 was one in
+  eleven, still real, and step 8's hook is the answer. Appended to the full run's report. $0.137.
+- With these, no task newly fails against step 5 on the grader as fixed, and the new tasks pass:
+  step 6 ships. batch-T4 still fails 1 of 5, as in the step 5 baseline.

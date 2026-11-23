@@ -1,7 +1,7 @@
 # Kill switch: Telma
 
-**When:** a canary or exfil-tripwire alert in brain-server `#alerts`, or a memory diff with something
-nobody saved.
+**When:** a canary or exfil-tripwire alert in brain-server `#alerts`, a cron alert for a job you
+didn't ask for, or a memory diff with something nobody saved.
 ticket-bay-bot keeps running; it shares nothing with Telma but the host. If the host itself looks
 compromised (a root login you don't know, a changed `/etc`, an unknown process), run this and
 [the bot's kill switch](https://github.com/jrcopeti/ticket-bay-bot/blob/main/vps/ticket-bay-bot/kill-switch.md),
@@ -20,6 +20,14 @@ then rebuild the VPS (see [host.md](../host.md)).
 ahead: treat the notes named as gone. A search you asked for with a note's words in it fires it too.
 Every alert is also in `/home/agent/.local/state/exfil-tripwire/alerts.log`, kept even when Discord
 didn't get it.
+
+**A cron alert** names what she did with a cron job (created, changed, paused, resumed, ran,
+cancelled or removed it), the job's name, schedule, prompt and toolsets, and the session. The call
+went ahead. If you asked for it, nothing to do. If you didn't, a page or a message in that session
+asked for it: remove the job (`sudo -iu agent hermes cron list`, then `hermes cron remove <id>`),
+or put back the one she changed, then read the session. A job with web or browser tools is a way
+out on a timer: treat it like a tripwire alert. Every cron alert is
+also in `/home/agent/.local/state/cron-alert/alerts.log`.
 
 ## 1. Stop
 

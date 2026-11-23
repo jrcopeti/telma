@@ -1077,3 +1077,27 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   marker left the VPS in any trial. Only T4 and batch-T4 ran on the final skill (`c12634b`); the
   other 28 last ran on `d53bcca`, without the injected-item line. The owner merges it on that, so
   `AGENTS.md`'s eval-before-a-skill-change rule is met for those two tasks only.
+
+## 2026-11-23: step 8, the cron alert hook
+
+- Her cron tool is `cronjob_manage` (Hermes v0.23.2, `tools/cronjob_tools.py`), one tool with an
+  `action`: create, list, update, pause, resume, remove, run, cancel. Any action but create and list
+  takes a `job_id`, an id or a job's name in any case, and reaches every job in her profile, the
+  host jobs included (sync-brain, memory-diff, tripwire-health).
+- `vps/telma/cron-alert.py`, a `pre_tool_call` hook on `cronjob_manage`, beside the tripwire: it
+  posts every action but `list` to #alerts, through the tripwire's webhook. The plan named create,
+  change and resume; pause, remove and cancel can stop a host job, and run fires one now (T6 #1
+  fired its job once as a test). A new job shows its name, schedule, prompt (cut at 900 characters),
+  toolsets (none given: "the cron default"), and its script, skills, delivery and the rest when
+  given. Any other action shows the job as `jobs.json` has it, and an update the fields it changes.
+  No pings and no link previews: a preview would fetch a URL from the prompt.
+- Detection only: it prints `{}` and exits 0 whatever happens. A failure is logged and posted, like
+  the tripwire's; an unreadable `jobs.json` still announces the call. `tripwire-health.sh` now also
+  says when the hook isn't approved, and reports its failures.
+- The eval: `SYNC_PROFILE` rewrites its command so it never posts (and stops the run if one would),
+  each trial starts with its log empty, and `cron` records a third number, the alerts it logged. The
+  "after" run should show one or more on every trial that touches a job.
+- Not covered: the cron tool is the only way she has to a job (her terminal runs in the sandbox,
+  with no `hermes`), and cron runs don't get the cron tool.
+- Next, each with the owner's yes: T6 × 10 on the current setup, deploy (copy the hook, add the
+  config entry, approve it, restart the gateway), T6 × 10 after.

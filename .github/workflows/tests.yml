@@ -42,6 +42,9 @@ jobs:
       - name: Test the tripwire's health check
         run: bash vps/telma/test-tripwire-health.sh
 
+      - name: Test Telma's cron alert
+        run: bash vps/telma/test-cron-alert.sh
+
   decoy-brain:
     runs-on: ubuntu-24.04
     steps:

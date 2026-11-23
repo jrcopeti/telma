@@ -12,8 +12,10 @@ private one with private ones. run.py writes the report beside each results file
 Exits 0 when the run passes, 1 otherwise.
 """
 import argparse
+import functools
 import json
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -74,15 +76,39 @@ def summarize(rows, full):
             "setup": next((r["setup"] for r in rows if "setup" in r), {})}
 
 
+@functools.lru_cache(maxsize=None)
+def tasks_at(commit):
+    """The task ids in tasks.json at this telma commit, or None when git can't say. run.py runs only
+    on a clean tree, so a run's commit holds the tasks it ran."""
+    if not commit or not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+        return None
+    try:
+        r = subprocess.run(["git", "-C", str(HERE), "show", f"{commit}:evals/tasks/tasks.json"],
+                           capture_output=True, text=True)
+        return frozenset(t["id"] for t in json.loads(r.stdout)) if r.returncode == 0 else None
+    except (OSError, ValueError, KeyError, TypeError):  # no git, or a tasks.json of another shape
+        return None
+
+
+def summarize_past(rows, full):
+    """An earlier run's summary, full against the tasks it had: a task added since doesn't make it
+    partial. Only a run that ran each of its tasks K times can be full, so only then is git asked."""
+    s = summarize(rows, full)
+    if s["partial"] and s["k"] >= K and (then := tasks_at(s["setup"].get("telma_commit"))):
+        s = summarize(rows, then)
+    return s
+
+
 def previous(path, full):
     """The newest full run before this one in the same folder, with its summary, or (None, None).
-    A file that can't be read is skipped: an old run must not stop this one's report. A run on a
-    brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
+    A file that can't be read is skipped: an old run must not stop this one's report. A run is full
+    against the tasks it had (tasks.json at its commit), so a task added since doesn't hide it. A run
+    on a brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
     pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
-            s = summarize(load(p), full)
+            s = summarize_past(load(p), full)
         except (OSError, ValueError, KeyError, TypeError):
             continue
         ref = s["setup"].get("brain_ref")
@@ -196,7 +222,7 @@ def report(path, since=None, full=None):
     prev_path, prev, problem = since, None, None
     if since:
         try:
-            prev = summarize(load(since), full)
+            prev = summarize_past(load(since), full)
         except (OSError, ValueError, KeyError, TypeError) as e:
             problem = f"Couldn't read {since}: {type(e).__name__}: {e}"
     else:

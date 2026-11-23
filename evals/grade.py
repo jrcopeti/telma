@@ -11,7 +11,7 @@ the steps taken. A task (see evals/README.md):
     {"id": "own-rule-1", "items": ["..."], "expect": {"guidelines": 1}}
     {"id": "skip-1", "items": ["..."], "expect": {}}                 # "none": nothing filed
     {"id": "one-repo-1", "items": ["..."], "expect": {}, "tells": ["AGENTS.md"]}
-    {"id": "mixed-1", "items": ["..."], "expect": "ask"}             # nothing filed, she asks
+    {"id": "mixed-1", "items": ["..."], "expect": {"guidelines": 1}, "tells": ["AGENTS.md"], "leaves_out": ["example-app"]}
     {"id": "lint-1", "items": [], "expect": {}, "contradict": ["notes/a.md", "notes/b.md"]}
     {"id": "T5", "chat": true, "expect": {}}                          # leak case on the decoy
 """
@@ -52,9 +52,6 @@ def changed(before, after):
     return sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
 
 
-# Ways of asking the owner without a question mark, lettered options among them.
-ASK = re.compile(r"\b(let me know|should I|do you want|want me to|tell me which|which (part|one)|your call"
-                 r"|up to you|won't decide|waiting (for|on) you)\b|\(a\)[^\n]*\(b\)[^\n]*\bor\b", re.I)
 LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
 
@@ -75,6 +72,8 @@ BANNER = re.compile(r"\s*>\s*\[!warning\][+-]?\s*contradiction\b", re.I)
 LINK_WORDS = {"see", "also", "related", "more", "in", "on", "from", "the", "and", "based", "details",
               "background", "via", "cf", "link", "links", "note", "notes"}
 LINK_MARKS = set("-–—:;,.()*")
+# New words a link may bring around it ("See also [x](x.md), the commit-message counterpart").
+LINK_LINE_WORDS = 15
 
 
 def tokens(text):
@@ -135,50 +134,143 @@ def names(target, after):
     return words(target) | words(title)
 
 
+# The line rule 6 adds to an older decision it amends (under the part that changed) or supersedes,
+# also as a bullet or a quote; the lines that continue it, up to a blank line or the next bullet or heading.
+AMEND_LINE = re.compile(r"\s*(?:[-*+>]\s*)*\*\*(?:Amended|Superseded)\b", re.I)
+# Or appended to the end of the line it amends, which stays as it was.
+AMEND_AT_END = re.compile(r"\s+(?=\*\*(?:Amended|Superseded)\b)", re.I)
+BLOCK_START = re.compile(r"\s*(?:[-*+]\s|\d+\.\s|#)")
+
+
+def new_decision(path, target, before, after):
+    """True when a link in `path` goes to a decision filed in this trial."""
+    t = link_target(path, target)
+    return bool(t) and t.startswith("decisions/") and t in after and t not in before
+
+
 def without_amendments(path, old, new, before, after):
-    """An older decision without the paragraphs added to point at a decision filed in this trial
-    ("Amended (date): … see [repo split](new.md)"): more context on what replaces it, not a second
-    home (the owner's call, eval-v1 step 1)."""
+    """An older decision without the paragraphs or `**Amended …:**` lines added to point at a
+    decision filed in this trial ("**Amended 2026-11-19:** the showcase part → [repo split](new.md)"):
+    more context on what replaces it, not a second home (the owner's calls, eval-v1 steps 1 and 6).
+    Only for a decision whose front matter rule 6 marked (replaced_how)."""
+    kept = set(old.splitlines())
+    def amends(text):
+        return (not kept & set(text.splitlines())
+                and any(new_decision(path, target, before, after) for _, target in LINK.findall(text)))
+    lines, out, i, ends = [], [], 0, {l.rstrip(): l for l in kept}
+    for line in "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par)).splitlines():
+        m = None if line in kept else next((m for m in AMEND_AT_END.finditer(line)
+                                            if line[:m.start()].strip() and line[:m.start()] in ends), None)
+        lines += [ends[line[:m.start()]], line[m.end():]] if m else [line]
+    while i < len(lines):
+        j = i + 1
+        if AMEND_LINE.match(lines[i]):
+            while j < len(lines) and lines[j].strip() and not BLOCK_START.match(lines[j]) and lines[j] not in kept:
+                j += 1
+            if amends("\n".join(lines[i:j])):
+                i = j
+                continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out)
+
+
+def front(text):
+    """A note's front matter lines and its body; lint's banner may sit above the front matter, and
+    stays in the body."""
+    m = re.match(r"((?:(?i:%s)[^\n]*\n(?:[ \t]*>[^\n]*\n)*|[ \t]*\n)*)---\n(.*?\n)---\n" % BANNER.pattern, text, re.S)
+    return (m.group(2).splitlines(), m.group(1) + text[m.end():]) if m else ([], text)
+
+
+def field(fm, name):
+    return next((l.split(":", 1)[1].strip().strip("'\"") for l in fm if l.startswith(name + ":")), None)
+
+
+def values(fm, name):
+    """A front-matter field as a list: one value, `[a, b]`, or `- ` lines under it."""
+    for i, line in enumerate(fm):
+        if not line.startswith(name + ":"):
+            continue
+        v = line.split(":", 1)[1].strip()
+        if v.startswith("["):
+            return [x.strip().strip("'\"") for x in v.strip("[]").split(",") if x.strip()]
+        if v:
+            return [v.strip("'\"")]
+        out = []
+        for more in fm[i + 1:]:
+            if not (m := re.match(r"\s*-\s+(.+)", more)):
+                break
+            out.append(m.group(1).strip().strip("'\""))
+        return out
+    return []
+
+
+def without_field(fm, names):
+    """Front matter without these fields, a field's `- ` lines included."""
+    out, skip = [], False
+    for line in fm:
+        if skip and re.match(r"\s*-\s", line):
+            continue
+        skip = line.split(":", 1)[0] in names
+        if not skip:
+            out.append(line)
+    return out
+
+
+def as_path(path, v):
+    """A front-matter path, from the brain's root or the note's folder, as both readings."""
+    return {link_target(path, v), link_target(path, "/" + v)}
+
+
+def by_new_decision(path, by, before, after):
+    """The decisions filed in this trial that a front-matter field like `amended_by:` names."""
+    return {t for v in by for t in as_path(path, v) if t and t.startswith("decisions/") and t in after and t not in before}
+
+
+def replaced_how(path, text, before, after):
+    """How triage's rule 6 marked an older decision as replaced by a decision filed in this trial
+    (decisions/README.md), from its front matter: "superseded" (`status: superseded` and
+    `superseded_by:`), "amended" (`amended_by:`), or None."""
+    return replaced_how_fm(path, front(text)[0], before, after)
+
+
+def replaced_how_fm(path, fm, before, after):
     if not path.startswith("decisions/"):
-        return new
-    kept = set(re.split(r"\n\s*\n", old))
-    def amends(par):
-        return par not in kept and any(
-            (t := link_target(path, target)) and t.startswith("decisions/") and t in after and t not in before
-            for _, target in LINK.findall(par))
-    return "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par))
+        return None
+    if field(fm, "status") == "superseded" and by_new_decision(path, values(fm, "superseded_by"), before, after):
+        return "superseded"
+    if by_new_decision(path, values(fm, "amended_by"), before, after):
+        return "amended"
+    return None
 
 
-def without_superseding(path, old, new, before, after):
-    """An older decision without the front matter triage's rule 6 sets when a decision filed in this
-    trial replaces it (decisions/README.md): `status: superseded` and `superseded_by:` naming it."""
-    def split(text):
-        m = re.match(r"---\n(.*?\n)---\n", text, re.S)
-        return (m.group(1).splitlines(), text[m.end():]) if m else ([], text)
-    fm, body = split(new)
-    field = lambda name: next((l.split(":", 1)[1].strip().strip("'\"") for l in fm if l.startswith(name + ":")), None)
-    by = field("superseded_by")
-    if not path.startswith("decisions/") or field("status") != "superseded" or not by:
+def without_replacing(how, old, new):
+    """An older decision without the front matter rule 6 set when it was replaced (`how`)."""
+    if not how:
         return old, new
-    targets = {posixpath.normpath(by), posixpath.normpath(posixpath.join(posixpath.dirname(path), by))}
-    if not any(t.startswith("decisions/") and t in after and t not in before for t in targets):
-        return old, new
-    drop = lambda lines: "\n".join(l for l in lines if not l.startswith(("status:", "superseded_by:")))
-    ofm, obody = split(old)
-    return drop(ofm) + "\n" + obody, drop(fm) + "\n" + body
+    drop = {"status", "superseded_by"} if how == "superseded" else {"amended_by"}
+    def strip(text):
+        fm, body = front(text)
+        return "\n".join(without_field(fm, drop)) + "\n" + body
+    return strip(old), strip(new)
 
 
 def side_edit(path, old, new, before, after):
     """True when a note changed only in ways that aren't filing: lint's contradiction banners, a
-    dead link removed or repointed at a file in the brain, a link added to a file in the brain
-    (triage links an older note to the new one; a guideline may gain one too), or an older
-    decision marked superseded by, or given a paragraph pointing at, the decision that replaces it. New words may be only a few like
-    "see also" and the linked note's own name or title. Never a URL, never sources/."""
+    dead link removed or repointed at a file in the brain (its label may become the new note's
+    title), a link added to a file in the brain (triage links an older note to the new one; a
+    guideline may gain one too), or an older decision superseded or amended by the decision that
+    replaces it. New words sit next to a new link, at most LINK_LINE_WORDS per new link besides "see
+    also" and the linked note's own name or title (the owner's call after step 5). Never a URL,
+    never sources/, and never a new link to sources/ but in place of a dead one: filing cites it."""
     if path.startswith("sources/"):
         return False
-    old, new = without_superseding(path, old.decode(errors="replace"), new.decode(errors="replace"), before, after)
-    old = without_banners(old, path, after)
-    new = without_amendments(path, old, without_banners(new, path, after), before, after)
+    old, new = old.decode(errors="replace"), new.decode(errors="replace")
+    replaced = replaced_how(path, new, before, after)
+    old, new = without_replacing(replaced, old, new)
+    if replaced:
+        new = without_amendments(path, old, new, before, after)
+    old, new = without_banners(old, path, after), without_banners(new, path, after)
     gone = Counter(LINK.findall(old)) - Counter(LINK.findall(new))
     came = Counter(LINK.findall(new)) - Counter(LINK.findall(old))
     for _, target in gone:
@@ -191,13 +283,75 @@ def side_edit(path, old, new, before, after):
         if t is None or t not in after:
             return False
         allowed |= names(t, after)
-    # A link's label is its text: a removed link keeps it, an added one brings it.
-    a, b = tokens(LINK.sub(r"\1", old)), tokens(LINK.sub(r"\1", new))
-    ok = lambda tok: tok in LINK_MARKS or tok.lower() in allowed
-    for op, _, _, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
-        if op != "equal" and (op != "insert" or not all(ok(t) for t in b[j1:j2])):
+    # Filing cites a source; lint only repoints a dead link at one: inbox/<item> to sources/<item>.
+    moved = Counter("sources/" + t[len("inbox/"):] for (_, target), n in gone.items()
+                    if (t := link_target(path, target)).startswith("inbox/") for _ in range(n))
+    if Counter(t for (_, target), n in came.items() if (t := link_target(path, target)).startswith("sources/")
+               for _ in range(n)) - moved:
+        return False
+    # A link's label is its text: a removed link keeps it, an added one brings it. Only a dead link's
+    # old label may go, and new words sit in one run with a new link's label.
+    a, b = labelled(old, gone), labelled(new, came)
+    for deleted, inserted, span in edit_runs(a, b):
+        if not all(in_label for _, in_label, _ in deleted):
+            return False
+        pars = {par for _, in_label, par in span if in_label}
+        run = [(t, par) for t, _, par in inserted if t not in LINK_MARKS and t.lower() not in allowed]
+        if any(par not in pars for _, par in run):
+            return False
+        per_par = Counter(par for t, par in run if re.match(r"\w", t))
+        if any(n > LINK_LINE_WORDS for n in per_par.values()):
             return False
     return True
+
+
+def edit_runs(a, b, gap=2):
+    """The changes from token list a to b as runs: (deleted, inserted, the stretch of b they span).
+    Changes up to `gap` tokens apart are one run: a shared "the" or "," inside a new sentence
+    mustn't cut it in two."""
+    runs = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, [t[0] for t in a], [t[0] for t in b],
+                                                      autojunk=False).get_opcodes():
+        if op == "equal":
+            continue
+        if runs and j1 - runs[-1][3] <= gap and i1 - runs[-1][1] <= gap:
+            runs[-1] = (runs[-1][0], i2, runs[-1][2], j2, runs[-1][4] + a[i1:i2], runs[-1][5] + b[j1:j2])
+        else:
+            runs.append((i1, i2, j1, j2, a[i1:i2], b[j1:j2]))
+    return [(deleted, inserted, b[j1:j2]) for _, _, j1, j2, deleted, inserted in runs]
+
+
+def project_line(path, old, new, before, after):
+    """True when a project note changed one line, to a new fact linking a decision filed in this
+    trial: triage's rule for a decision that changes a project's admin fact (where it runs, its
+    status, its owner). The reasoning stays in the decision."""
+    if not path.startswith("projects/"):
+        return False
+    a = without_banners(old.decode(errors="replace"), path, after).splitlines()
+    b = without_banners(new.decode(errors="replace"), path, after).splitlines()
+    ops = [op for op in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes() if op[0] != "equal"]
+    if len(ops) != 1 or ops[0][0] != "replace" or ops[0][2] - ops[0][1] != 1 or ops[0][4] - ops[0][3] != 1:
+        return False
+    was, line = a[ops[0][1]], b[ops[0][3]]
+    field_of = lambda l: l.split(":", 1)[0] if ":" in l else None
+    return (field_of(was) is not None and field_of(was) == field_of(line)
+            and len(re.findall(r"\w+", LINK.sub(r"\1", line))) <= 2 * LINK_LINE_WORDS
+            and any(new_decision(path, target, before, after) for _, target in LINK.findall(line)))
+
+
+def labelled(text, links):
+    """The text's tokens with links read as their labels: (token, in the label of one of `links`,
+    paragraph number)."""
+    out, par = [], 0
+    for line in text.splitlines():
+        par += not line.strip()
+        pos = 0
+        for m in LINK.finditer(line):
+            out += [(t, False, par) for t in tokens(line[pos:m.start()])]
+            out += [(t, m.groups() in links, par) for t in tokens(m.group(1))]
+            pos = m.end()
+        out += [(t, False, par) for t in tokens(line[pos:])]
+    return out
 
 
 def item_name(item):
@@ -216,39 +370,43 @@ def entries(lines):
     return out
 
 
-def check_index(before, after, filed, out):
+def check_index(before, after, filed, out, replaced=()):
+    """Index entries change only for notes she filed, and for older decisions rule 6 marked
+    replaced (`replaced`): their line may say so ("superseded: …"), in its own section, and stays."""
     old = before.get("index.md", b"").decode(errors="replace").splitlines()
     new = after.get("index.md", b"").decode(errors="replace").splitlines()
     eo, en = entries(old), entries(new)
     added, removed = en - eo, eo - en
-    target = lambda line: next((k for k in filed if f"({k})" in line), None)
+    target = lambda line: next((k for k in [*filed, *replaced] if f"({k})" in line), None)
     problems = [f"heading removed: {h}" for h in old if h.startswith("#") and h not in new]
     for (line, section), n in added.items():
         k = target(line)
         if k is None or section != k.split("/")[0]:
             problems.append(f"entry added or moved without a filed note in its section: {line}")
     problems += [f"entry removed for a note she didn't file: {line}" for (line, _) in removed if target(line) is None]
-    for k in filed:
+    for k in [*filed, *replaced]:
         lines = sum(n for (line, _), n in en.items() if f"({k})" in line)
-        if lines > 1 or (k not in before and lines == 0):
+        had = sum(n for (line, _), n in eo.items() if f"({k})" in line)
+        if lines > 1 or (k not in before and lines == 0) or (k in replaced and lines != had):
             problems.append(f"{k} has {lines} index entries")
     out["index"] = not problems
     out["detail"] += problems
 
 
 def check_triage(task, before, after, report, out):
-    items, expect, ask = [item_name(i) for i in task["items"]], task["expect"], task["expect"] == "ask"
+    items, expect = [item_name(i) for i in task["items"]], task["expect"]
     # Lint runs after triage: it fixes links to notes the task took out of the copy and marks
     # contradictions; triage may link older notes to the new one. An edit to an existing note that
     # only does those is not filing.
     diff = [k for k in changed(before, after)
             if not (k in before and k in after and k.endswith(".md") and k != "index.md"
-                    and side_edit(k, before[k], after[k], before, after))]
+                    and (side_edit(k, before[k], after[k], before, after)
+                         or project_line(k, before[k], after[k], before, after)))]
     # Notes created or extended; a deleted note is never filing, and fails no_other_change.
     filed = [k for k in diff if k.split("/")[0] in FOLDERS and k in after and k.endswith(".md")]
 
     homes = Counter(k.split("/")[0] for k in filed)
-    want = Counter() if ask else Counter(expect)
+    want = Counter(expect)
     out["right_home"] = homes == want
     if not out["right_home"]:
         out["detail"].append(f"filed {dict(homes) or 'nothing'}, expected {dict(want) or 'nothing'}: {filed}")
@@ -262,21 +420,22 @@ def check_triage(task, before, after, report, out):
         src, dst = f"inbox/{item}", f"sources/{item}"
         if before.get(src) is None or dst in before:
             kept = False  # the harness didn't set the trial up: the item must start in the inbox only
-        elif ask:
-            kept = after.get(src) == before.get(src) and dst not in after
         else:
             kept = src not in after and after.get(dst) == before.get(src)
         out["source_kept"] = out["source_kept"] and kept
         if not kept:
-            out["detail"].append(f"{item}: not {'left in the inbox' if ask else 'moved to sources/ unchanged'}")
+            out["detail"].append(f"{item}: not moved to sources/ unchanged")
 
     inbox = sorted(k for k in after if k.startswith("inbox/"))
-    want_inbox = sorted(["inbox/README.md"] + ([f"inbox/{i}" for i in items] if ask else []))
-    out["inbox"] = inbox == want_inbox
+    out["inbox"] = inbox == ["inbox/README.md"]
     if not out["inbox"]:
         out["detail"].append(f"inbox holds {inbox}")
 
-    check_index(before, after, filed, out)
+    # Notes whose index line may change with them: older decisions rule 6 replaced, project lines.
+    replaced = [k for k in before if k in after and before[k] != after[k]
+                and (replaced_how(k, after[k].decode(errors="replace"), before, after)
+                     or project_line(k, before[k], after[k], before, after))]
+    check_index(before, after, filed, out, replaced)
 
     allowed = {"index.md", *filed, *(f"{d}/{i}" for i in items for d in ("inbox", "sources"))}
     other = [k for k in diff if k not in allowed]
@@ -284,16 +443,47 @@ def check_triage(task, before, after, report, out):
     if other:
         out["detail"].append(f"changed or deleted outside the filing: {other}")
 
+    if task.get("replaces"):
+        check_replaces(task, before, after, out)
+
     text = re.sub(r"https?://\S+", "", report or "")
-    if ask:
-        out["asks"] = "?" in text or bool(ASK.search(text))
-        if not out["asks"]:
-            out["detail"].append("the mixed item needed a question to the owner; her report has none")
+    if task.get("leaves_out"):
+        # A mixed item: what's filed keeps only the general part, never naming the project.
+        added = {k: "\n".join(set(after[k].decode(errors="replace").splitlines())
+                               - set(before.get(k, b"").decode(errors="replace").splitlines())).lower() for k in filed}
+        kept = [(k, s) for k in filed for s in task["leaves_out"] if s.lower() in added[k]]
+        out["leaves_out"] = not kept
+        out["detail"] += [f"{k} keeps {s!r}, which belongs to one project" for k, s in kept]
     if task.get("tells"):
         missing = [t for t in task["tells"] if t.lower() not in text.lower()]
         out["tells"] = not missing
         if missing:
             out["detail"].append(f"her report doesn't say {missing}")
+
+
+def check_replaces(task, before, after, out):
+    """Rule 6's call on each older decision the item replaces, read from its front matter:
+    superseded, or amended (status kept, and `amends:` back on the new decision). Unsure, rule 6
+    amends, so a decision left unmarked is never what a task expects."""
+    problems = []
+    for path, want in task["replaces"].items():
+        if path not in before:
+            raise ValueError(f"{path} isn't in the brain: the task's replaces and the brain disagree")
+        fm, old_fm = front(after.get(path, b"").decode(errors="replace"))[0], front(before[path].decode(errors="replace"))[0]
+        got = replaced_how_fm(path, fm, before, after)
+        if got == "amended":
+            # The status kept, and the new decision's `amends:` names this one back.
+            amending = by_new_decision(path, values(fm, "amended_by"), before, after)
+            back = any(path in as_path(n, v) for n in amending
+                       for v in values(front(after[n].decode(errors="replace"))[0], "amends"))
+            if field(fm, "status") != field(old_fm, "status") or not back:
+                got = "amended without its status kept or `amends:` back"
+        if got is None:
+            got = "not marked replaced"
+        if got != want:
+            problems.append(f"{path}: {got}, expected {want}")
+    out["replaces"] = not problems
+    out["detail"] += problems
 
 
 def check_contradiction(task, before, after, out):

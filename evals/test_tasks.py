@@ -12,7 +12,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
-from run import passage  # noqa: E402
+from run import eval_leaks, passage, strip_eval_notes  # noqa: E402
 
 HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (run.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
@@ -38,11 +38,11 @@ class TasksTest(unittest.TestCase):
         for t in TASKS:
             with self.subTest(task=t["id"]):
                 self.assertTrue(set(t) <= {"id", "items", "expect", "why", "chat", "targets", "tells", "page",
-                                           "strip", "remove_text", "plant", "contradict"}, set(t))
+                                           "strip", "remove_text", "plant", "contradict", "replaces", "leaves_out"}, set(t))
                 e = t["expect"]
-                self.assertTrue(e == "ask" or (isinstance(e, dict) and set(e) <= FOLDERS
-                                               and all(isinstance(n, int) and n > 0 for n in e.values())))
-                for key in ("targets", "tells"):
+                self.assertTrue(isinstance(e, dict) and set(e) <= FOLDERS
+                                and all(isinstance(n, int) and n > 0 for n in e.values()))
+                for key in ("targets", "tells", "leaves_out"):
                     self.assertTrue(all(isinstance(s, str) and s for s in t.get(key, [])))
                 if t.get("chat"):
                     self.assertEqual(e, {})
@@ -57,6 +57,10 @@ class TasksTest(unittest.TestCase):
                 if "contradict" in t:
                     self.assertEqual(len(t["contradict"]), 2)
                     self.assertTrue(set(t["contradict"]) <= {f["path"] for f in t.get("plant", [])})
+                for f, want in t.get("replaces", {}).items():
+                    self.assertRegex(f, r"^decisions/[^/]+\.md$")
+                    self.assertIn(want, ("superseded", "amended"))
+                    self.assertTrue(isinstance(e, dict) and e.get("decisions"), "a replacement files a decision")
                 for item in t.get("items", []):
                     # The brain's evals/ never reaches the copy, so an item from there would be missing.
                     self.assertTrue(item.startswith("telma:") or item.startswith(("sources/", "inbox/"))
@@ -97,6 +101,35 @@ class PassageTest(unittest.TestCase):
         self.assertIsNone(passage("abc", self.spec("x")))
         self.assertIsNone(passage("ab ab", self.spec("ab")))
         self.assertIsNone(passage("a", self.spec("longer")))
+
+
+class EvalNotesTest(unittest.TestCase):
+    """Her copy holds no note about this eval, so nothing tells her she's being tested."""
+
+    def test_strips_the_notes_and_their_index_lines_and_finds_what_is_left(self):
+        import tempfile
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        for d in ("decisions", "inbox", "notes"):
+            (root / d).mkdir()
+        design, amend = "decisions/design.md", "decisions/amend.md"
+        hashed = lambda s: "sha256:" + hashlib.sha256(s.encode()).hexdigest()
+        (root / design).write_text("# Design\n")
+        (root / amend).write_text("# Amend\n")
+        (root / "decisions/other.md").write_text("# Other\n\nSee docs/evals/PLAN.md.\n")
+        (root / "inbox/x.md").write_text("eval-v1 step 6\n")
+        (root / "notes/linker.md").write_text(f"# L\n\n[amend rule](../{amend})\n")
+        (root / "notes/price.md").write_text("Pinning is planned (telma\nrepo, eval-v1 step 7).\n")
+        (root / "index.md").write_text(f"# Index\n- [Design]({design}) — x\n- [Other](decisions/other.md) — y\n")
+        old = "(telma\nrepo, eval-v1 step 7)"
+        reword = {hashed("notes/price.md"): [{**PassageTest.spec(None, old), "with": "(telma\nrepo)"}]}
+        stripped = strip_eval_notes(root, [hashed(design), hashed(amend)], reword)
+        self.assertEqual(sorted(stripped), [amend, design])
+        self.assertFalse((root / design).exists())
+        self.assertEqual((root / "index.md").read_text(), "# Index\n- [Other](decisions/other.md) — y\n")
+        self.assertEqual((root / "notes/price.md").read_text(), "Pinning is planned (telma\nrepo).\n")
+        self.assertEqual(eval_leaks(root, stripped), ["decisions/other.md", "notes/linker.md"])
 
 
 if __name__ == "__main__":

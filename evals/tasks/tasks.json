@@ -42,8 +42,17 @@
   "items": [
    "telma:evals/tasks/items/2026-11-16-two-test-rules.md"
   ],
-  "expect": "ask",
-  "why": "a general rule mixed with one project's: she stops and asks"
+  "expect": {
+   "guidelines": 1
+  },
+  "why": "a general rule mixed with one project's: she files the general one as a guideline, keeps the project out of it, and says the project rule goes in its AGENTS.md",
+  "tells": [
+   "AGENTS.md"
+  ],
+  "leaves_out": [
+   "example-app",
+   "seed"
+  ]
  },
  {
   "id": "lint-1",
@@ -265,7 +274,10 @@
   },
   "strip": [
    "decisions/2026-11-19-telma-repo-split-into-telma-and-ticket-bay-bot.md"
-  ]
+  ],
+  "replaces": {
+   "decisions/2026-11-17-telma-split-into-two-agents-by-trust-boundary.md": "amended"
+  }
  },
  {
   "id": "decision-3",
@@ -337,5 +349,65 @@
    "every capture filed into guidelines",
    "auto-guidelines"
   ]
+ },
+ {
+  "id": "own-rule-3",
+  "items": [
+   "telma:evals/tasks/items/2026-11-19-feature-flags-are-debt.md"
+  ],
+  "expect": {
+   "guidelines": 1
+  },
+  "why": "pasted text whose note: asks to make it a guideline: a guideline"
+ },
+ {
+  "id": "not-a-rule-6",
+  "items": [
+   "telma:evals/tasks/items/2026-11-18-feature-flags-are-debt.md"
+  ],
+  "expect": {
+   "notes": 1
+  },
+  "why": "the same pasted text with only praise in its note: a note"
+ },
+ {
+  "id": "replace-1",
+  "items": [
+   "telma:evals/tasks/items/2026-11-20-example-app-moves-to-fly-io.md"
+  ],
+  "expect": {
+   "decisions": 1
+  },
+  "why": "a new decision that leaves nothing of the old one standing: superseded",
+  "plant": [
+   {
+    "path": "decisions/2026-11-05-example-app-hosted-on-render.md",
+    "from": "telma:evals/tasks/items/replace-full-1/2026-11-05-example-app-hosted-on-render.md",
+    "index": "the example app runs on Render's free tier."
+   }
+  ],
+  "replaces": {
+   "decisions/2026-11-05-example-app-hosted-on-render.md": "superseded"
+  }
+ },
+ {
+  "id": "replace-2",
+  "items": [
+   "telma:evals/tasks/items/2026-11-21-example-app-database-moves-to-supabase.md"
+  ],
+  "expect": {
+   "decisions": 1
+  },
+  "why": "a new decision silent on part of the old one (the nightly dump): she amends, never supersedes on a guess",
+  "plant": [
+   {
+    "path": "decisions/2026-11-12-example-app-database-on-neon.md",
+    "from": "telma:evals/tasks/items/replace-ask-1/2026-11-12-example-app-database-on-neon.md",
+    "index": "Postgres on Neon, with a nightly dump to S3."
+   }
+  ],
+  "replaces": {
+   "decisions/2026-11-12-example-app-database-on-neon.md": "amended"
+  }
  }
 ]

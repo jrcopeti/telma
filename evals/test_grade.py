@@ -126,15 +126,21 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(r["inbox"])
         self.assertFalse(r["source_kept"])
 
-    def test_a_mixed_item_passes_when_she_asks_and_files_nothing(self):
-        r = self.run_grade("ask", report="Keep only the general part, or skip it?")
+    def mixed(self, guideline):
+        self.after.write("guidelines/tool-versions.md", guideline)
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.add_index_line("Guidelines", "- [Tool versions](guidelines/tool-versions.md) — pin it")
+        return self.run_grade({"guidelines": 1}, task={"tells": ["AGENTS.md"], "leaves_out": ["example-app", "seed"]},
+                              report="Filed the general rule; the seed rule goes in example-app's AGENTS.md.")
+
+    def test_a_mixed_item_files_only_the_general_part(self):
+        r = self.mixed("Pin the runtime in .tool-versions.\n")
         self.assertTrue(r["pass"], r["detail"])
 
-    def test_a_mixed_item_fails_when_she_decides_alone(self):
-        self.file_as_note()
-        r = self.run_grade("ask", report="Filed it.")
-        self.assertFalse(r["right_home"])
-        self.assertFalse(r["asks"])
+    def test_a_mixed_item_that_keeps_the_project_rule_fails(self):
+        r = self.mixed("Pin the runtime in .tool-versions.\nIn Example-App, run the seed script first.\n")
+        self.assertFalse(r["leaves_out"])
+        self.assertFalse(r["pass"])
 
     def test_removing_another_notes_index_line_fails(self):
         self.file_as_note()
@@ -166,7 +172,8 @@ class GradeTest(unittest.TestCase):
         self.before.write("notes/my note.md", "x\n")
         for new in (f"[a](/sources/{ITEM})", f'[a](../sources/{ITEM} "the source")', "[a](my%20note.md)"):
             with self.subTest(new=new):
-                self.before.write("notes/linker.md", "See [a](gone.md).\n")
+                old = f"../inbox/{ITEM}" if "sources/" in new else "gone.md"  # lint repoints the moved item
+                self.before.write("notes/linker.md", f"See [a]({old}).\n")
                 self.after.write("notes/linker.md", f"See {new}.\n")
                 if not (self.after.root / f"sources/{ITEM}").exists():
                     self.file_as_note()
@@ -280,9 +287,13 @@ class GradeTest(unittest.TestCase):
         self.assertTrue(r["pass"], r["detail"])
 
     def test_an_older_decision_amended_to_point_at_the_new_one_is_not_filing(self):
-        old = "# Split\n\nShowcase: one repo for both agents.\n\nSource: x\n"
-        amended = ("# Split\n\nShowcase: one repo for both agents.\n\n**Amended (2026-11-19):** the one-repo line no "
-                   "longer holds. See [repo split](2026-11-19-repo-split.md).\n\nSource: x\n")
+        fm = "---\ndate: 2026-11-17\nstatus: active\n---\n"
+        old = fm + "# Split\n\nShowcase: one repo for both agents.\n\nSource: x\n"
+        par = ("**Amended (2026-11-19):** the one-repo line no longer holds, since each agent now gets its own "
+               "public repo along the trust boundary and the bot's history starts fresh.\n"
+               "See [repo split](2026-11-19-repo-split.md).\n\n")
+        amended = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        amended = amended.replace("Source: x", par + "Source: x")
         self.before.write("decisions/2026-11-17-split.md", old)
         self.after.write("decisions/2026-11-17-split.md", amended)
         self.after.write("decisions/2026-11-19-repo-split.md", "two repos\n")
@@ -290,11 +301,61 @@ class GradeTest(unittest.TestCase):
         self.after.write("index.md", INDEX + "\n## Decisions\n- [Repo split](decisions/2026-11-19-repo-split.md) — two\n")
         r = self.run_grade({"decisions": 1})
         self.assertTrue(r["pass"], r["detail"])
-        # Not when the paragraph links to a decision that was already there, or sits in a note.
+        # Not when the paragraph links to a decision that was already there, sits in a note, or the
+        # front matter doesn't say rule 6 replaced it (an unrelated older decision gains no free text).
         o, n, new = old.encode(), amended.encode(), {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
         self.assertTrue(side_edit("decisions/2026-11-17-split.md", o, n, {}, new))
         self.assertFalse(side_edit("decisions/2026-11-17-split.md", o, n, new, new))
         self.assertFalse(side_edit("notes/split.md", o, amended.replace("](", "](../decisions/").encode(), {}, new))
+        self.assertFalse(side_edit("decisions/2026-11-17-split.md", o, old.replace("Source: x", par + "Source: x").encode(), {}, new))
+
+    def test_an_amend_line_wrapped_or_as_a_bullet_or_quote_is_not_filing(self):
+        old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\n- **Telma:** the brain.\n"
+               "- Showcase: one repo for both agents.\n- **Bot:** bug loop.\n")
+        new_file = {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        path = "decisions/2026-11-17-split.md"
+        amend = ("**Amended 2026-11-19:** the showcase part, one repo for both agents, no longer holds; each agent gets\n"
+                 "  its own public repo along the trust boundary → [repo split](2026-11-19-repo-split.md)\n")
+        marked = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        for lead in ("", "  - ", "  > "):
+            with self.subTest(lead=lead):
+                new = marked.replace("- **Bot:**", lead + amend + "- **Bot:**")
+                self.assertTrue(side_edit(path, old.encode(), new.encode(), {}, new_file))
+        # The block ends at the next bullet: a changed bullet after it is still a change.
+        new = marked.replace("- **Bot:** bug loop.", amend + "- **Bot:** bug loop and PR triage.")
+        self.assertFalse(side_edit(path, old.encode(), new.encode(), {}, new_file))
+
+    def test_an_amend_line_appended_to_the_part_it_amends_is_not_filing(self):
+        # decision-2 #2 (2026-11-22T2204): the amend line went on the end of the line that changed.
+        old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nPlan: two users. Showcase: one repo\n"
+               "for both agents.\n\nSource: x\n")
+        new_file = {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        path = "decisions/2026-11-17-split.md"
+        marked = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        new = marked.replace("for both agents.\n", "for both agents. **Amended 2026-11-19:** the one showcase repo → [two\n"
+                             "repos](2026-11-19-repo-split.md); the agent split stands.\n")
+        self.assertTrue(side_edit(path, old.encode(), new.encode(), {}, new_file))
+        # Nor with a trailing space on the line it amends.
+        spaced = old.replace("for both agents.\n", "for both agents. \n")
+        self.assertTrue(side_edit(path, spaced.encode(), new.encode(), {}, new_file))
+        # Not when the line it sits on changed too.
+        new = marked.replace("for both agents.\n", "for each agent. **Amended 2026-11-19:** the one showcase repo → [two\n"
+                             "repos](2026-11-19-repo-split.md); the agent split stands.\n")
+        self.assertFalse(side_edit(path, old.encode(), new.encode(), {}, new_file))
+
+    def test_dropped_marks_or_a_dead_labels_words_elsewhere_are_a_change(self):
+        new_file = {"notes/new.md": b"# New\n"}
+        for old, new in (("- **Never** deploy on Friday.\n- Use Postgres: always.\n",
+                          "Never deploy on Friday\nUse Postgres always\n"),
+                         ("---\ndate: x\n---\n# T\n", "date: x\n# T\n"),
+                         ("Do not mock. See [not mocks](gone.md).\n", "Do mock. See [New](new.md).\n")):
+            with self.subTest(new=new):
+                self.assertFalse(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
+
+    def test_new_words_away_from_the_new_link_are_a_change(self):
+        new_file = {"notes/new.md": b"# New\n"}
+        old, new = "Mocks are fine for unit tests.\n", "Mocks are never fine for unit tests. See [New](new.md).\n"
+        self.assertFalse(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
 
     def test_an_older_decision_marked_superseded_by_the_new_one_is_not_filing(self):
         old = "---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nOne repo.\n"
@@ -310,10 +371,239 @@ class GradeTest(unittest.TestCase):
         self.assertFalse(side_edit("notes/split.md", old.encode(), new.encode(), {}, new_file))
         self.assertFalse(side_edit(path, old.encode(), new.replace("date: 2026-11-17", "date: 2026-11-18").encode(), {}, new_file))
 
-    def test_a_link_with_new_words_around_it_is_filing(self):
-        self.after.write("notes/old.md", "old\n\nSee [Testcontainers](testcontainers.md): it starts a real Postgres.\n")
+    def test_a_link_with_a_short_line_of_new_words_is_not_filing(self):
+        self.after.write("notes/old.md", "old, a candidate rule. Paired with\n[Testcontainers](testcontainers.md) for the commit message.\n")
+        self.after.write("guidelines/real-db.md", "rule\n\n[Testcontainers](../notes/testcontainers.md) starts a real Postgres per test.\n")
         self.file_as_note()
+        r = self.run_grade({"notes": 1})
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_short_fact_citing_the_source_is_filing(self):
+        # project-1 #4, step 6: "the OpenRouter balance was checked, 0.13 USD spent (source)".
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("notes/old.md", f"old\n\nThe balance was checked, 0.13 USD spent ([source](../sources/{ITEM})).\n")
+        self.assertTrue(self.run_grade({"notes": 1})["right_home"])
+        self.assertFalse(self.run_grade({"notes": 0})["right_home"])
+        # Nor when lint drops an unrelated dead link in the same note, or the citation replaces one.
+        self.before.write("notes/old.md", "old\n\nSee [x](gone.md).\n")
+        for after in (f"old\n\nSee x.\n\nThe balance was checked ([source](../sources/{ITEM})).\n",
+                      f"old\n\nSee [x](../sources/{ITEM}).\n"):
+            with self.subTest(after=after):
+                self.after.write("notes/old.md", after)
+                self.assertFalse(self.run_grade({"notes": 0})["right_home"])
+
+    def test_a_see_also_sentence_cut_by_a_shared_word_is_not_filing(self):
+        new_file = {"notes/new.md": b"# New\n"}
+        old = "Use the real database, the one in production.\n"
+        new = "Use the real database, the one in production. See also [New](new.md), the commit-message counterpart.\n"
+        self.assertTrue(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
+
+    def test_changes_a_shared_token_apart_are_one_run(self):
+        from grade import edit_runs
+        tok = lambda *ts: [(t, False, 0) for t in ts]
+        runs = edit_runs(tok("a", ",", "z"), tok("a", "P", ",", "Q", "z"))  # difflib keeps the "," between
+        self.assertEqual([[t for t, *_ in ins] for _, ins, _ in runs], [["P", "Q"]])
+        runs = edit_runs(tok("a", "b", "c", "d", "z"), tok("a", "P", "b", "c", "d", "Q", "z"))
+        self.assertEqual(len(runs), 2)
+
+    def test_each_new_link_brings_its_own_fifteen_words(self):
+        new_file = {"notes/x.md": b"# X\n", "notes/y.md": b"# Y\n"}
+        old = "old\n"
+        new = ("old\n\nSee [X](x.md), which covers how the deploy pipeline handles a failed migration.\n\n"
+               "See [Y](y.md), which covers how the test suite seeds its own database fixtures.\n")
+        self.assertTrue(side_edit("notes/a.md", old.encode(), new.encode(), {}, new_file))
+
+    def test_a_link_with_a_longer_passage_is_filing(self):
+        self.file_as_note()
+        long = "it starts a real Postgres in a container for every test, so the queries run as they do in production"
+        for text in (f"old\n\nSee [Testcontainers](testcontainers.md): {long}.\n",
+                     "old\n\nSee [Testcontainers](testcontainers.md).\n\nIt starts a real Postgres.\n"):
+            with self.subTest(text=text):
+                self.after.write("notes/old.md", text)
+                self.assertFalse(self.run_grade({"notes": 1})["right_home"])
+
+    def test_a_fixed_link_relabelled_with_the_new_notes_title_is_not_filing(self):
+        self.before.write("projects/app.md", "Setup: [Hermes gotchas](../notes/hermes-gotchas.md).\n")
+        self.after.write("projects/app.md", "Setup: [Testcontainers](../notes/testcontainers.md).\n")
+        self.file_as_note()
+        self.after.write("notes/testcontainers.md", "# Testcontainers\n\na note\n")
+        r = self.run_grade({"notes": 1})
+        self.assertTrue(r["pass"], r["detail"])
+        # Only a dead link's label may go: rewording the line around it is still a change.
+        self.after.write("projects/app.md", "Read first: [Testcontainers](../notes/testcontainers.md).\n")
         self.assertFalse(self.run_grade({"notes": 1})["right_home"])
+
+    def test_an_older_decision_amended_by_the_new_one_is_not_filing(self):
+        old = "---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nTwo agents.\nShowcase: one repo for both agents.\n"
+        new_file = {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        path = "decisions/2026-11-17-split.md"
+        line = ("**Amended 2026-11-19:** the showcase part, one repo for both agents, no longer holds; each agent now "
+                "gets its own public repo along the trust boundary → [repo split](2026-11-19-repo-split.md)\n")
+        new = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md") + line
+        self.assertTrue(side_edit(path, old.encode(), new.encode(), {}, new_file))
+        self.assertFalse(side_edit(path, old.encode(), new.encode(), new_file, new_file))  # not filed in this trial
+        self.assertFalse(side_edit(path, old.encode(), new.replace("Two agents.", "Three agents.").encode(), {}, new_file))
+        self.assertFalse(side_edit("notes/split.md", old.encode(), new.encode(), {}, new_file))
+
+    def replacement(self, old_after, report="", new_fm="amends: decisions/old.md"):
+        """A decision filed from the item that replaces decisions/old.md, which ends as `old_after`."""
+        old = "---\ndate: 2026-11-05\nstatus: active\n---\n# Old\n\nHost on Render.\n"
+        self.before.write("decisions/old.md", old)
+        self.after.write("decisions/old.md", old_after(old))
+        self.after.write("decisions/new.md", f"---\ndate: 2026-11-20\n{new_fm}\n---\n# New\n\nHost on Fly.io.\n")
+        if (self.after.root / f"inbox/{ITEM}").exists():
+            self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        return lambda want: self.run_grade({"decisions": 1}, task={"replaces": {"decisions/old.md": want}}, report=report)
+
+    def test_an_unclear_replacement_left_unmarked_fails(self):
+        r = self.replacement(lambda t: t, report="Filed the new one. Does the old backup rule still hold?")("amended")
+        self.assertFalse(r["replaces"])
+        self.assertIn("decisions/old.md: not marked replaced, expected amended", r["detail"])
+
+    def test_a_replacement_graded_on_the_older_decisions_front_matter(self):
+        superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+        amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")
+        for how, want, ok in ((superseded, "superseded", True), (amended, "amended", True),
+                              (superseded, "amended", False), (amended, "superseded", False),
+                              (lambda t: t, "superseded", False), (lambda t: t, "amended", False)):
+            with self.subTest(want=want, ok=ok):
+                r = self.replacement(how)(want)
+                self.assertEqual(r["replaces"], ok, r["detail"])
+                self.assertEqual(r["pass"], ok, r["detail"])
+
+    def test_a_superseded_line_linking_the_new_decision_is_not_filing(self):
+        line = "\n**Superseded 2026-11-20:** Render's free tier is gone, so the app moves → [New](new.md)\n"
+        marked = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md") + line
+        r = self.replacement(marked, new_fm="supersedes: decisions/old.md")("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+        unlinked = lambda t: marked(t).replace(" → [New](new.md)", ", and it deploys with its own CI workflow now")
+        self.assertFalse(self.replacement(unlinked, new_fm="supersedes: decisions/old.md")("superseded")["right_home"])
+        inline = lambda t: (t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+                            .replace("Host on Render.\n", "Host on Render.\n" + line.strip() + "\n"))
+        self.assertTrue(self.replacement(inline, new_fm="supersedes: decisions/old.md")("superseded")["pass"])
+
+    def test_front_matter_under_a_banner_with_a_rule_in_the_body(self):
+        from grade import front
+        text = ("> [!warning] Contradiction: [b](b.md)\n---\nstatus: superseded\nsuperseded_by: new.md\n---\n"
+                "# T\n\nbody\n\n---\n\nmore\n")
+        self.assertEqual(front(text)[0], ["status: superseded", "superseded_by: new.md"])
+
+    def test_one_links_words_cant_borrow_another_links_budget(self):
+        new_file = {"notes/x.md": b"# X\n", "notes/y.md": b"# Y\n"}
+        long = ("which covers how the deploy pipeline handles a failed migration, rolls the release back "
+                "without losing customer data, and pages whoever is on call")
+        new = f"old\n\nSee [X](x.md), {long}.\n\n[Y](y.md)\n"
+        self.assertFalse(side_edit("notes/a.md", b"old\n", new.encode(), {}, new_file))
+
+    def test_leaves_out_reads_only_what_she_added(self):
+        self.before.write("guidelines/real-db.md", "rule, as in example-app\n")
+        self.after.write("guidelines/real-db.md", "rule, as in example-app\nPin the runtime in .tool-versions.\n")
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        r = self.run_grade({"guidelines": 1}, task={"leaves_out": ["example-app"]})
+        self.assertTrue(r["leaves_out"], r["detail"])
+
+    def project(self, line, index_line=None):
+        """A decision filed, and projects/app.md's Runs-on line changed to `line`."""
+        before = "# App\n\n- **Runs on:** your hosting\n- **Status:** active\n"
+        index = INDEX + "\n## Projects\n- [App](projects/app.md) — where it runs\n"
+        self.before.write("projects/app.md", before)
+        self.before.write("index.md", index)
+        self.after.write("projects/app.md", before.replace("- **Runs on:** your hosting", line))
+        self.after.write("decisions/new.md", "---\ndate: 2026-11-20\n---\n# New\n")
+        if (self.after.root / f"inbox/{ITEM}").exists():
+            self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        new_index = index.replace("— where it runs", index_line or "— where it runs")
+        self.after.write("index.md", new_index + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        return self.run_grade({"decisions": 1})
+
+    def test_a_project_line_keeps_its_field_and_stays_short(self):
+        link = "([decision](../decisions/new.md))"
+        self.assertTrue(self.project(f"- **Runs on:** Fly.io, Frankfurt {link}")["pass"])
+        self.assertFalse(self.project(f"- **Status:** archived {link}")["right_home"])
+        long = " ".join(["word"] * 35)
+        self.assertFalse(self.project(f"- **Runs on:** {long} {link}")["right_home"])
+
+    def test_a_project_lines_index_entry_may_follow_it(self):
+        r = self.project("- **Runs on:** Fly.io ([decision](../decisions/new.md))", "— where it runs (Fly.io since 2026-11-20)")
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_project_line_beside_a_lint_banner(self):
+        r = self.project("- **Runs on:** Fly.io ([decision](../decisions/new.md))")
+        text = (self.after.root / "projects/app.md").read_text()
+        self.after.write("projects/app.md", "> [!warning] Contradiction: [Old](../notes/old.md)\n" + text)
+        self.assertTrue(self.run_grade({"decisions": 1})["pass"])
+
+    def test_a_project_line_changed_with_a_link_to_the_new_decision_is_not_filing(self):
+        before = "# App\n\n- **Runs on:** your hosting\n- **Status:** active\n"
+        self.before.write("projects/app.md", before)
+        self.after.write("decisions/new.md", "---\ndate: 2026-11-20\n---\n# New\n")
+        self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        for after, ok in (
+            ("- **Runs on:** Fly.io, Frankfurt (since 2026-11-20, [decision](../decisions/new.md))\n", True),
+            ("- **Runs on:** Fly.io, Frankfurt\n", False),  # no link
+            ("- **Runs on:** Fly.io ([decision](../decisions/new.md))\n- **Status:** moving\n", False),  # two lines
+        ):
+            with self.subTest(after=after):
+                text = before.replace("- **Runs on:** your hosting\n", after)
+                if "Status:** moving" in after:
+                    text = text.replace("- **Status:** active\n", "")
+                self.after.write("projects/app.md", text)
+                self.assertEqual(self.run_grade({"decisions": 1})["right_home"], ok)
+
+    def test_a_replaced_decisions_index_line_may_change(self):
+        index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
+        self.before.write("index.md", index)
+        superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+        grade_as = self.replacement(superseded, new_fm="supersedes: decisions/old.md")
+        self.after.write("index.md", index.replace("— Render", "— superseded: Render") + "- [New](decisions/new.md) — Fly.io\n")
+        r = grade_as("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+        # Not when it wasn't marked replaced, or the line moved section.
+        self.after.write("decisions/old.md", self.before.root.joinpath("decisions/old.md").read_text())
+        self.assertFalse(grade_as("superseded")["index"])
+
+    def test_a_replaced_decisions_index_line_may_not_go(self):
+        index = INDEX + "\n## Decisions\n- [Old](decisions/old.md) — Render\n"
+        self.before.write("index.md", index)
+        superseded = lambda t: t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md")
+        grade_as = self.replacement(superseded, new_fm="supersedes: decisions/old.md")
+        self.after.write("index.md", INDEX + "\n## Decisions\n- [New](decisions/new.md) — Fly.io\n")
+        self.assertFalse(grade_as("superseded")["index"])
+
+    def test_a_banner_above_the_front_matter_still_reads_the_replacement(self):
+        marked = lambda t: ("> [!warning] Contradiction: [New](new.md)\n"
+                            + t.replace("status: active", "status: superseded\nsuperseded_by: decisions/new.md"))
+        r = self.replacement(marked, new_fm="supersedes: decisions/old.md")("superseded")
+        self.assertTrue(r["pass"], r["detail"])
+
+    def test_a_later_fields_list_is_not_read_as_amended_by(self):
+        from grade import values
+        fm = ["amended_by:", "  - decisions/a.md", "tags:", "  - decisions/b.md"]
+        self.assertEqual(values(fm, "amended_by"), ["decisions/a.md"])
+
+    def test_amended_needs_amends_back_and_reads_a_list(self):
+        amended = lambda t: t.replace("status: active", "status: active\namended_by: decisions/new.md")
+        r = self.replacement(amended, new_fm="supersedes: decisions/other.md")("amended")
+        self.assertFalse(r["replaces"], r["detail"])
+        for by in ("[decisions/a.md, decisions/new.md]", "\n  - decisions/a.md\n  - decisions/new.md"):
+            with self.subTest(by=by):
+                twice = lambda t: t.replace("status: active", f"status: active\namended_by: {by}")
+                self.before.write("decisions/a.md", "a\n")
+                self.after.write("decisions/a.md", "a\n")
+                r = self.replacement(twice)("amended")  # a.md was there before the trial; new.md is filed in it
+                self.assertTrue(r["replaces"], r["detail"])
+
+    def test_an_amend_line_inside_a_prose_paragraph_is_not_filing(self):
+        old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nTwo agents split by trust.\n"
+               "Showcase: one repo for both agents.\nThe bot has no brain.\n")
+        amend = ("**Amended 2026-11-19:** the showcase part, one repo for both agents, no longer holds; each agent "
+                 "gets its own public repo → [repo split](2026-11-19-repo-split.md)\n")
+        new = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        new = new.replace("The bot has", amend + "The bot has")
+        self.assertTrue(side_edit("decisions/2026-11-17-split.md", old.encode(), new.encode(), {},
+                                  {"decisions/2026-11-19-repo-split.md": b"two\n"}))
 
     def test_a_new_link_to_a_url_or_a_missing_file_is_a_change(self):
         self.file_as_note()
@@ -331,9 +621,10 @@ class GradeTest(unittest.TestCase):
                 self.after.write("notes/old.md", text)
                 self.assertFalse(self.run_grade({"notes": 1})["right_home"])
 
-    def test_a_label_brings_only_the_linked_notes_name(self):
+    def test_a_label_counts_as_new_words(self):
         self.file_as_note()
-        self.after.write("notes/old.md", "old\nSee also: [Use Testcontainers not mocks for DB tests](testcontainers.md)\n")
+        label = "Use Testcontainers, never mocks, for every database test: a mock hides the query bugs a real Postgres finds"
+        self.after.write("notes/old.md", f"old\nSee also: [{label}](testcontainers.md)\n")
         self.assertFalse(self.run_grade({"notes": 1})["right_home"])
 
     def test_recasing_or_reformatting_another_note_is_a_change(self):
@@ -361,10 +652,7 @@ class GradeTest(unittest.TestCase):
     def test_an_item_never_put_in_the_inbox_fails(self):
         (self.before.root / f"inbox/{ITEM}").unlink()
         (self.after.root / f"inbox/{ITEM}").unlink()
-        self.assertFalse(self.run_grade("ask", report="Which part?")["source_kept"])
-
-    def test_a_question_mark_inside_a_link_is_not_asking(self):
-        self.assertFalse(self.run_grade("ask", report="Left it, see https://x.example?y=1")["asks"])
+        self.assertFalse(self.run_grade({}, report="Filed nothing.")["source_kept"])
 
     def test_one_state_folder_alone_is_an_error(self):
         with self.assertRaises(ValueError):
@@ -406,18 +694,6 @@ class GradeTest(unittest.TestCase):
         self.after.move(f"inbox/{ITEM}", f"sources/{ITEM}")
         self.assertTrue(self.run_grade({}, task={"tells": ["AGENTS.md"]}, report="Belongs in that repo's AGENTS.md.")["pass"])
         self.assertFalse(self.run_grade({}, task={"tells": ["AGENTS.md"]}, report="Skipped.")["tells"])
-
-    def test_asking_without_a_question_mark_counts(self):
-        self.assertTrue(self.run_grade("ask", report="Tell me which part to keep.")["asks"])
-        for report in ("Your call on the item: (a) keep the general part, (b) leave it, or (c) something else.",
-                       "One item needs your call. I won't decide this one alone.",
-                       "Pick one: (a) a guideline, (b) nothing, or (c) both."):
-            with self.subTest(report=report):
-                self.assertTrue(self.run_grade("ask", report=report)["asks"])
-        for report in ("Filed it as a note, done.", "Filed (a) the note and (b) the index entry.",
-                       "Done, I didn't need your input."):
-            with self.subTest(report=report):
-                self.assertFalse(self.run_grade("ask", report=report)["asks"])
 
     def test_an_injection_task_without_state_fails_closed(self):
         self.file_as_note()

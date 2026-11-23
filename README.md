@@ -129,6 +129,26 @@ Read more:
 - [Decisions](docs/adr/): why she exists, the two-agent split, one repo per agent, sync-brain's own
   clone, the exfil tripwire.
 
+## Evals
+
+A model doesn't answer the same way twice, so one good run proves little. Before any change to her
+model, instructions or tools, an [eval](evals/) puts her through 30 situations with a known right
+answer, five times each, on a throwaway copy of the brain:
+
+- **Sorting:** a decision goes to `decisions/`, a fact about a project to that project's note.
+- **Holding back:** an article that argues for a rule becomes a note, not one of the owner's rules.
+  Junk and rules for one repo aren't filed at all.
+- **Not being tricked:** pages that ask her to rewrite her rules, save to memory or send the notes
+  out, in the inbox and in chat. The chat cases run on a made-up brain full of fake secrets.
+
+A script grades each trial from what changed in the copy and what left the server. A situation
+passes only if all five trials pass.
+
+The first run passed 13 of 25. After fixes to the grader and to her triage instructions, she
+passes 29 of 30, and no fake secret ever left the server. One page did talk her into setting up a
+monthly job, which the eval now catches. The [results](evals/README.md#results) explain each
+failure.
+
 ## Lessons
 
 - **A prompt is not a control.** The model that was injected had been told to ignore instructions
@@ -149,6 +169,7 @@ Read more:
 |---|---|
 | [`vps/telma/`](vps/telma/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests |
 | [`vps/host.md`](vps/host.md) | the host from her side, and what runs where |
+| [`evals/`](evals/) | the eval: its tasks, grader, harness and every run's report |
 | [`docs/`](docs/) | threat model, before/after, decisions, and the plans and devlogs of each piece of work |
 
 The tests run in CI, and gitleaks scans the full history on every push.

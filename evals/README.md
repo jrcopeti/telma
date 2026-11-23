@@ -186,9 +186,13 @@ The design, steps and rules are in [the plan](../docs/evals/PLAN.md).
   rows go only to `results/private/` (git ignores it), and each failed trial's diff of the copy to
   `results/private/<run>/`. Every run needs the owner's yes.
   `python3 evals/run.py --only T1 skip-1 -k 1` runs a few.
+  `run.py` is the run loop: `trial.py` runs and grades one trial, `brain_copy.py` pins the brain and
+  builds each copy, `eval_profile.py` sets up the profile, `vps.py` reaches the VPS, and `remote/`
+  holds the scripts that run there, tested on temp folders by `test_remote.py` (CI).
 - `report.py` reports a run: pass^k per task, every failed trial with the checks it broke, trials to
   rerun, and the change since the last full run in the same folder (verdicts, cost, time, setup,
-  commits). The run is FAIL if any task fails, BROKEN if over 20% of the trials that ran errored or
+  commits). A task whose definition changed since (each run records a hash of each task) is named
+  as changed, not as newly passing or failing. The run is FAIL if any task fails, BROKEN if over 20% of the trials that ran errored or
   were discarded, PARTIAL if it lacks a task or ran fewer than 5 trials each (`--only`, `-k 1`),
   INCOMPLETE if a task has fewer than k passes, else PASS. `run.py` writes it beside each results
   file as `<run>.md`. `python3 evals/report.py` reports the newest public run; pass a private file for

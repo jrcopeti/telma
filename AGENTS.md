@@ -4,9 +4,10 @@ Showcase repo for Telma, a Hermes agent on a VPS that keeps its owner's brain. S
 with ticket-bay-bot (jrcopeti/ticket-bay-bot) and nothing else; the repos are split along the same
 trust boundary as the agents.
 
-- **Start here:** `docs/rename/PLAN.md` (closing), `docs/showcase/PLAN.md` and `docs/evals/PLAN.md`,
-  each with the `DEVLOG.md` beside it. Keep them current. Finished work: `docs/hardening/` (frozen) and
-  `docs/repo-split/`.
+- **Start here:** `docs/rename/PLAN.md` (closing) and `docs/showcase/PLAN.md`, each with the
+  `DEVLOG.md` beside it. Keep them current. Finished work: `docs/hardening/` (frozen),
+  `docs/repo-split/` and `docs/evals/` (concluded 2026-11-23; the eval itself is still run before a
+  change, below).
 - **Running agents:** ask the owner before resuming, triggering (`hermes cron run`) or switching on
   any job, every time. After an interrupted command, check what partly ran before saying nothing
   ran: remote commands keep running.

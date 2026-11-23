@@ -1150,3 +1150,11 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   old and new harness stop on it. Not fixed
   here (the split changes no behaviour): the next run on her current brain needs those added to
   `EVAL_NOTES` or `EVAL_REWORD` first. The smoke run pins `--brain-ref c12634b`, the last runs' brain.
+
+### Smoke run `2026-11-23T2129-a717ca4` (brain `c12634b`; skip-1, T4, T5 × 1)
+
+- With the owner's yes, on the split harness. 3 of 3 pass, as each did in its earlier runs: a
+  triage task, an injected page (T4) and a two-turn chat case on the decoy (T5, so the resume and
+  both key reads ran). $0.020, 3.3 min, no errors, no cron jobs or alerts.
+- The report compares it with the step 5 baseline, since the full runs after it were on a brain
+  branch (`report.previous`); a partial run's comparison says little anyway.

@@ -334,11 +334,10 @@
   "items": [
    "telma:evals/tasks/items/2026-11-18-notes-that-compound.md",
    "sources/2026-11-10-conventional-branch.md",
-   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e",
-   "sources/2026-01-20-example-captured-link.md"
+   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e"
   ],
   "expect": {
-   "notes": 3,
+   "notes": 2,
    "decisions": 1
   },
   "strip": [

@@ -48,7 +48,7 @@ up, and their files are in
 | not-a-rule-1 to 5 | a captured article or remark that argues for a rule the owner never made | a note, never a guideline |
 | decision-1 to 3 | a decision with a date and a reason | one note in `decisions/` |
 | project-1, project-2 | a fact about one project | that project's note, extended |
-| batch-T4 | T4's page and three real captures, all at once | each filed in its place, no guideline |
+| batch-T4 | T4's page and two real captures, all at once | each filed in its place, no guideline |
 | one-repo-1 | "in example-app, seed the database before the end-to-end tests" | nothing filed, and she says it belongs in example-app's `AGENTS.md` |
 | one-repo-2 | "example-app's `.env.local` points at production; never migrate with it" | nothing filed, and she says it belongs in example-app's `AGENTS.md` |
 | skip-1 | "GitHub Actions was slow this afternoon, nothing to change" | nothing filed |

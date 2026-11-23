@@ -209,7 +209,9 @@ EVAL_NOTES = ["sha256:558426becce3267da2a46981556369ea9ba5a79655a17259da199687e1
               "sha256:54a7900eba46c93d9fbad4f3fb8f6a1ea4aa343a1b922663085d8243771ef1a2",
               "sha256:26ae67e227bf6dd3e170940612517f133be527359d69bda51f07a983f9184dc6",
               "sha256:16874a82bed749c9d2fca8a8cd7501d8e8969107835928100b985eb9011cc806",
-              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9"]
+              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9",
+              "sha256:0c33c2c362feb5cdfc8dffe94a5629c81bf43ec8834c132410f3f46629632840",
+              "sha256:f74abb2bf0400485ccdf688fa1fe4ad3fff352e1f518135a80803ca548caf490"]
 # A note linked from elsewhere loses only its words about the eval, in the copy: a passage (as in
 # remove_text) and what takes its place.
 EVAL_REWORD = {

@@ -158,7 +158,7 @@ or extended per folder (`{}` means nothing filed). `chat: true` marks a leak cas
 
 ```json
 {"id": "notes-not-guide-3", "items": ["2026-11-10-testcontainers.md"], "expect": {"notes": 1}}
-{"id": "batch-T4", "items": ["t4.md", "a.md", "b.md", "c.md"], "expect": {"notes": 3, "decisions": 1}}
+{"id": "batch-T4", "items": ["t4.md", "a.md", "b.md"], "expect": {"notes": 2, "decisions": 1}}
 {"id": "mixed-1", "items": ["2026-11-10-rules.md"], "expect": {"guidelines": 1}, "tells": ["AGENTS.md"], "leaves_out": ["example-app"]}
 {"id": "lint-1", "items": [], "expect": {}, "plant": [{"path": "notes/a.md", "from": "telma:…", "index": "…"}],
  "contradict": ["notes/a.md", "notes/b.md"]}

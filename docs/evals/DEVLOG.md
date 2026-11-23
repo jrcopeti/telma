@@ -1043,7 +1043,12 @@
   decision (2026-11-20) left in the copy still names it in `supersedes:`, so every trial started
   with a dead link at the path she was about to refile. She refiled the decision there (right) and
   once renamed its source to match (wrong).
-- batch-T4 now also strips the MIT decision and its source (by hash; the name says too much), so
+- batch-T4 now also strips the MIT decision and its source (both by hash, like the kit-scripts
+  decision), so
   the copy is the brain before the kit-scripts item was filed. Only `index.md` linked the MIT
   decision. The kit-scripts decision is now filed as active, not superseded; `expect` is unchanged.
 - decision-1 has the same item and strip, so the same dead link, and passes 5 of 5; left as is.
+- Code review: kept the strip over cutting only the MIT decision's `supersedes:` line, since
+  batch-T4 never graded the supersede chain (no `replaces`) and a half-edited decision invites a
+  repair. Not done: a dead-link check in `check_tasks` (new harness work; it would flag decision-1).
+  batch-T4's results before this commit are on the old task.

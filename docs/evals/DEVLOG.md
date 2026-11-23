@@ -1108,6 +1108,8 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   the two hooks are copied to the VPS by hand as single files, run with `python3 -I`, and a shared
   module would add a third file to keep in step. The tripwire doesn't need `flags: 4`: its alerts
   never repeat the call's arguments, so they hold no URL to preview.
-- Next, each with the owner's yes: T6 × 10 on the current setup, deploy (copy the hook and
+- No T6 runs (owner): the hook prints `{}` and the eval silences it, so a trial can't change with
+  it. The proof is a smoke test on the live gateway: a cron call of hers lands in #alerts.
+- Next, with the owner's yes: deploy (copy the hook and
   `tripwire-health.sh` together, or the health check warns every 15 min; add the config entry,
-  approve it, restart the gateway), T6 × 10 after.
+  approve it, restart the gateway), then the smoke test.

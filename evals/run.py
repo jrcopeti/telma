@@ -549,7 +549,10 @@ def trial(task, k, pages, pinned, tmp, diffs):
     pull_state(state / "before")
     usage, exits, events, bad, seconds, billed, cron = run_hermes(task, pages)
     estimate = round(sum(u.get("total_including_auxiliary", u).get("estimated_cost_usd", 0) for u in usage), 5)
-    cost = estimate if billed is None else billed
+    # Nothing billed for a run that made calls: the key's count lagged past the settle wait (6 of 170
+    # trials on 2026-11-22/23). The next trial's first read takes the late charge, so it's nobody's.
+    lagged = billed is not None and billed <= 0 < estimate
+    cost = estimate if billed is None or lagged else billed
     shutil.rmtree(local)
     try:
         pull_state(state / "after")
@@ -566,8 +569,9 @@ def trial(task, k, pages, pinned, tmp, diffs):
            "tokens_in": sum(u.get("input_tokens", 0) for u in usage),
            "tokens_out": sum(u.get("output_tokens", 0) for u in usage),
            "cost_usd": cost, "estimated_cost_usd": estimate, "model_answered": [u.get("model") for u in usage]}
-    if billed is None:
-        row["cost_source"] = "estimate"  # the key couldn't be read: Hermes' estimate, likely too low
+    if billed is None or lagged:
+        # Hermes' estimate, likely too low: the key couldn't be read, or it hadn't counted the run yet.
+        row["cost_source"] = "estimate" if billed is None else "estimate: key lagged"
     if bad:
         row["bad_event_lines"] = bad
     status, why = verdict(usage, exits, 2 if task.get("chat") else 1)

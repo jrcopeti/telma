@@ -178,6 +178,26 @@ class FilesTest(unittest.TestCase):
         with unittest.mock.patch.object(report, "tasks_at", lambda commit: {"a", "b"}):
             self.assertEqual(report.previous(cur, {"a", "b"}), (None, None))
 
+    def test_since_judges_the_earlier_run_the_same_way(self):
+        old = self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))
+        cur = self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3, "b": ["pass"] * 3}))
+        with unittest.mock.patch.object(report, "tasks_at", lambda commit: {"a"}):
+            text = report.report(cur, since=old, full={"a", "b"})[1]
+        self.assertIn(f"Compared with {old.stem} (PASS)", text)
+
+    def test_tasks_at_reads_tasks_json_at_a_commit(self):
+        head = subprocess.run(["git", "-C", str(report.HERE), "rev-parse", "HEAD"], capture_output=True, text=True)
+        if head.returncode:
+            self.skipTest("not a git checkout")
+        report.tasks_at.cache_clear()
+        self.assertIn("T1", report.tasks_at(head.stdout.strip()) or set())
+        self.assertIsNone(report.tasks_at("0000000"))  # no such commit
+        self.assertIsNone(report.tasks_at("HEAD; rm -rf /"))  # not a hash: git is never asked
+        with unittest.mock.patch.object(report.subprocess, "run", side_effect=FileNotFoundError("git")):
+            report.tasks_at.cache_clear()
+            self.assertIsNone(report.tasks_at("abc1234"))  # no git
+        report.tasks_at.cache_clear()
+
     def test_an_unreadable_since_still_reports(self):
         cur = self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3}))
         bad = self.dir / "old.jsonl"

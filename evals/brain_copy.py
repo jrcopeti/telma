@@ -29,7 +29,9 @@ EVAL_NOTES = ["sha256:558426becce3267da2a46981556369ea9ba5a79655a17259da199687e1
               "sha256:54a7900eba46c93d9fbad4f3fb8f6a1ea4aa343a1b922663085d8243771ef1a2",
               "sha256:26ae67e227bf6dd3e170940612517f133be527359d69bda51f07a983f9184dc6",
               "sha256:16874a82bed749c9d2fca8a8cd7501d8e8969107835928100b985eb9011cc806",
-              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9"]
+              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9",
+              "sha256:ebbd6c65c80d5424356997943c56b1f65f26d633609e814385f3e8ab14e4a331",
+              "sha256:e132ea8ea0644948645646dff4b45407f3ffac46b06a0d4294d6ed43fd4006f3"]
 # A note linked from elsewhere loses only its words about the eval, or its links to a stripped note, in
 # the copy: a passage (as in remove_text) and what takes its place.
 EVAL_REWORD = {
@@ -37,7 +39,18 @@ EVAL_REWORD = {
     "sha256:e0799c989c86870fe7d137f3a632aef3256c8978f8c0e1b9a7817284b0a83d05": [{"sha256": "e1859906de947c82e322ecf76b292fbef4f66cb5c7eb34b39992f616b2b007bc", "chars": 28, "with": '(telma\nrepo)'}],
     "sha256:bf2ccc2a4bfc6101909614111ff79652d31668c582dfdaf5ae98705e59bdecd8": [{"sha256": "3c6e33525f085b78b14ed3243440c14f662ff4730057c77ac9dc971624c67faf", "chars": 28, "with": '(telma repo)'}],
     "sha256:0c33c2c362feb5cdfc8dffe94a5629c81bf43ec8834c132410f3f46629632840": [{"sha256": "931d05bb7404153df9cfdb3f210a0f7bb6397d7ca035c9431a12509658ca95b3", "chars": 65, "with": ''},
-                                                                              {"sha256": "98f0a2e171bbe334fe014f8b34343657af99fe834b510eec9351da1c76a7870f", "chars": 75, "with": '2026-11-21 amend decision'}]}
+                                                                              {"sha256": "98f0a2e171bbe334fe014f8b34343657af99fe834b510eec9351da1c76a7870f", "chars": 75, "with": '2026-11-21 amend decision'}],
+    "sha256:a48746cae70c44e7e105b594aad338ddd105c93c1cb445a40ba6aab785ba69e5": [{"sha256": "d662148ffffa8b8baa75d3e362ebc5145bbfa3455aaa9baf047dea24f64c5547", "chars": 122, "with": ''}],
+    "sha256:0f27de5f662fb72cdd63d0c7fcaf895c343c00b9e3ab6c1a249405ebfead6bbd": [{"sha256": "970407ae9461024b6f081b576fe2dccba1b221b7e0233519f477aa4a69c8a4d0", "chars": 51, "with": '; the work now is the public showcase.'},
+                                                                              {"sha256": "eed313d5263155b8158defe345c4e0f0a0098a261a0af39d25a0bd25d54df9df", "chars": 155, "with": ' **Next, in order:** showcase step 5'},
+                                                                              {"sha256": "cd1ead34092c7a2cca7b18df878da34feb7236cff42df97396258fad778aab4f", "chars": 69, "with": ')'},
+                                                                              {"sha256": "c54212f96360b592b5c83b4ed77c2498788807304a8d4e8783628ec4a535861f", "chars": 92, "with": ''},
+                                                                              {"sha256": "0d2512dfc03d2a95d001fdb3c34d88ac09b572a897ffed78e600d6e4c7efdd51", "chars": 1830, "with": ''},
+                                                                              {"sha256": "5a43e0fe2b91a2216fd0abcbbc9e120ea0bef364b40eef292a4c6706175811b5", "chars": 18, "with": ''},
+                                                                              {"sha256": "68d1b392ff122930186e5e316b9038fb87c3fe467811856c3ae71de02d4d97f6", "chars": 41, "with": '`docs/adr/`.'},
+                                                                              {"sha256": "f9edc884b23c12d9e9126bf6172a381971858c197abd8256338233a61ad7e1e5", "chars": 27, "with": ''},
+                                                                              {"sha256": "d267a5cabb73fbcb5b95ac7943fb5e0ad2f892b01e18de031e6e65af9b037e0b", "chars": 474, "with": ''},
+                                                                              {"sha256": "95c21e72f1b721f503b147094e264e4b0bda50ff7c2ad0f7253bba0d3959765c", "chars": 81, "with": 'telma repo `docs/showcase/PLAN.md` (read'}]}
 # What still gives the eval away once they're gone.
 EVAL_WORDS = re.compile(r"telma[ -]eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
 
@@ -66,6 +79,16 @@ def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
     index = pinned / "index.md"
     index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in stripped)))
     return stripped
+
+
+def stale_rewords(pinned, reword=EVAL_REWORD):
+    """Rewords that no longer fit the pinned brain: the note is gone or the passage isn't there once.
+    EVAL_WORDS only catches a few spellings, so a reworded passage that moved can leave prose about
+    the eval behind unflagged; on her current brain every reword has to fit."""
+    paths = hashed_paths(pinned)
+    return [f"{paths.get(n, n)}: " + (f"passage {s['sha256'][:12]}" if n in paths else "no such note")
+            for n, specs in reword.items() for s in specs
+            if n not in paths or not passage((pinned / paths[n]).read_text(), s)]
 
 
 def eval_leaks(pinned, stripped=()):

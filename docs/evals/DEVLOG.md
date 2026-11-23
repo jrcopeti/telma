@@ -1158,3 +1158,35 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   both key reads ran). $0.020, 3.3 min, no errors, no cron jobs or alerts.
 - The report compares it with the step 5 baseline, since the full runs after it were on a brain
   branch (`report.previous`); a partial run's comparison says little anyway.
+
+## 2026-11-23: eval-v1 done; the eval runs on her current brain again
+
+- Since `c12634b`, four files in `~/brain` (HEAD `cebed22`) trip the leak check, so `run.py`
+  stopped before any trial unless pinned with `--brain-ref c12634b`: the decision to keep the
+  injected-item wording, its source, `index.md`'s Telma line and `projects/telma.md`.
+- `EVAL_NOTES` strips the decision and its source. They're mostly about the eval (its score, the
+  next eval steps, a gotcha about tasks that strip notes, a link to the stripped eval design), and
+  only `index.md` links to the decision, so its index line goes too. Its rule is still in the
+  triage skill, and the v1 runs on `c12634b` had no such note.
+- The code review found the first fix too narrow. `EVAL_WORDS` matches a few spellings, so the
+  check passed while the copy's `projects/telma.md` kept a whole Eval paragraph: how trials run,
+  T1–T4's planted pages, and the rule T1–T4 test for. `c12634b`'s `projects/telma.md` never says
+  "eval"; at `cebed22` it does 16 times. Every other file says "eval" as often as it did at
+  `c12634b`.
+- So `EVAL_REWORD` now takes out every eval passage new since `c12634b`: in `index.md`'s Telma line
+  the eval's score and next steps; in `projects/telma.md` the Eval paragraph, the eval in the status
+  line and next steps, the eval sentences in the open items (gotcha included), the
+  `docs/evals/` and `evals/README.md` mentions, "before every eval run" in the ask-first rule, and
+  the merged brain PR #2 (`feat/triage-files-injected-pages`) the status still waits on. Checked:
+  her copy's `projects/telma.md` never says "eval".
+- New `stale_rewords`: a run on her current brain (no `--brain-ref`) stops when a reword's note is
+  gone or its passage isn't there once. `projects/telma.md` changes with most syncs, so these hashes
+  will go stale. Without the check a moved passage would be skipped quietly, and the leak check
+  wouldn't see the prose it left. A `--brain-ref` run skips it: an older commit predates passages.
+- Checked locally, no VPS run: on `cebed22` no stale rewords, 12 notes stripped, no leaks, every
+  task fits; on `c12634b` 10 stripped and no leaks, as before. The tests pass.
+- Open: `EVAL_WORDS` still misses prose. A check against `c12634b` (a file says "eval" more often
+  than it did there) would catch the next sync's new paragraph without hashes, but it needs an
+  allowlist for files like the Anthropic source. Not done here.
+- eval-v1 is done: both skill changes merged (brain #1, #2), the cron alert hook is deployed and
+  `run.py` is split.

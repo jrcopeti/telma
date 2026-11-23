@@ -12,7 +12,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
-from brain_copy import eval_leaks, passage, strip_eval_notes  # noqa: E402
+from brain_copy import eval_leaks, passage, stale_rewords, strip_eval_notes  # noqa: E402
 
 HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (brain_copy.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
@@ -124,6 +124,12 @@ class EvalNotesTest(unittest.TestCase):
         (root / "index.md").write_text(f"# Index\n- [Design]({design}) — x\n- [Other](decisions/other.md) — y\n")
         old = "(telma\nrepo, eval-v1 step 7)"
         reword = {hashed("notes/price.md"): [{**PassageTest.spec(None, old), "with": "(telma\nrepo)"}]}
+        self.assertEqual(stale_rewords(root, reword), [])
+        stale = {**reword, hashed("notes/gone.md"): reword[hashed("notes/price.md")],
+                 hashed("decisions/other.md"): reword[hashed("notes/price.md")]}
+        self.assertEqual(stale_rewords(root, stale),
+                         [f"{hashed('notes/gone.md')}: no such note",
+                          f"decisions/other.md: passage {reword[hashed('notes/price.md')][0]['sha256'][:12]}"])
         stripped = strip_eval_notes(root, [hashed(design), hashed(amend)], reword)
         self.assertEqual(sorted(stripped), [amend, design])
         self.assertFalse((root / design).exists())

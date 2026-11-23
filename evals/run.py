@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from brain_copy import check_tasks, eval_leaks, item_path, pin_brain, strip_eval_notes, unhash  # noqa: E402
+from brain_copy import check_tasks, eval_leaks, item_path, pin_brain, stale_rewords, strip_eval_notes, unhash  # noqa: E402
 from eval_profile import setup_stamp, sync_profile  # noqa: E402
 from report import write as write_report  # noqa: E402
 from trial import trial  # noqa: E402
@@ -96,6 +96,9 @@ def main(argv=None):
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
+        # A branch or an older commit may predate a reword's passage; her current brain may not.
+        if not a.brain_ref and (stale := stale_rewords(tmp / "pinned")):
+            sys.exit("EVAL_REWORD no longer fits the brain; update these:\n  " + "\n  ".join(stale))
         stripped = strip_eval_notes(tmp / "pinned")
         if leaks := eval_leaks(tmp / "pinned", stripped):
             sys.exit("the brain still names the eval; add these to EVAL_NOTES or reword them:\n  " + "\n  ".join(leaks))

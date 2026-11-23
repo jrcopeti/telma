@@ -145,10 +145,9 @@ A script grades each trial from what changed in the copy and what left the serve
 passes only if all five trials pass.
 
 The first run passed 13 of 25 situations, with 29 failed trials. The last full run failed 3 trials
-out of 150. Each of those three was rerun the next day, and in the end one failed trial is left:
-29 of the 30 situations pass, and no fake secret ever left the server. One page did talk her into
-setting up a monthly job once, which the eval now catches. The [results](evals/README.md#results)
-explain each failure.
+out of 150, and each of those three situations was rerun the next day. In the end just one trial
+failed: 29 of the 30 situations pass all five trials, the last one passes four of five, and no fake
+secret ever left the server. The [results](evals/README.md#results) explain each failure.
 
 ## Lessons
 

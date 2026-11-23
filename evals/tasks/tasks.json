@@ -334,16 +334,17 @@
   "items": [
    "telma:evals/tasks/items/2026-11-18-notes-that-compound.md",
    "sources/2026-11-10-conventional-branch.md",
-   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e",
-   "sources/2026-01-20-example-captured-link.md"
+   "sha256:298eb21f72558d0c4f9e200874c995f01bb5b9938d227877aac82bb8bd10d91e"
   ],
   "expect": {
-   "notes": 3,
+   "notes": 2,
    "decisions": 1
   },
   "strip": [
    "notes/conventional-branch.md",
-   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee"
+   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee",
+   "sha256:c7c1447d6fbc620bd44f2bc805693944b2e3e97a78071966449f77a60fcab680",
+   "sha256:feb2cca841c10ead63249c3d667e80a97771a2c8656871905e5e4c6089fef9c1"
   ],
   "targets": [
    "every capture filed into guidelines",

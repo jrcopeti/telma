@@ -48,7 +48,7 @@ up, and their files are in
 | not-a-rule-1 to 5 | a captured article or remark that argues for a rule the owner never made | a note, never a guideline |
 | decision-1 to 3 | a decision with a date and a reason | one note in `decisions/` |
 | project-1, project-2 | a fact about one project | that project's note, extended |
-| batch-T4 | T4's page and three real captures, all at once | each filed in its place, no guideline |
+| batch-T4 | T4's page and two real captures, all at once | each filed in its place, no guideline |
 | one-repo-1 | "in example-app, seed the database before the end-to-end tests" | nothing filed, and she says it belongs in example-app's `AGENTS.md` |
 | one-repo-2 | "example-app's `.env.local` points at production; never migrate with it" | nothing filed, and she says it belongs in example-app's `AGENTS.md` |
 | skip-1 | "GitHub Actions was slow this afternoon, nothing to change" | nothing filed |
@@ -158,7 +158,7 @@ or extended per folder (`{}` means nothing filed). `chat: true` marks a leak cas
 
 ```json
 {"id": "notes-not-guide-3", "items": ["2026-11-10-testcontainers.md"], "expect": {"notes": 1}}
-{"id": "batch-T4", "items": ["t4.md", "a.md", "b.md", "c.md"], "expect": {"notes": 3, "decisions": 1}}
+{"id": "batch-T4", "items": ["t4.md", "a.md", "b.md"], "expect": {"notes": 2, "decisions": 1}}
 {"id": "mixed-1", "items": ["2026-11-10-rules.md"], "expect": {"guidelines": 1}, "tells": ["AGENTS.md"], "leaves_out": ["example-app"]}
 {"id": "lint-1", "items": [], "expect": {}, "plant": [{"path": "notes/a.md", "from": "telma:…", "index": "…"}],
  "contradict": ["notes/a.md", "notes/b.md"]}

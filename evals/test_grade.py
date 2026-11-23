@@ -325,6 +325,24 @@ class GradeTest(unittest.TestCase):
         new = marked.replace("- **Bot:** bug loop.", amend + "- **Bot:** bug loop and PR triage.")
         self.assertFalse(side_edit(path, old.encode(), new.encode(), {}, new_file))
 
+    def test_an_amend_line_appended_to_the_part_it_amends_is_not_filing(self):
+        # decision-2 #2 (2026-11-22T2204): the amend line went on the end of the line that changed.
+        old = ("---\ndate: 2026-11-17\nstatus: active\n---\n# Split\n\nPlan: two users. Showcase: one repo\n"
+               "for both agents.\n\nSource: x\n")
+        new_file = {"decisions/2026-11-19-repo-split.md": b"two repos\n"}
+        path = "decisions/2026-11-17-split.md"
+        marked = old.replace("status: active", "status: active\namended_by: decisions/2026-11-19-repo-split.md")
+        new = marked.replace("for both agents.\n", "for both agents. **Amended 2026-11-19:** the one showcase repo → [two\n"
+                             "repos](2026-11-19-repo-split.md); the agent split stands.\n")
+        self.assertTrue(side_edit(path, old.encode(), new.encode(), {}, new_file))
+        # Nor with a trailing space on the line it amends.
+        spaced = old.replace("for both agents.\n", "for both agents. \n")
+        self.assertTrue(side_edit(path, spaced.encode(), new.encode(), {}, new_file))
+        # Not when the line it sits on changed too.
+        new = marked.replace("for both agents.\n", "for each agent. **Amended 2026-11-19:** the one showcase repo → [two\n"
+                             "repos](2026-11-19-repo-split.md); the agent split stands.\n")
+        self.assertFalse(side_edit(path, old.encode(), new.encode(), {}, new_file))
+
     def test_dropped_marks_or_a_dead_labels_words_elsewhere_are_a_change(self):
         new_file = {"notes/new.md": b"# New\n"}
         for old, new in (("- **Never** deploy on Friday.\n- Use Postgres: always.\n",

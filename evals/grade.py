@@ -137,6 +137,8 @@ def names(target, after):
 # The line rule 6 adds to an older decision it amends (under the part that changed) or supersedes,
 # also as a bullet or a quote; the lines that continue it, up to a blank line or the next bullet or heading.
 AMEND_LINE = re.compile(r"\s*(?:[-*+>]\s*)*\*\*(?:Amended|Superseded)\b", re.I)
+# Or appended to the end of the line it amends, which stays as it was.
+AMEND_AT_END = re.compile(r"\s+(?=\*\*(?:Amended|Superseded)\b)", re.I)
 BLOCK_START = re.compile(r"\s*(?:[-*+]\s|\d+\.\s|#)")
 
 
@@ -155,7 +157,11 @@ def without_amendments(path, old, new, before, after):
     def amends(text):
         return (not kept & set(text.splitlines())
                 and any(new_decision(path, target, before, after) for _, target in LINK.findall(text)))
-    lines, out, i = "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par)).splitlines(), [], 0
+    lines, out, i, ends = [], [], 0, {l.rstrip(): l for l in kept}
+    for line in "\n\n".join(par for par in re.split(r"\n\s*\n", new) if not amends(par)).splitlines():
+        m = None if line in kept else next((m for m in AMEND_AT_END.finditer(line)
+                                            if line[:m.start()].strip() and line[:m.start()] in ends), None)
+        lines += [ends[line[:m.start()]], line[m.end():]] if m else [line]
     while i < len(lines):
         j = i + 1
         if AMEND_LINE.match(lines[i]):

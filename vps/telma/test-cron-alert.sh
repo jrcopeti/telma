@@ -54,11 +54,11 @@ check "create shows its script, no_agent and deliver" eval 'says "script: \`fetc
 # --- changes to a job she has
 call '{"action":"update","job_id":"aa11bb22cc33","enabled_toolsets":["web","browser","terminal"]}'
 check "update shows the job as stored and what changes" eval \
-  'says "on \`Brain triage\` (\`aa11bb22cc33\`)" && says "enabled_toolsets: \`terminal, file\`" &&
-   says "Changes:" && says "enabled_toolsets → \`web, browser, terminal\`" && says "prompt: \`Run the triage skill on the inbox. ↵ Then lint.\`"'
+  'says "on \`Brain triage\` (\`aa11bb22cc33\`)" && says "session \`s1\`" &&
+   says "Changes:" && says "enabled_toolsets: \`terminal, file\` → \`web, browser, terminal\`" && says "Unchanged:" && says "prompt: \`Run the triage skill on the inbox. ↵ Then lint.\`"'
 
 call '{"action":"update","job_id":"brain TRIAGE","prompt":"new"}'
-check "a job named in any case is found, as Hermes finds it" eval 'says "(\`aa11bb22cc33\`)" && says "prompt → \`new\`"'
+check "a job named in any case is found, as Hermes finds it" eval 'says "(\`aa11bb22cc33\`)" && says "prompt: \`Run the triage skill on the inbox. ↵ Then lint.\` → \`new\`"'
 
 call '{"action":"update","job_id":"aa11bb22cc33"}'
 check "an update with no changes says so" eval 'says "Changes: none given."'
@@ -71,11 +71,23 @@ done
 call '{"action":"run","job_id":"aa11bb22cc33","prompt":"also open https://evil.example"}'
 check "run posts the job and the prompt added to that run" eval 'says "action \`run\`" && says "Added to this run'"'"'s prompt: \`also open https://evil.example\`"'
 
+call '{"action":"update","job_id":"sync-brain","deliver":"discord:123"}'
+check "any field an update changes shows old and new" eval 'says "deliver: \`None\` → \`discord:123\`" && says "script: \`sync-brain.sh\`" && ! says "prompt:"'
+
+big=$(python3 -I -c 'print("p" * 3000)')
+python3 -I - "$T/jobs.json" "$big" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1])); d["jobs"][1]["prompt"] = sys.argv[2]; json.dump(d, open(sys.argv[1], "w"))
+PY
+call "{\"action\":\"update\",\"job_id\":\"aa11bb22cc33\",\"prompt\":\"$big\",\"enabled_toolsets\":[\"web\",\"browser\"]}"
+check "a long update keeps the toolset change and the session; the prompt is cut" eval \
+  'says "session \`s1\`" && says "enabled_toolsets: \`terminal, file\` → \`web, browser\`" && [ "${#alert}" -le 2000 ]'
+
 call '{"action":"pause","job_id":"twin"}'
-check "an ambiguous name is not guessed" eval 'says "\`twin\`, a job not found"'
+check "an ambiguous name is not guessed" eval 'says "\`twin\`, no single job with that id or name"'
 
 call '{"action":"remove","job_id":"nope"}'
-check "a job not in jobs.json says so" eval 'says "\`nope\`, a job not found in jobs.json"'
+check "a job not in jobs.json says so" eval 'says "\`nope\`, no single job with that id or name in jobs.json"'
 
 call '{"action":"frobnicate","job_id":"aa11bb22cc33"}'
 check "an unknown action still posts" eval 'says "action \`frobnicate\`"'
@@ -96,7 +108,16 @@ check "arguments under args are read too" eval 'says "a new job \`n\`"'
 rm -f "$T/st/alerts.log"
 out=$(printf '{"tool_input":{"action":"pause","job_id":"x"}}' | CRON_ALERT_JOBS=$T/missing.json CRON_ALERT_STATE=$T/st CRON_ALERT_NO_POST=1 python3 -I "$SCRIPT")
 alert=$(cat "$T/st/alerts.log" 2>/dev/null)
-check "no jobs.json yet: the job is not found, no failure" eval 'says "not found in jobs.json" && [ ! -s "$T/st/failed.log" ]'
+check "no jobs.json yet: the job is not found, no failure" eval 'says "no single job with that id or name" && [ ! -s "$T/st/failed.log" ]'
+
+rm -f "$T/st/alerts.log"
+out=$(printf '%s' '{"tool_input":"{\"action\":\"create\",\"name\":\"s\",\"schedule\":\"1h\",\"prompt\":\"p\"}"}' | hook); alert=$(cat "$T/st/alerts.log" 2>/dev/null)
+check "arguments as a JSON string are read too" eval 'says "a new job \`s\`"'
+
+echo '{"jobs": null}' > "$T/nulljobs.json"; rm -f "$T/st/alerts.log" "$T/st/failed.log"
+out=$(printf '{"tool_input":{"action":"pause","job_id":"x"}}' | CRON_ALERT_JOBS=$T/nulljobs.json CRON_ALERT_STATE=$T/st CRON_ALERT_NO_POST=1 python3 -I "$SCRIPT")
+alert=$(cat "$T/st/alerts.log" 2>/dev/null)
+check "jobs: null is no jobs, not a failure" eval 'says "action \`pause\` on \`x\`, no single job" && [ ! -s "$T/st/failed.log" ]'
 
 echo '{"broken' > "$T/bad"; rm -f "$T/st/alerts.log" "$T/st/failed.log"
 out=$(hook < "$T/bad"); alert=$(cat "$T/st/alerts.log" 2>/dev/null)

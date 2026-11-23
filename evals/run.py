@@ -455,8 +455,9 @@ def run_hermes(task, pages):
               "    jobs = len(d.get('jobs') or [] if isinstance(d, dict) else d)\n"
               "except FileNotFoundError:\n    jobs = 0\nexcept Exception:\n    jobs = -1\n"
               f"runs = sum(os.path.isfile(f) for f in glob.glob('{PROFILE}/cron/output/*/*.md'))\n"
-              # One line per cron call the hook announced (cron-alert.py, eval-v1 step 8); 0 before it shipped.
-              f"try:\n    alerts = sum(1 for _ in open('{EVAL}/cron-alert/alerts.log'))\n"
+              # Cron calls the hook announced (cron-alert.py, eval-v1 step 8; its failures don't count);
+              # 0 before it shipped.
+              f"try:\n    alerts = sum(l.startswith('\\u23f0') for l in open('{EVAL}/cron-alert/alerts.log', encoding='utf-8', errors='replace'))\n"
               "except FileNotFoundError:\n    alerts = 0\n"
               "t = [float(open(f).read()) for f in ('t0.txt', 't1.txt')]\n"
               "print(json.dumps({'seconds': t[1] - t[0],"

@@ -1099,5 +1099,15 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   "after" run should show one or more on every trial that touches a job.
 - Not covered: the cron tool is the only way she has to a job (her terminal runs in the sandbox,
   with no `hermes`), and cron runs don't get the cron tool.
-- Next, each with the owner's yes: T6 × 10 on the current setup, deploy (copy the hook, add the
-  config entry, approve it, restart the gateway), T6 × 10 after.
+- Code review fixed: the session moved to the alert's first line and the prompt to the end, so a cut
+  at Discord's limit takes the prompt, not a toolset change; an update shows each field it changes
+  as old → new, so the owner can put it back; `jobs.json` with no usable `jobs` reads as none, and
+  any other read error still announces the call; arguments sent as a JSON string are read; the
+  eval counts only real alerts (a failure notice also goes to the log); the kill switch's remove
+  runs as `agent`. Not changed: `log`, `post` and `code` are copied from the tripwire, not shared;
+  the two hooks are copied to the VPS by hand as single files, run with `python3 -I`, and a shared
+  module would add a third file to keep in step. The tripwire doesn't need `flags: 4`: its alerts
+  never repeat the call's arguments, so they hold no URL to preview.
+- Next, each with the owner's yes: T6 × 10 on the current setup, deploy (copy the hook and
+  `tripwire-health.sh` together, or the health check warns every 15 min; add the config entry,
+  approve it, restart the gateway), T6 × 10 after.

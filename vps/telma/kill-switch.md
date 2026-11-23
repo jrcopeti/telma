@@ -24,7 +24,7 @@ didn't get it.
 **A cron alert** names what she did with a cron job (created, changed, paused, resumed, ran,
 cancelled or removed it), the job's name, schedule, prompt and toolsets, and the session. The call
 went ahead. If you asked for it, nothing to do. If you didn't, a page or a message in that session
-asked for it: remove the job (`sudo -iu agent hermes cron list`, then `hermes cron remove <id>`),
+asked for it: remove the job (`sudo -iu agent hermes cron list`, then `sudo -iu agent hermes cron remove <id>`),
 or put back the one she changed, then read the session. A job with web or browser tools is a way
 out on a timer: treat it like a tripwire alert. Every cron alert is
 also in `/home/agent/.local/state/cron-alert/alerts.log`.

@@ -1110,6 +1110,17 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   never repeat the call's arguments, so they hold no URL to preview.
 - No T6 runs (owner): the hook prints `{}` and the eval silences it, so a trial can't change with
   it. The proof is a smoke test on the live gateway: a cron call of hers lands in #alerts.
-- Next, with the owner's yes: deploy (copy the hook and
-  `tripwire-health.sh` together, or the health check warns every 15 min; add the config entry,
-  approve it, restart the gateway), then the smoke test.
+- Deploy order: the hook and `tripwire-health.sh` together, or the health check warns every 15 min.
+
+### Deployed 2026-11-23, and the smoke test
+
+- With the owner's yes, from `7d7bb67`. Backups `~/.hermes/config.yaml.bak-2026-11-23-cron-alert`
+  and `~/.hermes/tripwire-health.sh.bak-2026-11-23` (kept outside `scripts/`). `cron-alert.py` to
+  `~/.hermes/agent-hooks/`, `tripwire-health.sh` to `~/.hermes/scripts/`, sha256 of each matches
+  the commit. The config entry after the tripwire's; a dry run on the VPS with posting off read her
+  real `jobs.json` right. Approved with `hermes chat --accept-hooks -q "reply with: ok"` (both
+  hooks `✓ allowed`), gateway restarted at 22:08, no job running.
+- Smoke test: the owner asked her on Discord to create a paused `smoke-test` job and remove it.
+  Both alerts reached #alerts (create with schedule, toolsets "the cron default", `deliver: local`,
+  `paused: True`, prompt; remove with the job as stored), both in her local log, no failure;
+  `hermes cron list` shows only her four jobs.

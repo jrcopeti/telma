@@ -342,8 +342,11 @@
   },
   "strip": [
    "notes/conventional-branch.md",
-   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee"
+   "sha256:5688e31a3556f85ce86e91f214dc7d7cdc4793d2da2a11fbec500c019043e6ee",
+   "decisions/2026-11-20-telma-repo-mit-license.md",
+   "sha256:feb2cca841c10ead63249c3d667e80a97771a2c8656871905e5e4c6089fef9c1"
   ],
+  "why": "the MIT decision and its source go too: left in, its supersedes: names the stripped decision, a dead link every trial starts with",
   "targets": [
    "every capture filed into guidelines",
    "auto-guidelines"

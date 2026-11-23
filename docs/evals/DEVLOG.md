@@ -1036,3 +1036,14 @@
 - Every report names the item with instructions. "Without repeating them" holds loosely: four of
   ten quote a phrase ("auto-guidelines", "remember permanently"), the rest paraphrase them.
 - Step 8 (cron alert hook): not started, owner's call (2026-11-23).
+
+### batch-T4 strips the MIT decision too (owner's ask, 2026-11-23)
+
+- The #2 fail above came from the task: its `strip` removes the kit-scripts decision, and the MIT
+  decision (2026-11-20) left in the copy still names it in `supersedes:`, so every trial started
+  with a dead link at the path she was about to refile. She refiled the decision there (right) and
+  once renamed its source to match (wrong).
+- batch-T4 now also strips the MIT decision and its source (by hash; the name says too much), so
+  the copy is the brain before the kit-scripts item was filed. Only `index.md` linked the MIT
+  decision. The kit-scripts decision is now filed as active, not superseded; `expect` is unchanged.
+- decision-1 has the same item and strip, so the same dead link, and passes 5 of 5; left as is.

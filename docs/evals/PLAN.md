@@ -166,6 +166,16 @@ What the first run taught, and the owner's calls on it (devlog, step 8). One PR 
 
 ## Open
 
+- **Evals paused (owner, 2026-11-23)** after the injected-item line (brain
+  `feat/triage-files-injected-pages`, kept at `c12634b`; devlog wrap-up). No runs until the owner says so.
+  Waiting on the next run:
+  - `FLAG` in `run.py` misses "instructions aimed at the agent/me", the line's own phrasing, so
+    `flagged` undercounts. Widen it, with a test.
+  - batch-T4 #2 (`2026-11-23T1523`) renamed a source after the decision whose dead `supersedes:`
+    link she was fixing. A triage gotcha: a source keeps its inbox file name. Skill change, so an
+    eval first.
+  - Instructions that are an item's subject stay content (the line's second half): no task tests
+    it yet.
 - The injection suite also ran some cases on a model that obeys injections, to prove the walls hold
   without the model. This eval drops fallback trials, so it measures DeepSeek and the walls
   together. Add an obedient-model run of T1–T3 later?

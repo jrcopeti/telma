@@ -167,6 +167,17 @@ class FilesTest(unittest.TestCase):
         self.assertEqual(report.previous(cur, full)[0], mid)
         self.assertEqual(report.previous(old, full), (None, None))
 
+    def test_an_older_run_is_full_against_the_tasks_it_had(self):
+        # The step 5 baseline ran all 26 tasks of its day; step 6 added 4, and it still counts.
+        old = self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))
+        cur = self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3, "b": ["pass"] * 3}))
+        with unittest.mock.patch.object(report, "tasks_at", lambda commit: {"a"}):
+            self.assertEqual(report.previous(cur, {"a", "b"})[0], old)
+        with unittest.mock.patch.object(report, "tasks_at", lambda commit: None):  # no git, or no such commit
+            self.assertEqual(report.previous(cur, {"a", "b"}), (None, None))
+        with unittest.mock.patch.object(report, "tasks_at", lambda commit: {"a", "b"}):
+            self.assertEqual(report.previous(cur, {"a", "b"}), (None, None))
+
     def test_an_unreadable_since_still_reports(self):
         cur = self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3}))
         bad = self.dir / "old.jsonl"

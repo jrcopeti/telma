@@ -14,6 +14,7 @@ Exits 0 when the run passes, 1 otherwise.
 import argparse
 import json
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -74,15 +75,31 @@ def summarize(rows, full):
             "setup": next((r["setup"] for r in rows if "setup" in r), {})}
 
 
+def tasks_at(commit):
+    """The task ids in tasks.json at this telma commit, or None when git can't say."""
+    if not commit or not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+        return None
+    r = subprocess.run(["git", "-C", str(Path(__file__).parent), "show", f"{commit}:evals/tasks/tasks.json"],
+                       capture_output=True, text=True)
+    try:
+        return {t["id"] for t in json.loads(r.stdout)} if r.returncode == 0 else None
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
 def previous(path, full):
     """The newest full run before this one in the same folder, with its summary, or (None, None).
-    A file that can't be read is skipped: an old run must not stop this one's report. A run on a
-    brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
+    A file that can't be read is skipped: an old run must not stop this one's report. A run is full
+    against the tasks it had (tasks.json at its commit), so a task added since doesn't hide it. A run
+    on a brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
     pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
-            s = summarize(load(p), full)
+            rows = load(p)
+            s = summarize(rows, full)
+            if s["partial"] and (then := tasks_at(s["setup"].get("telma_commit"))):
+                s = summarize(rows, then)  # full against the tasks it had: later tasks are new
         except (OSError, ValueError, KeyError, TypeError):
             continue
         ref = s["setup"].get("brain_ref")

@@ -1077,3 +1077,50 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   marker left the VPS in any trial. Only T4 and batch-T4 ran on the final skill (`c12634b`); the
   other 28 last ran on `d53bcca`, without the injected-item line. The owner merges it on that, so
   `AGENTS.md`'s eval-before-a-skill-change rule is met for those two tasks only.
+
+## 2026-11-23: step 8, the cron alert hook
+
+- Her cron tool is `cronjob_manage` (Hermes v0.23.2, `tools/cronjob_tools.py`), one tool with an
+  `action`: create, list, update, pause, resume, remove, run, cancel. Any action but create and list
+  takes a `job_id`, an id or a job's name in any case, and reaches every job in her profile, the
+  host jobs included (sync-brain, memory-diff, tripwire-health).
+- `vps/telma/cron-alert.py`, a `pre_tool_call` hook on `cronjob_manage`, beside the tripwire: it
+  posts every action but `list` to #alerts, through the tripwire's webhook. The plan named create,
+  change and resume; pause, remove and cancel can stop a host job, and run fires one now (T6 #1
+  fired its job once as a test). A new job shows its name, schedule, prompt (cut at 900 characters),
+  toolsets (none given: "the cron default"), and its script, skills, delivery and the rest when
+  given. Any other action shows the job as `jobs.json` has it, and an update the fields it changes.
+  No pings and no link previews: a preview would fetch a URL from the prompt.
+- Detection only: it prints `{}` and exits 0 whatever happens. A failure is logged and posted, like
+  the tripwire's; an unreadable `jobs.json` still announces the call. `tripwire-health.sh` now also
+  says when the hook isn't approved, and reports its failures.
+- The eval: `SYNC_PROFILE` rewrites its command so it never posts (and stops the run if one would),
+  each trial starts with its log empty, and `cron` records a third number, the alerts it logged. The
+  "after" run should show one or more on every trial that touches a job.
+- Not covered: the cron tool is the only way she has to a job (her terminal runs in the sandbox,
+  with no `hermes`), and cron runs don't get the cron tool.
+- Code review fixed: the session moved to the alert's first line and the prompt to the end, so a cut
+  at Discord's limit takes the prompt, not a toolset change; an update shows each field it changes
+  as old → new, so the owner can put it back; `jobs.json` with no usable `jobs` reads as none, and
+  any other read error still announces the call; arguments sent as a JSON string are read; the
+  eval counts only real alerts (a failure notice also goes to the log); the kill switch's remove
+  runs as `agent`. Not changed: `log`, `post` and `code` are copied from the tripwire, not shared;
+  the two hooks are copied to the VPS by hand as single files, run with `python3 -I`, and a shared
+  module would add a third file to keep in step. The tripwire doesn't need `flags: 4`: its alerts
+  never repeat the call's arguments, so they hold no URL to preview.
+- No T6 runs (owner): the hook prints `{}` and the eval silences it, so a trial can't change with
+  it. The proof is a smoke test on the live gateway: a cron call of hers lands in #alerts.
+- Deploy order: the hook and `tripwire-health.sh` together, or the health check warns every 15 min.
+
+### Deployed 2026-11-23, and the smoke test
+
+- With the owner's yes, from `7d7bb67`. Backups `~/.hermes/config.yaml.bak-2026-11-23-cron-alert`
+  and `~/.hermes/tripwire-health.sh.bak-2026-11-23` (kept outside `scripts/`). `cron-alert.py` to
+  `~/.hermes/agent-hooks/`, `tripwire-health.sh` to `~/.hermes/scripts/`, sha256 of each matches
+  the commit. The config entry after the tripwire's; a dry run on the VPS with posting off read her
+  real `jobs.json` right. Approved with `hermes chat --accept-hooks -q "reply with: ok"` (both
+  hooks `✓ allowed`), gateway restarted at 22:08, no job running.
+- Smoke test: the owner asked her on Discord to create a paused `smoke-test` job and remove it.
+  Both alerts reached #alerts (create with schedule, toolsets "the cron default", `deliver: local`,
+  `paused: True`, prompt; remove with the job as stored), both in her local log, no failure;
+  `hermes cron list` shows only her four jobs.

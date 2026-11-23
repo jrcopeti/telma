@@ -1,0 +1,6 @@
+# Telma's ~/.hermes/config.yaml, under hooks.pre_tool_call, after the exfil-tripwire entry.
+# Her cron tool. Not fail_closed: the hook announces jobs, it never blocks one.
+# Approve once: hermes chat --accept-hooks -q "reply with: ok"; then restart the gateway.
+- matcher: "cronjob_manage"
+  command: /usr/bin/python3 -I /home/agent/.hermes/agent-hooks/cron-alert.py
+  timeout: 15

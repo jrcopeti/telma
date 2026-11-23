@@ -7,7 +7,7 @@ Telma shares one VPS with ticket-bay-bot. The bot's repo describes the same host
 
 | User | What it runs |
 |---|---|
-| `agent` | Telma: her own Hermes install (`~/.hermes/hermes-agent`), rootless Docker. Her sandbox starts with `--network=none`; web and browser run in her Hermes process on the host. Host-side jobs: [sync-brain](telma/sync-brain.sh), [memory-diff](telma/memory-diff.sh) and [tripwire-health](telma/tripwire-health.sh), plus the [exfil tripwire](telma/exfil-tripwire.py) hook. |
+| `agent` | Telma: her own Hermes install (`~/.hermes/hermes-agent`), rootless Docker. Her sandbox starts with `--network=none`; web and browser run in her Hermes process on the host. Host-side jobs: [sync-brain](telma/sync-brain.sh), [memory-diff](telma/memory-diff.sh) and [tripwire-health](telma/tripwire-health.sh), plus the [exfil tripwire](telma/exfil-tripwire.py) and [cron alert](telma/cron-alert.py) hooks. |
 
 The bot runs as `ticket-bay-bot`, next to `ticket-bay-app` and `skills-sync`. Both agents' homes are
 `750`, so neither can read the other's files.
@@ -19,6 +19,7 @@ Copied by hand; `~` is Telma's home, `/home/agent`.
 | In this repo | On the VPS |
 |---|---|
 | `telma/guard-network.sh` | `~/.hermes/agent-hooks/` |
+| `telma/exfil-tripwire.py`, `telma/cron-alert.py` | `~/.hermes/agent-hooks/`; their config entries in `telma/*.hooks.yaml` |
 | `telma/sandbox/Dockerfile` | `~/sandbox/` |
 
 ## Rules for the whole host

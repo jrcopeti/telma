@@ -129,6 +129,25 @@ class ChangesTest(unittest.TestCase):
         cur = summarize(run({"a": ["pass", "fail", "pass"]}))
         self.assertEqual(report.changes(cur, prev)["newly_failing"], ["a"])
 
+    def test_a_changed_task_is_named_as_changed_not_newly_passing_or_failing(self):
+        def with_shas(statuses, shas):
+            return summarize([{**r, "setup": {**SETUP, "task_sha": shas}} for r in run(statuses)])
+        prev = with_shas({"a": ["fail"] * 3, "b": ["pass"] * 3, "c": ["fail"] * 3}, {"a": "1", "b": "1", "c": "1"})
+        cur = with_shas({"a": ["pass"] * 3, "b": ["fail"] * 3, "c": ["pass"] * 3}, {"a": "2", "b": "2", "c": "1"})
+        d = report.changes(cur, prev)
+        self.assertEqual(d["changed_tasks"], ["a", "b"])
+        self.assertEqual(d["newly_passing"], ["c"])
+        self.assertEqual(d["newly_failing"], ["b"])  # a changed task that fails still blocks
+        self.assertEqual(d["setup"], {})  # the hashes aren't a setup change
+        text = report.render("run.jsonl", cur, "prev.jsonl", prev)
+        self.assertIn("- Task changed, verdicts don't compare: a (fail → pass), b (pass → fail)", text)
+
+    def test_a_run_without_task_hashes_compares_every_task(self):
+        prev = summarize(run({"a": ["fail"] * 3}))
+        cur = summarize([{**r, "setup": {**SETUP, "task_sha": {"a": "2"}}} for r in run({"a": ["pass"] * 3})])
+        d = report.changes(cur, prev)
+        self.assertEqual((d["changed_tasks"], d["newly_passing"]), ([], ["a"]))
+
     def test_setup_and_cost(self):
         prev = summarize(run({"a": ["pass"] * 3}))
         rows = [{**r, "cost_usd": 0.02, "setup": {**SETUP, "soul_sha": "s2", "eval_soul_sha": "s2"}}
@@ -292,6 +311,35 @@ class PublicRowTest(unittest.TestCase):
         self.assertNotIn("why", harness.public_row({"status": "fail", "why": "filed notes/x.md"}, False))
         self.assertNotIn("report", harness.public_row({"status": "pass", "report": "text"}, True))
         self.assertNotIn("diff", harness.public_row({"status": "fail", "diff": "run/x-1.diff"}, True))
+
+
+class TaskShaTest(unittest.TestCase):
+    def test_changes_with_the_task_or_a_file_of_this_repo_it_names(self):
+        import run as harness
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            (repo / "item.md").write_text("one")
+            task = {"id": "a", "items": ["telma:item.md", "sources/x.md"], "expect": {"notes": 1}}
+            sha = harness.task_sha(task, repo)
+            self.assertEqual(harness.task_sha(dict(reversed(task.items())), repo), sha)
+            self.assertNotEqual(harness.task_sha({**task, "expect": {"decisions": 1}}, repo), sha)
+            (repo / "item.md").write_text("two")
+            self.assertNotEqual(harness.task_sha(task, repo), sha)
+            (repo / "item.md").write_text("")
+            empty = harness.task_sha(task, repo)
+            (repo / "item.md").unlink()
+            self.assertNotEqual(harness.task_sha(task, repo), empty)
+
+    def test_a_chat_task_changes_with_the_decoy_markers(self):
+        import run as harness
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            (repo / "evals/decoy-brain").mkdir(parents=True)
+            (repo / "evals/decoy-brain/markers.json").write_text("[1]")
+            task = {"id": "T5", "chat": True, "expect": {}}
+            sha = harness.task_sha(task, repo)
+            (repo / "evals/decoy-brain/markers.json").write_text("[2]")
+            self.assertNotEqual(harness.task_sha(task, repo), sha)
 
 
 class PrivateResultsTest(unittest.TestCase):

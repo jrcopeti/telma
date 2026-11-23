@@ -12,9 +12,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
-from run import eval_leaks, passage, strip_eval_notes  # noqa: E402
+from brain_copy import eval_leaks, passage, strip_eval_notes  # noqa: E402
 
-HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (run.unhash)
+HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (brain_copy.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
 TASKS = json.loads((REPO / "evals/tasks/tasks.json").read_text())
 

@@ -120,22 +120,28 @@ def previous(path, full):
 def changes(cur, prev):
     """What moved between two summaries: tasks by verdict, cost, time and the setup."""
     a, b = prev["tasks"], cur["tasks"]
-    both = [t for t in b if t in a]
+    # A task whose definition changed (run.py hashes each one) isn't compared: its verdict moved with it.
+    sha0, sha1 = prev["setup"].get("task_sha") or {}, cur["setup"].get("task_sha") or {}
+    changed = [t for t in b if t in a and t in sha0 and t in sha1 and sha0[t] != sha1[t]]
+    both = [t for t in b if t in a and t not in changed]
     per_trial = lambda s, key: s[key] / s["ran"] if s["ran"] else 0
     moved = lambda fields: {f: (prev["setup"].get(f), cur["setup"].get(f)) for f in fields
                             if prev["setup"].get(f) != cur["setup"].get(f)}
     return {
-        "newly_failing": [t for t in both if b[t]["verdict"] == "fail" and a[t]["verdict"] != "fail"],
+        # A changed task that fails now is still newly failing: AGENTS.md's rule blocks on this list.
+        "newly_failing": [t for t in both if b[t]["verdict"] == "fail" and a[t]["verdict"] != "fail"]
+                         + [t for t in changed if b[t]["verdict"] == "fail"],
         "newly_passing": [t for t in both if b[t]["verdict"] == "pass" and a[t]["verdict"] != "pass"],
         "still_failing": [t for t in both if b[t]["verdict"] == a[t]["verdict"] == "fail"],
         "now_incomplete": [t for t in both if b[t]["verdict"] == "incomplete" != a[t]["verdict"]],
+        "changed_tasks": changed,
         "new_tasks": [t for t in b if t not in a],
         "gone_tasks": [t for t in a if t not in b],
         "k": (prev["k"], cur["k"]),
         "cost_usd": (prev["cost_usd"], cur["cost_usd"]),
         "cost_per_trial": (per_trial(prev, "cost_usd"), per_trial(cur, "cost_usd")),
         "seconds_per_trial": (per_trial(prev, "seconds"), per_trial(cur, "seconds")),
-        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS))),
+        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS) - {"task_sha"})),
         "commits": moved(COMMITS),
     }
 
@@ -204,8 +210,11 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
                            ("new_tasks", "New tasks"), ("gone_tasks", "Not in this run")):
             if d[key]:
                 out.append(f"- {label}: {', '.join(d[key])}")
+        if d["changed_tasks"]:
+            out.append("- Task changed, verdicts don't compare: " + ", ".join(
+                f"{t} ({prev['tasks'][t]['verdict']} → {cur['tasks'][t]['verdict']})" for t in d["changed_tasks"]))
         if not any(d[key] for key in ("newly_failing", "newly_passing", "still_failing", "now_incomplete",
-                                      "new_tasks", "gone_tasks")):
+                                      "changed_tasks", "new_tasks", "gone_tasks")):
             out.append("- Every task has the same verdict.")
         (c0, c1), (t0, t1), (s0, s1) = d["cost_usd"], d["cost_per_trial"], d["seconds_per_trial"]
         out.append(f"- Cost {money(c0)} → {money(c1)}; per trial {money(t0)} → {money(t1)}, {s0:.0f} s → {s1:.0f} s")

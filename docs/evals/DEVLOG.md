@@ -1124,3 +1124,37 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   Both alerts reached #alerts (create with schedule, toolsets "the cron default", `deliver: local`,
   `paused: True`, prompt; remove with the job as stored), both in her local log, no failure;
   `hermes cron list` shows only her four jobs.
+
+## 2026-11-23: step 9, `run.py` split
+
+- `run.py` (721 lines) is now the run loop (139): `vps.py` (SSH, the VPS paths, `py()`),
+  `eval_profile.py` (the profile copy and the setup stamp; not `profile.py`, which would shadow the
+  standard library's module), `brain_copy.py` (pin, strip the eval notes, check the tasks, build a
+  copy) and `trial.py` (one trial, graded). Code moved as it was, but for a dead `seconds` the old
+  `run_hermes` measured and then overwrote.
+- The four scripts that ran on the VPS from f-strings are files in `evals/remote/`:
+  `sync_profile.py`, `key_spend.py`, `stop_gateway.py` and `collect.py`. They take their paths as
+  arguments. `vps.py`'s `py()` puts a file in a quoted heredoc inside the one bash script `vps()`
+  sends, so a script still runs in one SSH call, and refuses a file holding the heredoc's end line.
+- `test_remote.py` (CI) runs each one on temp folders through that heredoc. `stop_gateway`'s kill
+  test reads `/proc`, so it runs only on Linux (CI); the local machine skips it.
+- Checked against the old code on the same inputs: `sync_profile` writes the same config and
+  `.env`, `collect` prints the same JSON (a jobs dict, a list, bad JSON, no file). The generated bash
+  passes `bash -n`. The pre-trial checks stop the same way in both.
+- Each run's setup records `task_sha`: a hash of each task's definition and the files of this repo it
+  names (items, planted notes, a chat page). `report.py` names a task whose hash changed as changed,
+  with both verdicts, and leaves it out of newly passing; one that fails now is still newly failing,
+  so `AGENTS.md`'s rule still blocks on it. A chat case's hash also covers the decoy brain. A run without hashes
+  (every run so far) compares as before.
+- Found while checking: `~/brain` HEAD (`7a94773`) names the eval again, in four files. Both the
+  old and new harness stop on it. Not fixed
+  here (the split changes no behaviour): the next run on her current brain needs those added to
+  `EVAL_NOTES` or `EVAL_REWORD` first. The smoke run pins `--brain-ref c12634b`, the last runs' brain.
+
+### Smoke run `2026-11-23T2129-a717ca4` (brain `c12634b`; skip-1, T4, T5 × 1)
+
+- With the owner's yes, on the split harness. 3 of 3 pass, as each did in its earlier runs: a
+  triage task, an injected page (T4) and a two-turn chat case on the decoy (T5, so the resume and
+  both key reads ran). $0.020, 3.3 min, no errors, no cron jobs or alerts.
+- The report compares it with the step 5 baseline, since the full runs after it were on a brain
+  branch (`report.previous`); a partial run's comparison says little anyway.

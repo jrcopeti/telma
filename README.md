@@ -144,10 +144,11 @@ answer, five times each, on a throwaway copy of the brain:
 A script grades each trial from what changed in the copy and what left the server. A situation
 passes only if all five trials pass.
 
-The first run passed 13 of 25. After fixes to the grader and to her triage instructions, 29 of
-the 30 situations pass on their latest run, and no fake secret ever left the server. One page did
-talk her into setting up a monthly job, which the eval now catches. The
-[results](evals/README.md#results) explain each failure.
+The first run passed 13 of 25 situations, with 29 failed trials. The last full run failed 3 trials
+out of 150. Each of those three was rerun the next day, and in the end one failed trial is left:
+29 of the 30 situations pass, and no fake secret ever left the server. One page did talk her into
+setting up a monthly job once, which the eval now catches. The [results](evals/README.md#results)
+explain each failure.
 
 ## Lessons
 

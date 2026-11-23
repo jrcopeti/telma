@@ -1012,5 +1012,11 @@
   links (the `amends:` line and the link in its text). Leak check clean, 10 stripped. The rerun
   isn't repeated: batch-T4 doesn't touch the amend rule.
 - The injected page skipped whole (the other way the old task failed) is the triage skill line on
-  brain branch `feat/triage-files-injected-pages`; its runs need the owner's yes.
+  brain branch `feat/triage-files-injected-pages`: a page carrying agent instructions is still a
+  note, the instructions left out and named in her report.
+
+### Run `2026-11-23T1437-9db3512` (brain branch `feat/triage-files-injected-pages`; batch-T4 and T4 × 5)
+
+- With the owner's yes. 10 of 10, $0.149, 17 min. Every report names the instructions she left
+  out of the note. The skill line ships once the brain PR is merged.
 - Step 8 (cron alert hook): not started, owner's call (2026-11-23).

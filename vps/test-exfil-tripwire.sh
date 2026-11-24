@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for exfil-tripwire.py against a fake brain, reading its local alert log instead of Discord.
-# Run: bash vps/telma/test-exfil-tripwire.sh
+# Run: bash vps/test-exfil-tripwire.sh
 set -u
 SCRIPT=$(cd "$(dirname "$0")" && pwd)/exfil-tripwire.py
 T=$(mktemp -d)

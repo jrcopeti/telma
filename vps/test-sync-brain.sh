@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for sync-brain.sh against throwaway repos: a bare "GitHub" remote, a "local machine" clone and the
-# "VPS" brain. Each test starts from a fresh copy. Run: bash vps/telma/test-sync-brain.sh (Linux).
+# "VPS" brain. Each test starts from a fresh copy. Run: bash vps/test-sync-brain.sh (Linux).
 # Telma's read-only mounts are not in play here, so these show what the script itself catches. The
 # "sandbox" below writes what she can: the brain and its .git, apart from the read-only paths.
 # Races run RACE_TRIALS times (default 5).

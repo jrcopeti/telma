@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for cron-alert.py against a fake jobs.json, reading its local alert log instead of Discord.
-# Run: bash vps/telma/test-cron-alert.sh
+# Run: bash vps/test-cron-alert.sh
 set -u
 SCRIPT=$(cd "$(dirname "$0")" && pwd)/cron-alert.py
 T=$(mktemp -d)

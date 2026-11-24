@@ -8,7 +8,7 @@ trust boundary as the agents.
   (eval-v1 done; how to run the eval), `docs/deploy/PLAN.md` (the drift check and deploy script),
   each with the `DEVLOG.md` beside it. Keep them current.
   Finished work: `docs/hardening/` (frozen, bar the 2026-11-24 rename to "the owner" and "the local
-  machine") and `docs/repo-split/`.
+  machine", and the links fixed when `vps/telma/` became `vps/`) and `docs/repo-split/`.
 - **Running agents:** ask the owner before resuming, triggering (`hermes cron run`) or switching on
   any job, every time. After an interrupted command, check what partly ran before saying nothing
   ran: remote commands keep running.

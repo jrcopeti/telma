@@ -174,7 +174,7 @@ and code in the folder the sandbox writes:
 - Hermes loads `.hermes.md` before `AGENTS.md` (only one wins), and `AGENTS.md`/`CLAUDE.md` from any
   folder the agent works in. A planted file becomes her next prompt.
 
-**New `sync-brain.sh`** ([vps/telma/sync-brain.sh](../../vps/telma/sync-brain.sh)), on the host. It runs
+**New `sync-brain.sh`** ([vps/sync-brain.sh](../../vps/sync-brain.sh)), on the host. It runs
 nothing from the brain, turns git hooks and fsmonitor off, fetches from a fixed URL (not the repo's
 `origin`), and checks the pushed tree against freshly fetched `main`, so faked refs don't hide a
 change. Only `inbox/ sources/ notes/ guidelines/ decisions/ projects/ intents/ index.md` go out;
@@ -347,7 +347,7 @@ Nothing live changed; the test containers and networks are removed.
 - brain-triage: `enabled_toolsets: [terminal, file, skills, todo]`, set in `jobs.json` with the gateway
   stopped (`hermes cron edit` has no toolsets flag). Web, browser, memory and cronjob are left out.
 - brain-triage's prompt now says to skip `node sync.mjs`: the host pushes.
-- New [sync-brain.sh](../../vps/telma/sync-brain.sh): after its fetch it sets `origin/main` to
+- New [sync-brain.sh](../../vps/sync-brain.sh): after its fetch it sets `origin/main` to
   GitHub's `main`, and after a push to the pushed commit. Two new tests; 31 pass on the VPS, and the
   "nothing to push" test fails on the old script. git already moved `origin/main` on push when the URL
   matched `origin`, but never on fetch.
@@ -569,7 +569,7 @@ Planned with the owner question by question. Scope cut to what alerts on an atta
   the bot every 10 minutes, posting to ticket-bay. It reads the log with `docker exec`, so no host
   mount and no uid mapping; the log moves to a named volume so recreating squid keeps it. 8 cases in
   [test-squid-denials.sh](https://github.com/jrcopeti/telma/blob/pre-split/vps/ticket-bay-bot/test-squid-denials.sh), in CI.
-- **Kill switches:** [Telma's](../../vps/telma/kill-switch.md) and
+- **Kill switches:** [Telma's](../../vps/kill-switch.md) and
   [the bot's](https://github.com/jrcopeti/telma/blob/pre-split/vps/ticket-bay-bot/kill-switch.md), one per agent so neither touches the other.
 - **Dropped:** shipping tool-call logs off the VPS (forensics, alerts on nothing).
 - **Accepted gap:** an injected page in a chat makes Telma put a non-canary note in a URL. A URL feed
@@ -863,10 +863,10 @@ pushed another host repo's objects, a FIFO in `.git` hung the job and held the l
 quarantine's `mv` moved the host's `~/.hermes` through a folder swapped for a link.
 
 **Redesign (the owner):** the host never runs git in a folder she writes.
-- [sync-brain.sh](../../vps/telma/sync-brain.sh) keeps its own clone in `~/.local/share/brain-push`.
+- [sync-brain.sh](../../vps/sync-brain.sh) keeps its own clone in `~/.local/share/brain-push`.
   Refs there: `refs/sync/github`, `refs/sync/given` (what her copy holds) and `refs/sync/pending`
   (a refresh not finished yet; the next run finishes it before reading her files).
-- New [brain-files.py](../../vps/telma/brain-files.py): `export` copies her files in, opening each
+- New [brain-files.py](../../vps/brain-files.py): `export` copies her files in, opening each
   folder relative to its parent with `O_NOFOLLOW`, so a link swapped in mid-run can't redirect it.
   Plain files and folders only: links, FIFOs, devices, a `.git` or a `HEAD` (a bare repo) are refused;
   so are sparse files over 1 MB (`SEEK_HOLE`) and files over 100 MB. `apply` writes GitHub's changes
@@ -885,7 +885,7 @@ check (a regression), a force-pushed commit replayed, a killed refresh turning t
 hers, then replaying her own changes, size limits that blocked a local machine screenshot, a local machine `.gitignore`
 in `notes/` stalling her sync. All fixed, each with a test that failed first. The owner stopped it at four.
 
-**Tests:** [test-sync-brain.sh](../../vps/telma/test-sync-brain.sh) has 61, one per behaviour (trimmed
+**Tests:** [test-sync-brain.sh](../../vps/test-sync-brain.sh) has 61, one per behaviour (trimmed
 from 94: loops over names that test one lookup, and attacks on her `.git` now folded into one hostile-`.git`
 test). Green on alpine:edge (git 2.56.1, as on the VPS) and on the local machine. The old script fails 25.
 

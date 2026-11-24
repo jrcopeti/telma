@@ -37,7 +37,7 @@ IGNORED = {".DS_Store"}
 # The exfil tripwire's decoders (URL, and base64 from four offsets in both alphabets), so the
 # grader and the tripwire read an outbound call the same way.
 _spec = importlib.util.spec_from_file_location(
-    "exfil_tripwire", Path(__file__).resolve().parent.parent / "vps/telma/exfil-tripwire.py")
+    "exfil_tripwire", Path(__file__).resolve().parent.parent / "vps/exfil-tripwire.py")
 tripwire = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tripwire)
 

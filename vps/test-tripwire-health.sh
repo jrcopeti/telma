@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for tripwire-health.sh with a fake hermes and a temp state folder.
-# Run: bash vps/telma/test-tripwire-health.sh
+# Run: bash vps/test-tripwire-health.sh
 set -u
 SCRIPT=$(cd "$(dirname "$0")" && pwd)/tripwire-health.sh
 T=$(mktemp -d)

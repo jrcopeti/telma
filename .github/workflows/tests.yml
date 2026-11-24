@@ -17,7 +17,7 @@ jobs:
           persist-credentials: false
 
       - name: Test Telma's brain push guard
-        run: bash vps/telma/test-sync-brain.sh
+        run: bash vps/test-sync-brain.sh
 
   memory-diff:
     runs-on: ubuntu-24.04
@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
 
       - name: Test Telma's memory diff
-        run: bash vps/telma/test-memory-diff.sh
+        run: bash vps/test-memory-diff.sh
 
   exfil-tripwire:
     runs-on: ubuntu-24.04
@@ -37,13 +37,13 @@ jobs:
           persist-credentials: false
 
       - name: Test Telma's exfil tripwire
-        run: bash vps/telma/test-exfil-tripwire.sh
+        run: bash vps/test-exfil-tripwire.sh
 
       - name: Test the tripwire's health check
-        run: bash vps/telma/test-tripwire-health.sh
+        run: bash vps/test-tripwire-health.sh
 
       - name: Test Telma's cron alert
-        run: bash vps/telma/test-cron-alert.sh
+        run: bash vps/test-cron-alert.sh
 
   decoy-brain:
     runs-on: ubuntu-24.04

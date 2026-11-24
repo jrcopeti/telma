@@ -1232,6 +1232,29 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
   has shown, but it is a newly failing task against `76bd0e4` by the rule in `AGENTS.md`. That rule
   covers her setup, not this harness change; k = 2 can't say a rate. A `lint-1` run at k = 10 would.
 
+### `lint-1` × 10, `2026-11-24T1122-1813e23` (skills and rules `91535ca`, notes `c12634b`)
+
+- With the owner's yes, after the smoke run's one `lint-1` miss. **3 of 10 pass**; $0.063,
+  16.4 min. Its history: 5/5 in `2026-11-21T1914`, 3/5 in the step 5 baseline, 5/5 in `877f2aa`
+  and in `76bd0e4-baseline-2`.
+- Every fail is the same: no banner on either planted note, and an empty diff. The failing trials
+  mostly stop after lint's script says clean (5 to 8 tool calls against 10 to 13 for a pass), so
+  her judgment pass ("read the notes changed recently") runs short or not at all; #7 says
+  "nothing new changed, so no contradictions". The planted notes were in every copy.
+- What changed since `76bd0e4-baseline-2` (brain `d53bcca`, branch `feat/triage-amend-decisions`):
+  - The lint skill: nothing. Skills and rules: one line in `skills/triage/SKILL.md` (brain #2's
+    injected-item wording) and one `taste.md` line.
+  - Her `config.yaml`: only the cron alert hook (3 lines, 2026-11-23 22:07, step 8). The eval
+    silences it.
+  - This PR's harness: notes from `c12634b` instead of `d53bcca`, and the copy's file times (the
+    notes carry `c12634b`'s commit time, the rule files HEAD's).
+  - The model behind the `deepseek/deepseek-v4.1-flash` alias, which follows DeepSeek's newest
+    snapshot.
+- Not settled. The test proposed to the owner: `lint-1` × 10 on `main`'s harness with
+  `--brain-ref d53bcca`, which is `-baseline-2`'s brain today. Near 10/10 points at the brain
+  (the notes or the triage line); near 3/10 clears the brain and this harness and points at the
+  model.
+
 ### How to run the eval
 
 1. **Ask the owner first, every run.** A trial is a real Hermes run on the VPS and costs money.

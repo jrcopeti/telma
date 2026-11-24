@@ -1,0 +1,123 @@
+# Deploy: know what is deployed on the VPS and keep it in sync with this repo
+
+**Goal:** at any time know whether Telma's deployed files, config, jobs and skills match this repo,
+and deploy a merged change with one script instead of copying by hand.
+
+**Why:** files are copied by hand and nothing on the host reads the repo, so drift (the repo ahead,
+or a hand edit on the host) only shows when someone diffs by hand. The rename's redeploy took an
+evening and still missed four files. The eval's stamp covers only `SOUL.md` and `config.yaml`
+hashes; the showcase plan called that too thin (owner, 2026-11-24).
+
+**Done when:** `check-drift.sh` reports every manifest line in sync and the hooks and Hermes lines
+`ok`, the `deployed` tag is set, `deploy.sh` has deployed at least one change end to end, and each
+eval run writes the check's summary into its results.
+
+## Decisions (the owner, 2026-11-24, grill session)
+
+- **Telma's own copy of the bot's design.** Same manifest format and statuses as ticket-bay-bot's design
+  (an intent in the owner's brain: deploy manifest, drift check, `deployed` tag), but a separate script in each repo: they're split along the trust boundary, and neither is
+  built yet. Whichever repo goes second copies the script and says so in its devlog.
+- **`vps/telma/` becomes `vps/`.** Since the split, `vps/` holds only Telma's files; the bot's repo
+  keeps one folder per host user and needs it. Host paths don't change.
+- **`SOUL.md` is checked, not skipped.** The repo copy's placeholder becomes `{{OWNER_NAME}}`. The
+  check fills it from `info/private-values` in `git rev-parse --git-common-dir`, so worktrees share
+  it (`OWNER_NAME=…`, never tracked), and compares byte
+  for byte. A missing file is an error before ssh, never a skip. This edits the repo copy only, so
+  it isn't a SOUL change and needs no eval.
+- **Config is a subset check.** Every key in `config.overrides.yaml` must equal the live
+  `config.yaml`; other keys are Hermes's and ignored. The live file is parsed on the local machine,
+  in memory only, if PR 1 finds it holds no channel IDs; if it does, it's parsed on the host and
+  only the overridden keys come back. The `terminal:` keys are also checked against
+  `~/.hermes/.env`'s matching `TERMINAL_*` lines, grepped by exact name (not the whole prefix) so
+  no secret leaves the host.
+- **Skills are compared with what she runs:** the VPS `~/brain/skills/`, file by file, `README.md`
+  and `LICENSE` left out. A file on either side only is drift. Not the local machine's brain clone:
+  it can be a sync-brain cycle off. Right after a brain skill PR merges, this shows host ahead until
+  `vps/brain-skills/` is updated; that's real drift.
+- **Jobs get a hand-written `jobs.overrides.yaml`.** The four jobs' schedule, script, skills and
+  toolsets, as the `host.md` table says them today; `host.md` links to it instead. brain-triage's
+  toolsets are the threat model's "no way out for unattended work", and a chat's `cronjob` tool can
+  change them. `jobs.json` is read on the host by a short `python3` that prints only those four
+  jobs' fields; other jobs (chat-made reminders, personal) are counted, never named. `jobs.json`
+  itself is never copied into the repo.
+- **ssh as the eval does:** `agents-vps` as root, `su - agent` for her files, read commands only. A
+  forced-command key is in Open.
+- **Owner, group and mode are checked** for every file (`stat -c '%U:%G %a'`); a change is drift.
+  The manifest records what the VPS has when PR 1 starts; anything that looks wrong (a hook she can
+  write) goes to the owner as a finding, not a fix in the same PR.
+- **Direction comes from the `deployed` tag**, which marks the last commit known to match the host:
+
+  | Host equals main | Host equals the file at `deployed` | Status |
+  |---|---|---|
+  | yes | – | in sync |
+  | no | yes | repo ahead |
+  | no | no, main equals `deployed` | host ahead |
+  | no | no, main changed too | both changed |
+  | file absent on one side | – | missing |
+  | no | file absent at `deployed` | differs |
+
+  Until the tag exists, a difference is `differs`, no direction. The owner creates it after the first
+  clean run; the check never writes a tag. Only the owner moves it, and only when
+  every line is in sync (after a partial deploy it stays put, or the files not deployed would read
+  `host ahead`); the devlog records the commit and the
+  summary line.
+- **Output: path, status, owner:group, mode, short hash.** No file contents and no `--diff`; look
+  at a flagged file by hand. The `SOUL.md` hash is already public in every eval result, so it isn't
+  hidden. It can confirm a guessed owner name (hash the repo copy with each guess); accepted, since
+  the name is tied to the GitHub account anyway (owner).
+- **Host state too:** the Hermes commit of both installs and `/opt/hermes-guard` (the lockstep
+  rule), and `hermes hooks doctor`. One line each, `ok` or what's wrong. Not systemd units: her jobs
+  are Hermes cron, and the units are the installer's.
+- **Run from the local machine only.** Never in CI (it would need an ssh key to the VPS), never as
+  a job of hers (she must not check her own controls). Run on demand, at the end of `deploy.sh`,
+  and at the start of each eval run.
+- **`deploy.sh` copies only what it's told.** Paths named on the command line, never "everything
+  ahead". It shows each diff and takes a yes per file, copying
+  nothing until all are answered, keeps a backup in
+  `~/.hermes/deploy-backups/<timestamp>/` (not beside the live file, where a hook loader or a
+  `tree` folder would see it), installs with `install -o -g -m` to a temp name in the target's
+  folder and `mv -f`s it over the target (owner and mode set first, swapped atomically),
+  then re-checks those files. It doesn't write `config.yaml`, `.env` or `jobs.json` (it prints the
+  `hermes config set` commands or the job change), and skills go through a brain PR and sync-brain.
+  `SOUL.md`, the skills and the model or fallback keys need `--eval-run <results dir>`, per
+  `AGENTS.md`. Right before the copy it checks no job of hers is running (it
+  stops, copying nothing, if one is), then copies all the files in one quick step, so no job sees
+  half the new files and half the old. It only prints what each file still needs
+  after (`after` below); it never restarts, rebuilds or runs a job.
+- **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
+  in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
+
+## The manifest
+
+`vps/deploy.manifest`, plain text, one line per file, whitespace-separated, read by `while read`:
+
+```
+# repo path          host path                      mode      owner:group  perm  after
+vps/sync-brain.sh    /home/agent/.hermes/scripts/…  exact     …            …     none
+vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …     new-chat
+```
+
+- **Modes:** `exact` (byte for byte), `redacted` (placeholders filled first), `subset` (config
+  keys), `jobs` (`jobs.overrides.yaml` and the triage prompt against `jobs.json`), `tree` (a folder,
+  file by file). `jobs` and `tree` are new to the bot's design; its brain intent gets them too.
+- **`after`:** `none`, `restart-gateway`, `new-chat` or `rebuild-sandbox`. Whether Hermes reloads
+  hooks without a restart is read in its code in PR 2.
+
+## Steps
+
+| # | Step | Check | Status |
+|---|---|---|---|
+| 1 | **This plan.** | The owner merges it | in review |
+| 2 | **PR 0: move `vps/telma/` to `vps/`.** `git mv`; fix CI, `evals/grade.py`, the test scripts' "Run:" lines and the live docs. In the frozen docs fix only the 6 broken links, prose left as history; `AGENTS.md` names this second exception. Then a one-line PR in ticket-bay-bot for its link to `kill-switch.md`. Nothing deployed changes. | CI green; no `vps/telma` left outside the frozen docs' prose | |
+| 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.sh` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | |
+| 4 | **PR 2: `deploy.sh`.** As decided above. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; the tag moved | |
+| 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results folder has `drift.txt` | |
+| 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |
+
+## Open
+
+- A forced-command ssh key (`command=…,restrict` in root's `authorized_keys`) that can only run a
+  read-only script, instead of root. It guards against a stolen local-machine key, which today
+  gives root through `agents-vps` anyway.
+- Which of `config.yaml` and `.env` Hermes reads when their `terminal:` values differ (from
+  `host.md`). The check catches them differing; it doesn't say which one wins.

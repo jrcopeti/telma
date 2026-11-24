@@ -81,12 +81,14 @@ class Attack(unittest.TestCase):
         self.assertIn("check-drift exited 2", self.f.out)
         self.assertNotEqual(code, 1, self.f.out)
 
-    # An interrupted earlier deploy leaves a temp file: every later deploy of that file stops.
-    # REASONED: fail-safe, but the criteria never decide it, and check-drift never shows the leftover.
-    def test_a_leftover_temp_file_does_not_block_every_later_deploy(self):
+    # An interrupted earlier deploy leaves a temp file. Decided in the fix round: the deploy stops,
+    # copying nothing, and names the file for the owner to look at (it is root acting in her folder).
+    def test_a_leftover_temp_file_is_named_and_nothing_copied(self):
         self.f.write_host("/h/.a.sh.deploy-tmp", "half\n", 0o600)
         self.f.change({"vps/a.sh": "echo a2\n"})
-        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 2, self.f.out)
+        self.assertIn("/h/.a.sh.deploy-tmp is left from an earlier deploy", self.f.out)
+        self.assertEqual(self.f.host_text("/h/a.sh"), "echo a\n")
 
     # AGENTS.md: a task that newly fails blocks the change. Any committed run is accepted, even one
     # whose every task failed. REASONED: the plan only says "needs --eval-run".
@@ -99,20 +101,22 @@ class Attack(unittest.TestCase):
     # PLAN table: a symlink on the path is "never followed"; deploy test says "never deployed through".
     # The folder is swapped for a symlink after COPY's check and before its write (race injected
     # the same way test_deploy.py's test_a_host_change_after_the_diff_stops_the_copy injects one).
+    # Open: the owner decides whether to close this race (dir_fd and O_NOFOLLOW on every part).
+    @unittest.expectedFailure
     def test_a_folder_swapped_for_a_symlink_mid_copy_is_not_written_through(self):
-        self.f.change({"vps/a.sh": "echo a2\n"})
         elsewhere = self.f.host / "elsewhere"
         elsewhere.mkdir()
+        (elsewhere / "a.sh").write_text("echo a\n")  # what the copy reads for its backup
         h = self.f.host / "h"
-        swap = (f"        if not os.path.exists({str(h) + '.real'!r}):\n"
-                f"            os.rename({str(h)!r}, {str(h) + '.real'!r}); os.symlink({str(elsewhere)!r}, {str(h)!r})\n")
-        script = self.f.repo / "vps/deploy.py"
+        swap = (f"    if not os.path.exists({str(h) + '.real'!r}):\n"
+                f"        os.rename({str(h)!r}, {str(h) + '.real'!r}); os.symlink({str(elsewhere)!r}, {str(h)!r})\n")
+        script = self.f.repo / "vps/remote/deploy_host.py"
         src = script.read_text()
-        anchor = '        tmp = os.path.join(folder, ".%s.deploy-tmp" % os.path.basename(p))\n'
+        anchor = '    tmp = os.path.join(folder, ".%s.deploy-tmp" % os.path.basename(p))\n'
         self.assertIn(anchor, src)
-        script.write_text(src.replace(anchor, swap + anchor, 1))
+        self.f.change({"vps/a.sh": "echo a2\n", "vps/remote/deploy_host.py": src.replace(anchor, swap + anchor, 1)})
         self.f.deploy("vps/a.sh", answers="y\n")
-        self.assertFalse((elsewhere / "a.sh").exists(), self.f.out)
+        self.assertEqual((elsewhere / "a.sh").read_text(), "echo a\n", self.f.out)
 
 
 if __name__ == "__main__":

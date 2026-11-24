@@ -4,14 +4,15 @@
 Run from the local machine, on main as pushed: python3 vps/deploy.py [--eval-run <results .jsonl>] <repo path>...
 Paths are deploy.manifest's repo paths. Only `exact` and `redacted` lines are copied; for config,
 jobs and skills it prints how they change instead. It shows each file's diff and takes a yes per
-file, copying nothing until all are answered. The copy is one ssh call: each file staged to a temp
-name in its folder with its owner and mode, the old one kept in ~/.hermes/deploy-backups/<time>/,
-then, if no job of hers is running, every file swapped in at once. Then check-drift.py runs (its
-hooks doctor posts one test-session alert), and the script prints what each file still needs and the
-tag commands for the owner. It never restarts, rebuilds or runs a job, and never writes a tag.
-Exit 0 after a deploy the check finds in sync, 1 when it finds drift, 2 when nothing was copied, 3
-when the copy may have run part way. DRIFT_HOST_ROOT=<folder> deploys to a fake host folder instead
-of the VPS (the tests).
+file, copying nothing until all are answered. The copy is one ssh call (remote/deploy_host.py): each
+file staged to a temp name in its folder with its owner and mode, the old one kept in
+~/.hermes/deploy-backups/<time>/, then, if no job of hers is running, every file swapped in at once.
+Then check-drift.py runs (its hooks doctor posts one test-session alert), and the script prints what
+each file still needs and the tag commands for the owner. It never restarts, rebuilds or runs a job,
+and never writes a tag. Exit 0 after a copy the check finds in sync, 1 when it finds drift, 2 when
+nothing was copied (a stop, every answer no, nothing to copy), 3 when the copy may have run part way,
+4 when the copy ran but the check couldn't. DRIFT_HOST_ROOT=<folder> deploys to a fake host folder
+instead of the VPS (the tests).
 """
 import argparse
 import base64
@@ -19,6 +20,7 @@ import difflib
 import importlib.util
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -32,11 +34,11 @@ _spec.loader.exec_module(drift)
 REPO, Stop, git, sha = drift.REPO, drift.Stop, drift.git, drift.sha
 
 COPIED = {"exact", "redacted"}
-# AGENTS.md: a change to these needs an eval run first. The skills and the model keys are never
-# copied here (a brain PR, `hermes config set`), so SOUL.md is the one this script can deploy.
+# AGENTS.md: a change to SOUL.md needs an eval run first. The skills and the model keys, also gated
+# there, are never copied here (a brain PR, `hermes config set`).
 EVAL_GATED = {"SOUL.md"}  # by file name
 BACKUPS = "/home/agent/.hermes/deploy-backups"
-EXECUTIONS = "/home/agent/.hermes/cron/executions.db"
+LEDGER = "/home/agent/.hermes/cron/executions.db"
 RESTART = "sudo systemctl --user -M agent@ restart hermes-gateway"
 AFTER = {
     "new-chat": "takes effect in her next chat; a chat already open keeps the old one",
@@ -44,116 +46,6 @@ AFTER = {
                        "started after use it",
     "restart-gateway": f"restart her gateway: {RESTART}",
 }
-
-# Both run on the host as root (or against DRIFT_HOST_ROOT), the request on stdin.
-SHARED = r'''
-import base64, grp, hashlib, json, os, pwd, shutil, subprocess, sys
-req = json.loads(sys.stdin.read())
-R = req["root"]
-def link_on_path(p):
-    """The first symlink on p, its folders included, or None: never followed."""
-    parts = p.split("/")
-    for i in range(2, len(parts) + 1):
-        if os.path.islink(R + "/".join(parts[:i])):
-            return "/".join(parts[:i])
-def read(p):
-    with open(R + p, "rb") as f:
-        return f.read()
-'''
-
-# Each file's stat, hash and bytes, for the diff.
-READ = SHARED + r'''
-out = {}
-for p in req["files"]:
-    if link_on_path(p):
-        out[p] = {"link": link_on_path(p)}
-    elif os.path.isfile(R + p):
-        s, data = os.lstat(R + p), read(p)
-        out[p] = {"stat": "%s:%s %o" % (pwd.getpwuid(s.st_uid).pw_name, grp.getgrgid(s.st_gid).gr_name, s.st_mode & 0o7777),
-                  "sha": hashlib.sha256(data).hexdigest(), "data": base64.b64encode(data).decode()}
-    else:
-        out[p] = None
-print(json.dumps(out))
-'''
-
-# Stages every file and its backup, then swaps them all in only if no job of hers is running. Any
-# failure before the swap removes what it made (exit 4, or 5 for a running job): nothing deployed.
-COPY = SHARED + r'''
-staged, made = [], []
-def stop(code, msg):
-    for tmp in staged:
-        try:
-            os.unlink(tmp)
-        except FileNotFoundError:
-            pass
-    for d in reversed(made):
-        shutil.rmtree(d, ignore_errors=True)
-    print(msg, file=sys.stderr)
-    sys.exit(code)
-def mkdirs(path, uid, gid):
-    """Each missing folder down to path, owned like the file it backs up."""
-    parts = path.split("/")
-    for i in range(2, len(parts) + 1):
-        d = R + "/".join(parts[:i])
-        if not os.path.lexists(d):
-            os.mkdir(d, 0o700)
-            os.chown(d, uid, gid)
-            made.append(d)
-        elif os.path.islink(d) or not os.path.isdir(d):
-            stop(4, "%s isn't a plain folder" % "/".join(parts[:i]))
-try:
-    backup = req["backup"]
-    if os.path.lexists(R + backup):
-        stop(4, "backup folder %s already exists" % backup)
-    for f in req["files"]:
-        p = f["host"]
-        if link_on_path(p):
-            stop(4, "%s: a symlink appeared on its path" % p)
-        now = hashlib.sha256(read(p)).hexdigest() if os.path.isfile(R + p) else None
-        if now != f["was"]:
-            stop(4, "%s changed on the host since its diff was shown" % p)
-        folder = os.path.dirname(R + p)
-        if not os.path.isdir(folder):
-            stop(4, "%s: its folder doesn't exist" % p)
-        uid, gid = pwd.getpwnam(f["user"]).pw_uid, grp.getgrnam(f["group"]).gr_gid
-        if f["was"] is not None:
-            s = os.lstat(R + p)
-            mkdirs(backup + os.path.dirname(p), s.st_uid, s.st_gid)
-            shutil.copy2(R + p, R + backup + p, follow_symlinks=False)
-            os.chown(R + backup + p, s.st_uid, s.st_gid)
-        tmp = os.path.join(folder, ".%s.deploy-tmp" % os.path.basename(p))
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-        staged.append(tmp)
-        with os.fdopen(fd, "wb") as out:
-            out.write(base64.b64decode(f["data"]))
-            out.flush()
-            os.fchown(out.fileno(), uid, gid)
-            os.fchmod(out.fileno(), int(f["perm"], 8))
-            os.fsync(out.fileno())
-    r = subprocess.run(req["as_agent"] + [req["running"]], capture_output=True, text=True)
-    if r.returncode:
-        stop(4, "couldn't read her running jobs: " + r.stderr.strip()[-300:])
-    if r.stdout.strip():
-        stop(5, "a job of hers is running (job id %s): nothing copied, try again when it ends" % r.stdout.strip())
-except SystemExit:
-    raise
-except Exception as e:
-    stop(4, "%s: %s" % (type(e).__name__, e))
-done = []
-try:
-    for f, tmp in zip(req["files"], staged):
-        os.replace(tmp, R + f["host"])
-        done.append(f["host"])
-except Exception as e:
-    print("swapped %s, then %s: %s" % (", ".join(done) or "nothing", type(e).__name__, e), file=sys.stderr)
-    sys.exit(6)
-print(json.dumps(done))
-'''
-
-# As agent: the cron ledger's attempts still claimed or running (Hermes cron/executions.py).
-RUNNING = ("import sqlite3, sys\n"
-           "c = sqlite3.connect('file:' + sys.argv[1] + '?mode=ro', uri=True)\n"
-           "print(' '.join(r[0] for r in c.execute(\"SELECT job_id FROM executions WHERE status IN ('claimed','running')\")))")
 
 
 def root():
@@ -163,23 +55,36 @@ def root():
     return r or ""
 
 
-def remote(code, request):
-    """Run `code` as root on the host, or against DRIFT_HOST_ROOT, with the request on stdin."""
+def remote(request):
+    """remote/deploy_host.py as root on the host, or against DRIFT_HOST_ROOT, the request on stdin."""
+    code = (HERE / "remote/deploy_host.py").read_text()
     cmd = [sys.executable, "-I", "-c", code] if root() else [*drift.SSH, drift.HOST, f"python3 -I -c {shlex.quote(code)}"]
     return subprocess.run(cmd, input=json.dumps({**request, "root": root()}), capture_output=True, text=True)
 
 
-def preflight(paths):
-    """main as pushed, nothing uncommitted in what is deployed. Returns the commit."""
+def next_tag(day):
+    """deploy/<day>-<n>, n one past the highest taken here or on origin."""
+    pattern = f"deploy/{day}-*"
+    remote_tags = git("ls-remote", "--tags", "origin", f"refs/tags/{pattern}", check=False)
+    if remote_tags.returncode:
+        raise Stop("git ls-remote origin failed: the deploy tag's number needs origin's tags")
+    taken = git("tag", "-l", pattern).stdout.decode().split()
+    taken += [line.split("refs/tags/")[1].removesuffix("^{}") for line in remote_tags.stdout.decode().splitlines()]
+    numbers = [int(m.group(1)) for t in taken if (m := re.fullmatch(rf"deploy/{day}-(\d+)", t))]
+    return f"deploy/{day}-{max(numbers, default=0) + 1}"
+
+
+def preflight():
+    """main as pushed, nothing uncommitted under vps/ (the check reads the checkout). Returns the commit."""
     if git("fetch", "-q", "origin", "main", check=False).returncode:
         raise Stop("git fetch origin main failed: the deploy needs main as pushed")
     head = git("rev-parse", "HEAD").stdout.decode().strip()
     main = git("rev-parse", "refs/remotes/origin/main").stdout.decode().strip()
     if head != main:
         raise Stop(f"HEAD is {head[:7]}, origin/main is {main[:7]}: deploy main as pushed")
-    dirty = git("status", "--porcelain", "--", drift.MANIFEST, *paths).stdout.decode().strip()
+    dirty = git("status", "--porcelain", "--untracked-files=all", "--", "vps").stdout.decode().strip()
     if dirty:
-        raise Stop(f"uncommitted changes in what would be deployed:\n{dirty}")
+        raise Stop(f"uncommitted changes under vps/, which the check reads:\n{dirty}")
     return head
 
 
@@ -198,6 +103,8 @@ def check_eval_run(path, results):
         ran_on = json.loads(p.read_text().splitlines()[0])["setup"]["telma_commit"]
     except (IndexError, ValueError, KeyError, TypeError):
         raise Stop(f"--eval-run {results}: no setup stamp in its first line")
+    if not re.fullmatch(r"[0-9a-f]{7,40}", str(ran_on)):
+        raise Stop(f"--eval-run {results}: its telma_commit {ran_on!r} isn't a commit hash")
     changed = git("log", "-1", "--format=%H", "--", path).stdout.decode().strip()
     if git("merge-base", "--is-ancestor", changed, ran_on, check=False).returncode:
         raise Stop(f"--eval-run {results} ran on {ran_on}, without {path}'s last change {changed[:7]}")
@@ -263,16 +170,13 @@ def hook_command(rows, host_path):
     return host_path
 
 
-def next_tag(day):
-    """deploy/<day>-<n>, n one past the highest taken here or on origin."""
-    pattern = f"deploy/{day}-*"
-    taken = set(git("tag", "-l", pattern).stdout.decode().split())
-    remote_tags = git("ls-remote", "--tags", "origin", f"refs/tags/{pattern}", check=False)
-    taken |= {line.split("refs/tags/")[1].removesuffix("^{}") for line in remote_tags.stdout.decode().splitlines()}
-    n = 1
-    while f"deploy/{day}-{n}" in taken:
-        n += 1
-    return f"deploy/{day}-{n}"
+def after_step(rows, row):
+    if row["after"] == "reapprove-hook":
+        return (f"{row['repo']}: Hermes runs it fresh on its next call. The doctor reads it as modified since "
+                "approval until it is re-approved: as agent, back to back (a revoke turns the hook off in the "
+                f"gateway), hermes hooks revoke {shlex.quote(hook_command(rows, row['host']))}, then "
+                f"hermes chat --accept-hooks, then {RESTART}")
+    return f"{row['repo']}: {AFTER[row['after']]}" if row["after"] in AFTER else None
 
 
 def deploy(args):
@@ -282,14 +186,15 @@ def deploy(args):
     unknown = [p for p in args.paths if p not in rows]
     if unknown:
         raise Stop(f"not in {drift.MANIFEST}: {', '.join(unknown)}")
-    head = preflight(args.paths)
+    head = preflight()
 
     files = []
     for path in dict.fromkeys(args.paths):
         row = rows[path]
         if row["mode"] in COPIED:
             files.append(row)
-        elif row["mode"] == "subset":
+            continue
+        if row["mode"] == "subset":
             print(f"{path}: config.yaml isn't written here. As agent, run the line of each key check-drift "
                   "names (the hooks are changed by hand):\n  " + "\n  ".join(config_commands(rows)))
         elif row["mode"] == "jobs":
@@ -297,11 +202,15 @@ def deploy(args):
                   f"cron tool until its fields match {path}.")
         else:
             print(f"{path}: skills change through a PR on the brain repo; sync-brain brings them to the host.")
+        if after_step(rows, row):
+            print(f"  then: {after_step(rows, row)}")
     if not files:
-        return 0
+        return 2
     for row in files:
         if Path(row["repo"]).name in EVAL_GATED:
             print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run)}")
+    now = datetime.now(timezone.utc)  # UTC for the tag's date and the backup's name alike
+    tag = next_tag(f"{now:%Y-%m-%d}")
 
     values = drift.private_values() if any(r["mode"] == "redacted" for r in files) else {}
     repo = drift.Repo()
@@ -316,7 +225,11 @@ def deploy(args):
                 raise Stop(f"{row['repo']} needs {key} in info/private-values")
         return drift.PLACEHOLDER.sub(lambda m: values[m.group(1)], text).encode()
 
-    r = remote(READ, {"files": [row["host"] for row in files]})
+    wants = {row["repo"]: want(row) for row in files}
+    missing = [p for p, w in wants.items() if w is None]
+    if missing:
+        raise Stop(f"not in the checkout: {', '.join(missing)}")
+    r = remote({"action": "read", "files": [row["host"] for row in files]})
     if r.returncode:
         raise Stop(f"reading the host failed ({r.returncode}): {r.stderr.strip()[-500:]}")
     try:
@@ -326,33 +239,31 @@ def deploy(args):
 
     chosen = []
     for row in files:
-        have, now = host[row["host"]], want(row)
-        if now is None:
-            raise Stop(f"{row['repo']} isn't in the checkout")
+        have, new = host[row["host"]], wants[row["repo"]]
         if have and "link" in have:
             print(f"\n{row['repo']}: {have['link']} on the host is a symlink: not deployed, look at it by hand")
             continue
         status = "missing" if have is None else drift.direction(
-            lambda w: sha(w) == have["sha"], now, want(row, True), repo.tagged)
+            lambda w: sha(w) == have["sha"], new, want(row, True), repo.tagged)
         if status == "in sync" and have["stat"] == f"{row['owner']} {row['perm']}":
             print(f"\n{row['repo']}: already in sync")
             continue
-        show_diff(row, now, have, status)
+        show_diff(row, new, have, status)
         if ask(row["repo"]):
-            chosen.append((row, now, have))
+            chosen.append((row, new, have))
     if not chosen:
         print("nothing deployed")
-        return 0
+        return 2
 
-    backup = f"{BACKUPS}/{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
-    running = f"python3 -I -c {shlex.quote(RUNNING)} {shlex.quote(root() + EXECUTIONS)}"
+    backup = f"{BACKUPS}/{now:%Y%m%dT%H%M%SZ}"
     files_req = []
-    for row, now, have in chosen:
+    for row, new, have in chosen:
         user, group = row["owner"].split(":")
-        files_req.append({"host": row["host"], "data": base64.b64encode(now).decode(), "user": user,
+        files_req.append({"host": row["host"], "data": base64.b64encode(new).decode(), "user": user,
                           "group": group, "perm": row["perm"], "was": have and have["sha"]})
-    r = remote(COPY, {"backup": backup, "files": files_req, "running": running,
-                      "as_agent": ["bash", "-c"] if root() else ["su", "-", "agent", "-c"]})
+    r = remote({"action": "copy", "backup": backup, "files": files_req, "ledger": LEDGER,
+                "running_code": (HERE / "remote/running_jobs.py").read_text(),
+                "as_agent": ["bash", "-c"] if root() else ["su", "-", "agent", "-c"]})
     if r.returncode in (4, 5):
         raise Stop(f"nothing copied: {r.stderr.strip()[-500:]}")
     if r.returncode:
@@ -367,19 +278,10 @@ def deploy(args):
     summary = next((line for line in check.stdout.splitlines() if line.startswith("summary:")),
                    f"summary: check-drift exited {check.returncode}")
 
-    steps = []
-    for row in deployed:
-        if row["after"] == "reapprove-hook":
-            steps.append(f"{row['repo']}: Hermes runs it fresh on its next call. The doctor reads it as modified "
-                         "since approval until it is re-approved: as agent, back to back (a revoke turns the hook "
-                         f"off in the gateway), hermes hooks revoke {shlex.quote(hook_command(rows, row['host']))}, then "
-                         f"hermes chat --accept-hooks, then {RESTART}")
-        elif row["after"] in AFTER:
-            steps.append(f"{row['repo']}: {AFTER[row['after']]}")
+    steps = [s for s in (after_step(rows, row) for row in deployed) if s]
     if steps:
         print("\nstill to do:\n  " + "\n  ".join(steps))
 
-    tag = next_tag(datetime.now().strftime("%Y-%m-%d"))
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
     print("\ntag commands (the owner runs them; this script never writes a tag):")
@@ -390,7 +292,7 @@ def deploy(args):
     else:
         print(f"  {drift.TAG} stays: move it to {head[:7]} when check-drift.py exits 0"
               + (" (after the steps above)" if steps else ""))
-    return 0 if check.returncode == 0 else 1
+    return {0: 0, 1: 1}.get(check.returncode, 4)
 
 
 def main():

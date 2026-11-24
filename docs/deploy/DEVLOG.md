@@ -142,3 +142,24 @@
 - Tests: `vps/test_deploy.py`, 19 against the fake host, a bare origin and a fake ledger, in CI
   beside the check's. One live `check-drift.py` run while wiring the tests, by mistake (meant to
   skip it): read-only, its doctor posted the known `test-session` alert.
+
+## 2026-11-24: PR 2, adversarial review and the host code in files
+
+- Adversarial test (a fresh agent, Opus): 10 breaking tests, kept as
+  `vps/test_deploy_adversarial.py`, in CI. Fixed: the tag number filled a gap instead of going one
+  past the highest; a failed `git ls-remote` was ignored (now the tag is named before the copy, and
+  a failed read of origin's tags stops it); an uncommitted file under `vps/` that wasn't named made
+  the re-check read in sync and printed a `deployed` move to a commit the host didn't match (now
+  nothing uncommitted under `vps/`); "nothing copied" exited 0, not 2 as the docstring says.
+- Its reasoned findings, fixed: a re-check that couldn't run exits 4, not 1 (drift); the config line
+  prints its `restart-gateway`; a `.deploy-tmp` left by an interrupted deploy stops the copy and is
+  named, never removed by root in her folder; `--eval-run` wants a hex commit; the tag's date and
+  the backup's name are both UTC; the running-jobs read takes only its last line as JSON, so her
+  login profile printing something isn't read as a job.
+- Left open: the symlink race on a folder mid-copy (proved, kept as an expected failure, in the
+  plan's Open for the owner); `--eval-run` accepts a run whose tasks failed (the plan's Open item on
+  `SOUL.md` and the eval covers what it can prove).
+- The owner's preference (brain `taste.md`): scripts in code, not strings. The host side moved from
+  strings in `deploy.py` to `vps/remote/deploy_host.py` (read and copy, sharing the symlink and
+  stat helpers) and `vps/remote/running_jobs.py` (run as `agent`, its code on stdin, so no Python
+  quoted through `su`). `check-drift.py`'s `COLLECT` is still a string: merged code, its own PR.

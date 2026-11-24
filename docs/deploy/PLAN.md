@@ -98,11 +98,14 @@ eval run writes the check's summary into its results.
   `AGENTS.md`. Right before the copy it checks no job of hers is running (it
   stops, copying nothing, if one is), then copies all the files in one quick step, so no job sees
   half the new files and half the old. It only prints what each file still needs
-  after (`after` below); it never restarts, rebuilds or runs a job.
+  after (`after` below); it never restarts, rebuilds or runs a job. It deploys only main as pushed,
+  with nothing uncommitted under `vps/`: the re-check reads the checkout, so an uncommitted file
+  there could read in sync and move `deployed` to a commit the host doesn't match.
 - **Each deploy gets a permanent tag** (owner, 2026-11-24, step 4). `deployed` moves, so it keeps no
   history; the devlog records each move only while this plan is open; the backups on the host are in
   her home, where she could edit them, and don't name a commit. So `deploy.py` ends by printing an
-  annotated tag, `deploy/<date>-<n>` (`n` one past the highest on that day, here or on origin), on
+  annotated tag, `deploy/<date>-<n>` (the UTC date, as in the backup folder's name; `n` one past the
+  highest on that day, here or on origin, and no copy when origin's tags can't be read), on
   the deployed commit, whose message holds the files, the backup folder and the check's summary line
   after the copy. `git tag -l 'deploy/*' -n20` lists every deploy. It lives in the repo, where she
   can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. The script
@@ -145,6 +148,13 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |
 
 ## Open
+
+- A folder on a deployed file's path swapped for a symlink between the copy's check and its write
+  is written through (`O_NOFOLLOW` covers only the last part). The copy runs as root in folders
+  `agent` owns, so something running as her that wins the race could have root write a file she
+  chose into any folder. Closing it means opening every part of the path with `dir_fd` and
+  `O_NOFOLLOW`. Accept it beside "the hooks stay agent's", or close it: the owner's call
+  (`test_deploy_adversarial.py` keeps the race as an expected failure).
 
 - How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
   from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.

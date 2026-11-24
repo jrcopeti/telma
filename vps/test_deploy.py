@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -18,7 +18,7 @@ SCRIPT = Path(__file__).resolve().parent / "deploy.py"
 EXECUTIONS = "home/agent/.hermes/cron/executions.db"
 BACKUPS = "home/agent/.hermes/deploy-backups"
 HOOK = "/home/agent/.hermes/agent-hooks/hook.py"
-TODAY = datetime.now().strftime("%Y-%m-%d")
+TODAY = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
 class DeployFake(Fake):
@@ -27,6 +27,7 @@ class DeployFake(Fake):
     def __init__(self, tmp):
         super().__init__(tmp)
         shutil.copy(SCRIPT, self.repo / "vps/deploy.py")
+        shutil.copytree(SCRIPT.parent / "remote", self.repo / "vps/remote")
         m = self.repo / "vps/deploy.manifest"
         self.write_repo({"vps/hook.py": "print('hook')\n", "vps/deploy.manifest": m.read_text()
                          + f"vps/hook.py  {HOOK}  exact  {OWNER}  755  reapprove-hook\n",
@@ -106,7 +107,7 @@ class Deploy(unittest.TestCase):
 
     def test_a_no_copies_nothing(self):
         self.f.change({"vps/a.sh": "echo a2\n"})
-        self.assertEqual(self.f.deploy("vps/a.sh", answers="n\n"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="n\n"), 2, self.f.out)
         self.assertEqual(self.f.host_text("/h/a.sh"), "echo a\n")
         self.assertIn("nothing deployed", self.f.out)
         self.assertEqual(self.f.backups(), [])
@@ -149,7 +150,7 @@ class Deploy(unittest.TestCase):
         self.assertEqual(oct((self.f.host / "h/a.sh").stat().st_mode & 0o7777), "0o755")
 
     def test_in_sync_is_not_asked(self):
-        self.assertEqual(self.f.deploy("vps/a.sh"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh"), 2, self.f.out)
         self.assertIn("already in sync", self.f.out)
         self.assertEqual(self.f.backups(), [])
 
@@ -167,7 +168,7 @@ class Deploy(unittest.TestCase):
         target.write_text("echo a\n")
         (self.f.host / "h/a.sh").unlink()
         (self.f.host / "h/a.sh").symlink_to(target)
-        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 2, self.f.out)
         self.assertIn("is a symlink: not deployed", self.f.out)
         self.assertEqual(target.read_text(), "echo a\n")
         self.assertTrue((self.f.host / "h/a.sh").is_symlink())
@@ -222,7 +223,7 @@ class Deploy(unittest.TestCase):
         self.f.change({"vps/config.overrides.yaml": (self.f.repo / "vps/config.overrides.yaml").read_text()
                        .replace("default: m1", "default: m2")})
         config = self.f.host_text("/h/config.yaml")
-        self.assertEqual(self.f.deploy("vps/config.overrides.yaml", "vps/jobs.overrides.yaml", "vps/skills/"), 0,
+        self.assertEqual(self.f.deploy("vps/config.overrides.yaml", "vps/jobs.overrides.yaml", "vps/skills/"), 2,
                          self.f.out)
         self.assertIn("hermes config set model.default m2", self.f.out)
         self.assertIn("hermes config set terminal.docker_volumes '[\"/a:/b\"]'", self.f.out)
@@ -250,16 +251,24 @@ class Deploy(unittest.TestCase):
         self.assertIn(f"git tag -a deploy/{TODAY}-2 ", self.f.out)
 
     def test_a_host_change_after_the_diff_stops_the_copy(self):
-        # The host file changes after its diff is read: the fake repo's deploy.py writes it right then.
-        self.f.change({"vps/a.sh": "echo a2\n"})
-        src = (self.f.repo / "vps/deploy.py").read_text()
-        (self.f.repo / "vps/deploy.py").write_text(src.replace(
-            "    chosen = []\n", f"    Path({str(self.f.host / 'h/a.sh')!r}).write_text('echo late\\n')\n    chosen = []\n", 1))
+        # The host file changes after its diff is read: the fake repo's copy step writes it first.
+        script = self.f.repo / "vps/remote/deploy_host.py"
+        anchor = "def copy_files():\n"
+        self.assertIn(anchor, script.read_text())
+        self.f.change({"vps/a.sh": "echo a2\n", "vps/remote/deploy_host.py": script.read_text().replace(
+            anchor, anchor + f"    open({str(self.f.host / 'h/a.sh')!r}, 'w').write('echo late\\n')\n", 1)})
         self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 2, self.f.out)
         self.assertIn("changed on the host since its diff was shown", self.f.out)
         self.assertEqual(self.f.host_text("/h/a.sh"), "echo late\n")
         self.assertEqual(self.f.backups(), [])
 
+    def test_her_login_profile_output_is_not_a_running_job(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        wrapper = self.f.bin / "bash"
+        wrapper.write_text(f"#!/bin/sh\necho 'Welcome to the VPS'\nexec {shutil.which('bash')} \"$@\"\n")
+        wrapper.chmod(0o755)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.f.host_text("/h/a.sh"), "echo a2\n")
 
 if __name__ == "__main__":
     unittest.main()

@@ -179,9 +179,13 @@ The design, steps and rules are in [the plan](../docs/evals/PLAN.md).
 - `run.py` runs the eval from the local machine: every task, k trials, on the VPS through the
   `eval` profile over SSH, with nothing deployed there. At the start it copies her current
   `SOUL.md`, config, skills and memory into that profile (pointed at the trial folder), and resets
-  her memory and skills to that copy before every trial. It pins `~/brain` at its current commit
-  (it refuses a dirty brain), or at a branch with `--brain-ref` to test a skill change before it
-  ships, and builds each copy from that, with no history. One JSONL line per
+  her memory and skills to that copy before every trial. Each copy is her brain's notes at
+  one fixed commit (`NOTES_REF` in `brain_copy.py`), with her skills and the rules they follow (`AGENTS.md`,
+  `taste.md`, each folder's `README.md`, the other `OVERLAY` files) from `~/brain`'s current commit
+  (it refuses uncommitted changes to them), or from
+  a branch with `--brain-ref` to test a skill change before it ships; no history. Fixed notes mean
+  a run tests the change, not the last sync, and her later notes about the eval never reach a
+  trial. `--check` runs only the local checks before a run. One JSONL line per
   trial in `results/`, with no report text, and no grader details for tasks on the real brain; full
   rows go only to `results/private/` (git ignores it), and each failed trial's diff of the copy to
   `results/private/<run>/`. Every run needs the owner's yes.

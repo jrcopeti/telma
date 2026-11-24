@@ -12,7 +12,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
-from brain_copy import eval_leaks, passage, stale_rewords, strip_eval_notes  # noqa: E402
+import brain_copy  # noqa: E402
+from brain_copy import eval_leaks, passage, stale_strips, strip_eval_notes  # noqa: E402
 
 HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (brain_copy.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
@@ -124,18 +125,65 @@ class EvalNotesTest(unittest.TestCase):
         (root / "index.md").write_text(f"# Index\n- [Design]({design}) — x\n- [Other](decisions/other.md) — y\n")
         old = "(telma\nrepo, eval-v1 step 7)"
         reword = {hashed("notes/price.md"): [{**PassageTest.spec(None, old), "with": "(telma\nrepo)"}]}
-        self.assertEqual(stale_rewords(root, reword), [])
-        stale = {**reword, hashed("notes/gone.md"): reword[hashed("notes/price.md")],
-                 hashed("decisions/other.md"): reword[hashed("notes/price.md")]}
-        self.assertEqual(stale_rewords(root, stale),
-                         [f"{hashed('notes/gone.md')}: no such note",
-                          f"decisions/other.md: passage {reword[hashed('notes/price.md')][0]['sha256'][:12]}"])
+        self.assertEqual(stale_strips(root, [hashed(design), hashed(amend)], reword), [])
+        moved = {hashed("notes/price.md"): [{**reword[hashed("notes/price.md")][0], "chars": 5}]}
+        self.assertEqual(stale_strips(root, [hashed("decisions/gone.md")], moved),
+                         [f"{hashed('decisions/gone.md')}: no such note",
+                          f"notes/price.md: passage {moved[hashed('notes/price.md')][0]['sha256'][:12]}"])
         stripped = strip_eval_notes(root, [hashed(design), hashed(amend)], reword)
         self.assertEqual(sorted(stripped), [amend, design])
         self.assertFalse((root / design).exists())
         self.assertEqual((root / "index.md").read_text(), "# Index\n- [Other](decisions/other.md) — y\n")
         self.assertEqual((root / "notes/price.md").read_text(), "Pinning is planned (telma\nrepo).\n")
         self.assertEqual(eval_leaks(root, stripped), ["decisions/other.md", "notes/linker.md"])
+
+
+class PinBrainTest(unittest.TestCase):
+    """The notes come from NOTES_REF, whatever her brain has since; skills and rules from HEAD."""
+
+    def test_notes_from_the_fixed_commit_overlay_from_head(self):
+        import subprocess
+        import tempfile
+        from unittest import mock
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        brain, dest = Path(tmp.name) / "brain", Path(tmp.name) / "out" / "pinned"
+        git = ["git", "-C", str(brain), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
+
+        def commit(files, gone=()):
+            for f, text in files.items():
+                (brain / f).parent.mkdir(parents=True, exist_ok=True)
+                (brain / f).write_text(text)
+            for f in gone:
+                (brain / f).unlink()
+            subprocess.run(git + ["add", "-A"], check=True)
+            subprocess.run(git + ["commit", "-qm", "x"], check=True)
+            return subprocess.run(git + ["rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+
+        brain.mkdir()
+        subprocess.run(git + ["init", "-q"], check=True)
+        notes = commit({"projects/p.md": "old\n", "skills/triage/SKILL.md": "v1\n", "skills/old.md": "x\n",
+                        "AGENTS.md": "v1\n", "evals/answers.md": "a\n", "taste.md": "v1\n",
+                        "decisions/README.md": "v1\n", "decisions/d.md": "old\n"})
+        head = commit({"projects/p.md": "about the eval\n", "notes/new.md": "eval\n", "skills/triage/SKILL.md": "v2\n",
+                       "AGENTS.md": "v2\n", "taste.md": "v2\n", "decisions/README.md": "v2\n", "decisions/d.md": "new\n"},
+                      gone=["skills/old.md"])
+        with mock.patch.object(brain_copy, "BRAIN", brain), mock.patch.object(brain_copy, "NOTES_REF", notes):
+            (brain / "notes/draft.md").write_text("a note mid-sync\n")  # notes never reach a trial: fine
+            self.assertEqual(brain_copy.pin_brain(dest), head)
+            (brain / "skills/triage/SKILL.md").write_text("v3\n")  # a rule a trial would read: refused
+            with self.assertRaises(SystemExit):
+                brain_copy.pin_brain(Path(tmp.name) / "again")
+        self.assertEqual((dest / "projects/p.md").read_text(), "old\n")
+        self.assertFalse((dest / "notes/new.md").exists())
+        self.assertEqual((dest / "skills/triage/SKILL.md").read_text(), "v2\n")
+        self.assertFalse((dest / "skills/old.md").exists())
+        self.assertEqual((dest / "AGENTS.md").read_text(), "v2\n")
+        self.assertEqual((dest / "taste.md").read_text(), "v2\n")
+        self.assertEqual((dest / "decisions/README.md").read_text(), "v2\n")
+        self.assertEqual((dest / "decisions/d.md").read_text(), "old\n")
+        self.assertFalse((dest / "evals").exists())
+        self.assertFalse((dest / "notes/draft.md").exists())
 
 
 if __name__ == "__main__":

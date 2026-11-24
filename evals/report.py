@@ -175,7 +175,10 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
         out += ["The eval profile's `SOUL.md` didn't match hers: this run didn't test her setup.", ""]
     if s:
         out += [f"Setup: `{s.get('model')}`, {s.get('hermes')}; telma `{s.get('telma_commit')}`, "
-                f"brain `{s.get('brain_commit')}`" + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
+                # Since notes_commit, brain_commit is only her skills and rules; before it, the whole brain.
+                + (f"skills and rules `{s.get('brain_commit')}`" if s.get("notes_commit") else f"brain `{s.get('brain_commit')}`")
+                + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
+                + (f", notes `{s['notes_commit']}`" if s.get("notes_commit") else "")
                 + f", `SOUL.md` `{s.get('soul_sha')}`, config `{s.get('config_sha')}` "
                 f"(eval copy `{s.get('eval_config_sha')}`).", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "

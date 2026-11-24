@@ -1,5 +1,6 @@
-"""The trial's brain: the real brain pinned at one commit without the owner's notes about the eval,
-checked against the tasks, and each trial's copy built from it (or from the decoy, for chat cases)."""
+"""The trial's brain: the real brain's notes at NOTES_REF without the owner's notes about the eval,
+with her skills and rules from her brain's HEAD (or a branch), checked against the tasks, and each
+trial's copy built from it (or from the decoy, for chat cases)."""
 import hashlib
 import re
 import shutil
@@ -12,6 +13,16 @@ REPO = HERE.parent
 BRAIN = Path.home() / "brain"
 # Read-only files the mounts expect; the decoy takes them from the real brain.
 OVERLAY = ["skills", "AGENTS.md", "CLAUDE.md", "README.md", "install.mjs", ".github", "test"]
+# The real brain's notes come from this one commit, so a run tests the change and not the last sync,
+# and the owner's later notes about the eval never reach a trial. What a run tests comes from her
+# brain's HEAD or --brain-ref: OVERLAY, `taste.md` and each folder's README.md (the skills follow
+# both). Moving it is a choice (docs/evals/DEVLOG.md, "How to run the eval").
+NOTES_REF = "c12634b4dcb56fecd36d75b5424837f80a4b57e2"
+
+
+def is_rule(path):
+    """A brain path a run takes from HEAD or --brain-ref, not from NOTES_REF."""
+    return path.split("/")[0] in OVERLAY or path == "taste.md" or re.fullmatch(r"[^/]+/README\.md", path) is not None
 
 
 def rsync(src, dst):
@@ -29,9 +40,7 @@ EVAL_NOTES = ["sha256:558426becce3267da2a46981556369ea9ba5a79655a17259da199687e1
               "sha256:54a7900eba46c93d9fbad4f3fb8f6a1ea4aa343a1b922663085d8243771ef1a2",
               "sha256:26ae67e227bf6dd3e170940612517f133be527359d69bda51f07a983f9184dc6",
               "sha256:16874a82bed749c9d2fca8a8cd7501d8e8969107835928100b985eb9011cc806",
-              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9",
-              "sha256:ebbd6c65c80d5424356997943c56b1f65f26d633609e814385f3e8ab14e4a331",
-              "sha256:e132ea8ea0644948645646dff4b45407f3ffac46b06a0d4294d6ed43fd4006f3"]
+              "sha256:c18262cc27ef32b0e834b76894d63509ddeea84ae799c5d3863a6c24056928f9"]
 # A note linked from elsewhere loses only its words about the eval, or its links to a stripped note, in
 # the copy: a passage (as in remove_text) and what takes its place.
 EVAL_REWORD = {
@@ -39,18 +48,7 @@ EVAL_REWORD = {
     "sha256:e0799c989c86870fe7d137f3a632aef3256c8978f8c0e1b9a7817284b0a83d05": [{"sha256": "e1859906de947c82e322ecf76b292fbef4f66cb5c7eb34b39992f616b2b007bc", "chars": 28, "with": '(telma\nrepo)'}],
     "sha256:bf2ccc2a4bfc6101909614111ff79652d31668c582dfdaf5ae98705e59bdecd8": [{"sha256": "3c6e33525f085b78b14ed3243440c14f662ff4730057c77ac9dc971624c67faf", "chars": 28, "with": '(telma repo)'}],
     "sha256:0c33c2c362feb5cdfc8dffe94a5629c81bf43ec8834c132410f3f46629632840": [{"sha256": "931d05bb7404153df9cfdb3f210a0f7bb6397d7ca035c9431a12509658ca95b3", "chars": 65, "with": ''},
-                                                                              {"sha256": "98f0a2e171bbe334fe014f8b34343657af99fe834b510eec9351da1c76a7870f", "chars": 75, "with": '2026-11-21 amend decision'}],
-    "sha256:a48746cae70c44e7e105b594aad338ddd105c93c1cb445a40ba6aab785ba69e5": [{"sha256": "d662148ffffa8b8baa75d3e362ebc5145bbfa3455aaa9baf047dea24f64c5547", "chars": 122, "with": ''}],
-    "sha256:0f27de5f662fb72cdd63d0c7fcaf895c343c00b9e3ab6c1a249405ebfead6bbd": [{"sha256": "970407ae9461024b6f081b576fe2dccba1b221b7e0233519f477aa4a69c8a4d0", "chars": 51, "with": '; the work now is the public showcase.'},
-                                                                              {"sha256": "eed313d5263155b8158defe345c4e0f0a0098a261a0af39d25a0bd25d54df9df", "chars": 155, "with": ' **Next, in order:** showcase step 5'},
-                                                                              {"sha256": "cd1ead34092c7a2cca7b18df878da34feb7236cff42df97396258fad778aab4f", "chars": 69, "with": ')'},
-                                                                              {"sha256": "c54212f96360b592b5c83b4ed77c2498788807304a8d4e8783628ec4a535861f", "chars": 92, "with": ''},
-                                                                              {"sha256": "0d2512dfc03d2a95d001fdb3c34d88ac09b572a897ffed78e600d6e4c7efdd51", "chars": 1830, "with": ''},
-                                                                              {"sha256": "5a43e0fe2b91a2216fd0abcbbc9e120ea0bef364b40eef292a4c6706175811b5", "chars": 18, "with": ''},
-                                                                              {"sha256": "68d1b392ff122930186e5e316b9038fb87c3fe467811856c3ae71de02d4d97f6", "chars": 41, "with": '`docs/adr/`.'},
-                                                                              {"sha256": "f9edc884b23c12d9e9126bf6172a381971858c197abd8256338233a61ad7e1e5", "chars": 27, "with": ''},
-                                                                              {"sha256": "d267a5cabb73fbcb5b95ac7943fb5e0ad2f892b01e18de031e6e65af9b037e0b", "chars": 474, "with": ''},
-                                                                              {"sha256": "95c21e72f1b721f503b147094e264e4b0bda50ff7c2ad0f7253bba0d3959765c", "chars": 81, "with": 'telma repo `docs/showcase/PLAN.md` (read'}]}
+                                                                              {"sha256": "98f0a2e171bbe334fe014f8b34343657af99fe834b510eec9351da1c76a7870f", "chars": 75, "with": '2026-11-21 amend decision'}]}
 # What still gives the eval away once they're gone.
 EVAL_WORDS = re.compile(r"telma[ -]eval|eval-v1|evals/(?:tasks|results|triage)|docs/evals", re.I)
 
@@ -59,6 +57,17 @@ def hashed_paths(pinned):
     """Every file in the pinned brain by `sha256:<hash of its path>`, the way tasks name them."""
     return {"sha256:" + hashlib.sha256(str(p.relative_to(pinned)).encode()).hexdigest(): str(p.relative_to(pinned))
             for p in pinned.rglob("*") if p.is_file()}
+
+
+def stale_strips(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
+    """Entries that don't fit the pinned notes: a note that isn't there, or a passage that isn't there
+    once. strip_eval_notes would skip them quietly, and eval_leaks's few spellings may not see what
+    they leave, so a run stops on them (a moved NOTES_REF needs its entries checked)."""
+    paths = hashed_paths(pinned)
+    return ([f"{n}: no such note" for n in notes if n not in paths]
+            + [f"{paths.get(n, n)}: " + (f"passage {s['sha256'][:12]}" if n in paths else "no such note")
+               for n, specs in reword.items() for s in specs
+               if n not in paths or not passage((pinned / paths[n]).read_text(), s)])
 
 
 def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
@@ -81,16 +90,6 @@ def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
     return stripped
 
 
-def stale_rewords(pinned, reword=EVAL_REWORD):
-    """Rewords that no longer fit the pinned brain: the note is gone or the passage isn't there once.
-    EVAL_WORDS only catches a few spellings, so a reworded passage that moved can leave prose about
-    the eval behind unflagged; on her current brain every reword has to fit."""
-    paths = hashed_paths(pinned)
-    return [f"{paths.get(n, n)}: " + (f"passage {s['sha256'][:12]}" if n in paths else "no such note")
-            for n, specs in reword.items() for s in specs
-            if n not in paths or not passage((pinned / paths[n]).read_text(), s)]
-
-
 def eval_leaks(pinned, stripped=()):
     """Files in the pinned brain that still name the eval or link to a `stripped` note (a dead link
     lint would fix in every trial). The inbox is skipped: every trial empties it."""
@@ -102,24 +101,41 @@ def eval_leaks(pinned, stripped=()):
 
 
 def pin_brain(dest, ref=None):
-    """The real brain at its current commit, or at `ref` (a branch with a skill change), without
-    history or an old copy of the eval's answers (evals/)."""
+    """The brain a trial starts from, without history or an old copy of the eval's answers (evals/):
+    the notes at NOTES_REF, and the rules (is_rule) from her brain's current commit or `ref` (a branch
+    with a skill change). Returns that commit."""
     git = ["git", "-C", str(BRAIN)]
-    if ref is None and subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout.strip():
-        sys.exit("~/brain has uncommitted changes: commit or sync them first, so the run pins one brain")
-    r = subprocess.run(git + ["rev-parse", "--short", "--verify", "--end-of-options", f"{ref or 'HEAD'}^{{commit}}"],
+    if ref is None:
+        dirty = subprocess.run(git + ["status", "--porcelain", "--no-renames"], capture_output=True, text=True).stdout
+        if any(is_rule(l[3:].strip('"')) for l in dirty.splitlines()):
+            sys.exit("~/brain has uncommitted changes to her skills or rules: commit or sync them first")
+    commit = resolve(ref or "HEAD")
+    extract(resolve(NOTES_REF), dest)
+    for p in sorted(dest.rglob("*"), reverse=True):  # files before their folders
+        if is_rule(str(p.relative_to(dest))):
+            shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
+    files = subprocess.run(git + ["ls-tree", "-r", "--name-only", "-z", commit], capture_output=True, text=True, check=True).stdout
+    extract(commit, dest, [f for f in files.split("\0") if f and is_rule(f)])
+    shutil.rmtree(dest / "evals", ignore_errors=True)
+    return commit
+
+
+def resolve(ref):
+    r = subprocess.run(["git", "-C", str(BRAIN), "rev-parse", "--short", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
                        capture_output=True, text=True)
     if r.returncode:
-        sys.exit(f"~/brain has no commit {ref or 'HEAD'}")
-    commit = r.stdout.strip()
-    dest.mkdir(parents=True)
-    archive = subprocess.Popen(git + ["archive", commit], stdout=subprocess.PIPE)
+        sys.exit(f"~/brain has no commit {ref}: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+def extract(commit, dest, paths=()):
+    """The brain's tree at `commit`, or only `paths` of it, into `dest`."""
+    dest.mkdir(parents=True, exist_ok=True)
+    archive = subprocess.Popen(["git", "-C", str(BRAIN), "archive", commit, "--", *paths], stdout=subprocess.PIPE)
     untar = subprocess.Popen(["tar", "-x", "-C", str(dest)], stdin=archive.stdout)
     archive.stdout.close()  # so archive gets SIGPIPE if tar dies, instead of blocking
     if untar.wait() or archive.wait():
         sys.exit("git archive of ~/brain failed")
-    shutil.rmtree(dest / "evals", ignore_errors=True)
-    return commit
 
 
 def passage(text, spec):

@@ -154,9 +154,9 @@ What the first run taught, and the owner's calls on it (devlog, step 8). One PR 
 
 **Done 2026-11-23.** The skill changes shipped as brain PRs `feat/triage-amend-decisions` (#1) and
 `feat/triage-files-injected-pages` (final wording `c12634b`, #2), both merged; the cron alert hook is
-deployed (step 8) and `run.py` is split (step 9). The eval runs on her current brain again: what
-the brain says about the eval since `c12634b` is in `EVAL_NOTES` and `EVAL_REWORD`, and a run on
-her current brain stops when a reword no longer fits. The results are in the full run's
+deployed (step 8) and `run.py` is split (step 9). A run takes her notes at `c12634b`
+(`NOTES_REF`) and her skills and rules from her current brain; how to run it is in the devlog
+("How to run the eval"). The results are in the full run's
 report, [`2026-11-22T2204-76bd0e4`](../../evals/results/2026-11-22T2204-76bd0e4.md), with every later
 run appended; [`evals/README.md`](../../evals/README.md) presents them.
 

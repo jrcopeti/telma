@@ -3,12 +3,13 @@
     python3 evals/run.py                      # all tasks, k=5
     python3 evals/run.py --only T1 skip-1 -k 1 # a few tasks, one trial each
     python3 evals/run.py --brain-ref skill-x   # the brain at a branch, to test a skill change first
+    python3 evals/run.py --check               # only the local checks before a run; no VPS, no cost
 
 Runs on the local machine and drives the VPS over SSH as user `agent`; nothing is deployed there.
 At the start it copies her current setup (SOUL.md, config, skills, memory) into the `eval` profile,
 pointed at the trial folder, so the run tests the setup she has now (eval_profile.py). Each trial
-(trial.py): a fresh brain copy (brain_copy.py: the real brain at one pinned commit, or the decoy for
-chat cases), her memory and skills reset to that start, one Hermes run, then the copy, her report and
+(trial.py): a fresh brain copy (brain_copy.py: the real brain's notes at NOTES_REF with her skills and
+rules from its HEAD, or the decoy for chat cases), her memory and skills reset to that start, one Hermes run, then the copy, her report and
 her tool calls come back here to be graded. A failed trial's diff of the copy is kept in
 evals/results/private/<run>/. One JSONL line per trial in evals/results/<date>-<commit>.jsonl,
 public: no report text, and no grader details for tasks on the real brain. The full rows go to
@@ -27,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from brain_copy import check_tasks, eval_leaks, item_path, pin_brain, stale_rewords, strip_eval_notes, unhash  # noqa: E402
+from brain_copy import NOTES_REF, check_tasks, eval_leaks, item_path, pin_brain, stale_strips, strip_eval_notes, unhash  # noqa: E402
 from eval_profile import setup_stamp, sync_profile  # noqa: E402
 from report import write as write_report  # noqa: E402
 from trial import trial  # noqa: E402
@@ -48,7 +49,7 @@ def check_clean():
 def task_sha(task, repo=REPO):
     """A task's definition and the files of this repo it names (items, planted notes, a chat page; for
     a chat case also the decoy brain and its markers), so a report can tell a task that changed from
-    one that newly passes. Brain items are in brain_commit."""
+    one that newly passes. Brain items are in notes_commit (brain_commit before it)."""
     h = hashlib.sha256(json.dumps(task, sort_keys=True).encode())
     names = set()
     def walk(v):
@@ -90,15 +91,16 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*")
     ap.add_argument("-k", type=int, default=5)
-    ap.add_argument("--brain-ref", help="a brain branch or commit to pin instead of ~/brain's HEAD")
+    ap.add_argument("--brain-ref", help="a brain branch or commit to take skills and rules from instead of ~/brain's HEAD")
+    ap.add_argument("--check", action="store_true", help="stop after the local checks, before the VPS")
     a = ap.parse_args(argv)
-    check_clean()
+    if not a.check:
+        check_clean()
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
-        # A branch or an older commit may predate a reword's passage; her current brain may not.
-        if not a.brain_ref and (stale := stale_rewords(tmp / "pinned")):
-            sys.exit("EVAL_REWORD no longer fits the brain; update these:\n  " + "\n  ".join(stale))
+        if stale := stale_strips(tmp / "pinned"):
+            sys.exit("EVAL_NOTES or EVAL_REWORD doesn't fit the notes at NOTES_REF; update these:\n  " + "\n  ".join(stale))
         stripped = strip_eval_notes(tmp / "pinned")
         if leaks := eval_leaks(tmp / "pinned", stripped):
             sys.exit("the brain still names the eval; add these to EVAL_NOTES or reword them:\n  " + "\n  ".join(leaks))
@@ -107,6 +109,9 @@ def main(argv=None):
         shas = {t["id"]: task_sha(t) for t in tasks}  # before unhash: the definition as committed
         unhash(tasks, tmp / "pinned")
         check_tasks(tasks, tmp / "pinned")  # all of them, so a partial run warns of the rest too
+        if a.check:
+            print(f"ok: brain {brain_commit}, notes {NOTES_REF[:7]} less {len(stripped)} eval notes, all {len(tasks)} tasks fit")
+            return
         if a.only:
             tasks = [t for t in tasks if t["id"] in a.only]
         started = True
@@ -114,7 +119,8 @@ def main(argv=None):
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile()
         stamp = setup_stamp(brain_commit)
-        stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on brain_commit less these
+        stamp["notes_commit"] = NOTES_REF[:7]  # the notes; brain_commit is only OVERLAY (skills and rules)
+        stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on notes_commit less these
         stamp["cost_source"] = "openrouter key"  # earlier runs: Hermes' estimate, about 5× too low
         stamp["task_sha"] = {t["id"]: shas[t["id"]] for t in tasks}
         if a.brain_ref:  # a branch run is never the baseline for the brain she has (report.previous)

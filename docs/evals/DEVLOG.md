@@ -1159,34 +1159,66 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
 - The report compares it with the step 5 baseline, since the full runs after it were on a brain
   branch (`report.previous`); a partial run's comparison says little anyway.
 
-## 2026-11-23: eval-v1 done; the eval runs on her current brain again
+## 2026-11-23: eval-v1 done; notes fixed at `c12634b`
 
-- Since `c12634b`, four files in `~/brain` (HEAD `cebed22`) trip the leak check, so `run.py`
-  stopped before any trial unless pinned with `--brain-ref c12634b`: the decision to keep the
-  injected-item wording, its source, `index.md`'s Telma line and `projects/telma.md`.
-- `EVAL_NOTES` strips the decision and its source. They're mostly about the eval (its score, the
-  next eval steps, a gotcha about tasks that strip notes, a link to the stripped eval design), and
-  only `index.md` links to the decision, so its index line goes too. Its rule is still in the
-  triage skill, and the v1 runs on `c12634b` had no such note.
-- The code review found the first fix too narrow. `EVAL_WORDS` matches a few spellings, so the
-  check passed while the copy's `projects/telma.md` kept a whole Eval paragraph: how trials run,
-  T1–T4's planted pages, and the rule T1–T4 test for. `c12634b`'s `projects/telma.md` never says
-  "eval"; at `cebed22` it does 16 times. Every other file says "eval" as often as it did at
-  `c12634b`.
-- So `EVAL_REWORD` now takes out every eval passage new since `c12634b`: in `index.md`'s Telma line
-  the eval's score and next steps; in `projects/telma.md` the Eval paragraph, the eval in the status
-  line and next steps, the eval sentences in the open items (gotcha included), the
-  `docs/evals/` and `evals/README.md` mentions, "before every eval run" in the ask-first rule, and
-  the merged brain PR #2 (`feat/triage-files-injected-pages`) the status still waits on. Checked:
-  her copy's `projects/telma.md` never says "eval".
-- New `stale_rewords`: a run on her current brain (no `--brain-ref`) stops when a reword's note is
-  gone or its passage isn't there once. `projects/telma.md` changes with most syncs, so these hashes
-  will go stale. Without the check a moved passage would be skipped quietly, and the leak check
-  wouldn't see the prose it left. A `--brain-ref` run skips it: an older commit predates passages.
-- Checked locally, no VPS run: on `cebed22` no stale rewords, 12 notes stripped, no leaks, every
-  task fits; on `c12634b` 10 stripped and no leaks, as before. The tests pass.
-- Open: `EVAL_WORDS` still misses prose. A check against `c12634b` (a file says "eval" more often
-  than it did there) would catch the next sync's new paragraph without hashes, but it needs an
-  allowlist for files like the Anthropic source. Not done here.
+- Since `c12634b`, four files in `~/brain` (HEAD `cebed22`) name the eval, so `run.py` stopped
+  before any trial unless pinned with `--brain-ref c12634b`. The first fix added them to
+  `EVAL_NOTES` and `EVAL_REWORD`. The code review found it too narrow: `EVAL_WORDS` matches a few
+  spellings, and the copy's `projects/telma.md` kept a whole Eval paragraph (how trials run, T1–T4's
+  planted pages, the rule T1–T4 test for). Hashing every such passage worked, but the owner turned
+  it down: every new note about the eval, and every sync that moves one, would need another entry.
+- Instead the notes are fixed. `brain_copy.NOTES_REF` is `c12634b` (the full hash), the v1 runs'
+  brain: the notes, `index.md` and `sources/` come from it, with the 10 `EVAL_NOTES` stripped as
+  before. Her skills and the rules they follow (`is_rule`: the `OVERLAY` files, `skills/`,
+  `AGENTS.md` and the rest; `taste.md`; each folder's `README.md`, such as `decisions/README.md`)
+  come from `~/brain`'s HEAD, or from `--brain-ref`. That's what a change to her setup touches,
+  so a run still tests what ships. The decoy still takes only `OVERLAY`, so the real `taste.md`
+  never reaches a chat case. `EVAL_NOTES` and `EVAL_REWORD` are unchanged from `main`.
+- A dirty `~/brain` stops a run only when the uncommitted change is to a rule file; a note
+  mid-sync can't reach a trial. `stale_strips` stops a run when an `EVAL_NOTES` or `EVAL_REWORD`
+  entry doesn't fit the notes at `NOTES_REF`: unlikely while it stays put, but it's the check
+  that matters when it moves, since `strip_eval_notes` would skip the entry quietly.
+- Why it's better than following the live brain: nothing to maintain per sync, and runs compare
+  cleanly, since the notes only move when someone moves them. The cost: the notes age, so a new
+  real task on a newer note needs `NOTES_REF` moved first (below).
+- Each run's setup records `notes_commit`; `brain_commit` is now the commit the skills and rules
+  came from, and the report labels it that way. A moved `notes_commit` shows as a setup change in
+  the report. The first run with it will show `notes_commit` new against the step 6 baseline,
+  whose `brain_commit` was the whole brain.
+- `run.py --check` runs only the local checks (pin, strip, leak check, tasks fit) and stops before
+  the VPS.
+- Checked locally, no VPS run: `--check` passes on HEAD (`cebed22`) and on `--brain-ref c12634b`
+  (10 notes stripped, 30 tasks fit). On HEAD the copy's notes equal `c12634b`'s (the new decision
+  isn't there, `projects/telma.md` is the old one) and its `skills/` and `AGENTS.md` equal HEAD's.
+  `skills/`, `AGENTS.md` and `CLAUDE.md` haven't changed since `c12634b`. A new test pins a
+  two-commit repo (notes, rule files, a dirty note and a dirty skill), another covers
+  `stale_strips`. 154 tests pass.
+- The second code review's findings, all fixed: folder READMEs and `taste.md` were taken from
+  `NOTES_REF` (so a rule change there went untested), no stale-entry check, a short hash for
+  `NOTES_REF`, two stale docstrings, the report label, the dirty check on the whole brain, and a
+  second full extract where only the rule files were needed.
 - eval-v1 is done: both skill changes merged (brain #1, #2), the cron alert hook is deployed and
   `run.py` is split.
+
+### How to run the eval
+
+1. **Ask the owner first, every run.** A trial is a real Hermes run on the VPS and costs money.
+2. **Check locally:** sync the brain so `~/brain` is clean, then `python3 evals/run.py --check`
+   (add `--brain-ref <branch>` for a skill change). It costs nothing. It stops on an uncommitted
+   skill or rule, a strip entry that doesn't fit, a note that names the eval, or a task that
+   doesn't fit.
+3. **Run:**
+   - A skill or brain-rule change: push it to a brain branch, then
+     `python3 evals/run.py --brain-ref <branch>`, before merging it.
+   - A change to her model or fallback order, `SOUL.md`, toolsets or Hermes: `python3 evals/run.py`.
+     The run copies her live setup at its start, so it tests whatever she has then.
+   - `--only <ids> -k 1` for a smoke run; a full run (all tasks, k = 5) is the baseline.
+4. **Read the report** (`evals/results/<run>.md`) against the last full run. A task that newly
+   fails blocks the change; tasks that already failed don't, but name them. Results go in by PR,
+   with a devlog entry.
+5. **Don't chase the live brain.** Notes the owner writes about the eval stay in the brain and
+   never reach a trial. Don't add them to `EVAL_NOTES` or `EVAL_REWORD`.
+6. **Moving `NOTES_REF`** (only when a task needs a newer note): pick a commit (the full hash),
+   run `--check` on it and fix what `stale_strips` names, then read its copy for prose about the eval, not just what `--check` flags (`EVAL_WORDS`
+   only catches a few spellings): `projects/telma.md`, `index.md` and recent decisions first. Strip
+   or reword what you find, then make the next full run the new baseline, and say so here.

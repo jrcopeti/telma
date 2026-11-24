@@ -162,7 +162,7 @@ secret ever left the server. The [results](evals/README.md#results) explain each
 
 | Path | What |
 |---|---|
-| [`vps/`](vps/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests; the deploy manifest and the drift check |
+| [`vps/`](vps/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests; the deploy manifest, the drift check and the deploy script |
 | [`vps/hermes/`](vps/hermes/) | her live setup: `SOUL.md`, the config settings chosen for her, her four jobs, the triage job's prompt |
 | [`vps/brain-skills/`](vps/brain-skills/) | the four skills she runs on the brain: capture, triage, lint, ask-brain |
 | [`vps/host.md`](vps/host.md) | the host from her side, and what runs where |

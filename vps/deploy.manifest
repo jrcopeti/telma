@@ -1,14 +1,17 @@
-# Where each file in this repo is deployed on the VPS, read by check-drift.py.
+# Where each file in this repo is deployed on the VPS, read by check-drift.py and deploy.py.
 # Owner, group and perm are what the VPS had on 2026-11-24. A tree's perm is `-`: its files' modes
 # come from git through sync-brain, so only the owner is checked.
+# after: what a deployed file still needs, which deploy.py prints: none, restart-gateway, new-chat,
+# rebuild-sandbox, or reapprove-hook (Hermes runs a hook fresh each call, but its doctor reads a
+# changed hook as modified since approval until it is re-approved).
 # repo path                       host path                                          mode      owner:group  perm  after
 vps/sync-brain.sh                 /home/agent/.hermes/scripts/sync-brain.sh          exact     agent:agent  755   none
 vps/brain-files.py                /home/agent/.hermes/scripts/brain-files.py         exact     agent:agent  644   none
 vps/memory-diff.sh                /home/agent/.hermes/scripts/memory-diff.sh         exact     agent:agent  755   none
 vps/tripwire-health.sh            /home/agent/.hermes/scripts/tripwire-health.sh     exact     agent:agent  755   none
-vps/guard-network.sh              /home/agent/.hermes/agent-hooks/guard-network.sh   exact     agent:agent  755   restart-gateway
-vps/exfil-tripwire.py             /home/agent/.hermes/agent-hooks/exfil-tripwire.py  exact     agent:agent  755   restart-gateway
-vps/cron-alert.py                 /home/agent/.hermes/agent-hooks/cron-alert.py      exact     agent:agent  755   restart-gateway
+vps/guard-network.sh              /home/agent/.hermes/agent-hooks/guard-network.sh   exact     agent:agent  755   reapprove-hook
+vps/exfil-tripwire.py             /home/agent/.hermes/agent-hooks/exfil-tripwire.py  exact     agent:agent  755   reapprove-hook
+vps/cron-alert.py                 /home/agent/.hermes/agent-hooks/cron-alert.py      exact     agent:agent  755   reapprove-hook
 vps/hermes/SOUL.md                /home/agent/.hermes/SOUL.md                        redacted  agent:agent  644   new-chat
 vps/hermes/config.overrides.yaml  /home/agent/.hermes/config.yaml                    subset    agent:agent  600   restart-gateway
 vps/hermes/jobs.overrides.yaml    /home/agent/.hermes/cron/jobs.json                 jobs      agent:agent  600   none

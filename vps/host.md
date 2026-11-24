@@ -14,9 +14,10 @@ The bot runs as `ticket-bay-bot`, next to `ticket-bay-app` and `skills-sync`. Bo
 
 ## Where each file is deployed
 
-Copied by hand; `~` is Telma's home, `/home/agent`. [`deploy.manifest`](deploy.manifest) lists each
-file with its owner and mode, and [`check-drift.py`](check-drift.py), run from the local machine,
-says whether the VPS still matches the repo.
+`~` is Telma's home, `/home/agent`. [`deploy.manifest`](deploy.manifest) lists each file with its
+owner and mode. From the local machine, [`check-drift.py`](check-drift.py) says whether the VPS
+still matches the repo, and [`deploy.py`](deploy.py) copies the files named to it, after a yes for
+each.
 
 | In this repo | On the VPS |
 |---|---|

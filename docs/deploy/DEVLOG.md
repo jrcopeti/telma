@@ -109,3 +109,36 @@
   can't reach them, and root-owned hooks would close little while `config.yaml`, which declares
   them, is hers. The gap that leaves (a hook or config change shows only when the check runs) is
   in the plan's Decisions.
+
+## 2026-11-24: PR 2, the deploy script
+
+- `deploy.py`, not `.sh`, as `check-drift.py` before it: it reuses the check's manifest reader,
+  placeholder filling and status table (imported, not copied), and its host side runs as Python on
+  the VPS and on a Mac. The plan's mentions renamed; the devlog's left as written. `install` and
+  `mv -f` became `os.open(O_EXCL|O_NOFOLLOW)`, `fchown`, `fchmod`, `fsync` and `os.replace`.
+- Two ssh calls as root: one reads each named file (stat, hash, bytes, for the diff; a symlink on
+  its path is reported, never read through), one copies. Between them the owner answers every
+  file. The copy re-checks each file's hash against the one diffed and stops if it changed, stages
+  all files and their backups, then asks her cron ledger as `agent` whether a job runs, and only
+  then swaps them all in. A stop before the swap removes what it staged.
+- A running job, from Hermes's code at `ae2a81c`: `~/.hermes/cron/executions.db`, rows `claimed`
+  or `running` (`cron/executions.py`). Read as `agent`, `mode=ro`. A read as root the first time
+  made SQLite create `-shm` and `-wal` beside it; they came out `agent:agent`, as SQLite gives a
+  root-made journal the database's owner, but `agent` is the safer reader. A wedged row (a crashed
+  worker) would block every deploy until Hermes recovers it; the message names the job.
+- Hooks and restarts, from the same code: a hook runs fresh each call, consent is per command, and
+  only the doctor compares the script's mtime with its approval. So the hooks' `after` became
+  `reapprove-hook` (plan's `after` bullet), and `deploy.py` prints the revoke, accept and restart.
+- Only main as pushed is deployed (`HEAD` equals `origin/main` after a fetch), and nothing
+  uncommitted in the manifest or the named paths.
+- `--eval-run` takes a committed `evals/results/*.jsonl` whose run was made on a commit that has
+  the file's last change. It can't prove more: the eval copies her live `SOUL.md`, so a run before
+  a deploy tests the old one. In the plan's Open.
+- The deploy history tag (owner, from the step's start): `deploy/<date>-<n>`, printed, never
+  written. The number counts tags here and on origin (`git ls-remote`), not with `fetch --tags`,
+  which fails on a local `deployed` that differs from origin's.
+- The rule in `host.md`, "Scripts are deployed by hand", stays word for word: the bot's `host.md`
+  has the same rule, and the owner still says yes to each file.
+- Tests: `vps/test_deploy.py`, 19 against the fake host, a bare origin and a fake ledger, in CI
+  beside the check's. One live `check-drift.py` run while wiring the tests, by mistake (meant to
+  skip it): read-only, its doctor posted the known `test-session` alert.

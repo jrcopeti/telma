@@ -9,7 +9,7 @@ evening and still missed four files. The eval's stamp covers only `SOUL.md` and 
 hashes; the showcase plan called that too thin (owner, 2026-11-24).
 
 **Done when:** `check-drift.py` reports every manifest line in sync and the hooks and Hermes lines
-`ok`, the `deployed` tag is set, `deploy.sh` has deployed at least one change end to end, and each
+`ok`, the `deployed` tag is set, `deploy.py` has deployed at least one change end to end, and each
 eval run writes the check's summary into its results.
 
 ## Decisions (the owner, 2026-11-24, grill session)
@@ -84,21 +84,31 @@ eval run writes the check's summary into its results.
   rule), and `hermes hooks doctor`. One line each, `ok` or what's wrong. Not systemd units: her jobs
   are Hermes cron, and the units are the installer's.
 - **Run from the local machine only.** Never in CI (it would need an ssh key to the VPS), never as
-  a job of hers (she must not check her own controls). Run on demand, at the end of `deploy.sh`,
+  a job of hers (she must not check her own controls). Run on demand, at the end of `deploy.py`,
   and at the start of each eval run.
-- **`deploy.sh` copies only what it's told.** Paths named on the command line, never "everything
+- **`deploy.py` copies only what it's told.** Paths named on the command line, never "everything
   ahead". It shows each diff and takes a yes per file, copying
   nothing until all are answered, keeps a backup in
   `~/.hermes/deploy-backups/<timestamp>/` (not beside the live file, where a hook loader or a
-  `tree` folder would see it), installs with `install -o -g -m` to a temp name in the target's
-  folder and `mv -f`s it over the target (owner and mode set first, swapped atomically),
-  then re-checks those files. It doesn't write `config.yaml`, `.env` or `jobs.json` (it prints the
+  `tree` folder would see it), writes each file to a temp name in the target's folder with its
+  owner and mode set first and swaps it over the target atomically (`os.replace`, the step's
+  `install -o -g -m` and `mv -f` in Python), then runs the whole check. It doesn't write `config.yaml`, `.env` or `jobs.json` (it prints the
   `hermes config set` commands or the job change), and skills go through a brain PR and sync-brain.
-  `SOUL.md`, the skills and the model or fallback keys need `--eval-run <results dir>`, per
+  `SOUL.md`, the skills and the model or fallback keys need `--eval-run <results .jsonl>`, per
   `AGENTS.md`. Right before the copy it checks no job of hers is running (it
   stops, copying nothing, if one is), then copies all the files in one quick step, so no job sees
   half the new files and half the old. It only prints what each file still needs
   after (`after` below); it never restarts, rebuilds or runs a job.
+- **Each deploy gets a permanent tag** (owner, 2026-11-24, step 4). `deployed` moves, so it keeps no
+  history; the devlog records each move only while this plan is open; the backups on the host are in
+  her home, where she could edit them, and don't name a commit. So `deploy.py` ends by printing an
+  annotated tag, `deploy/<date>-<n>` (`n` one past the highest on that day, here or on origin), on
+  the deployed commit, whose message holds the files, the backup folder and the check's summary line
+  after the copy. `git tag -l 'deploy/*' -n20` lists every deploy. It lives in the repo, where she
+  can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. The script
+  prints the tag commands and the owner runs them, as with `deployed`: it never writes or pushes a
+  tag. The `deployed` move is printed only when the re-check exits 0; otherwise it says `deployed`
+  stays, per the rule above.
 - **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
   in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
 
@@ -115,8 +125,13 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 - **Modes:** `exact` (byte for byte), `redacted` (placeholders filled first), `subset` (config
   keys), `jobs` (`jobs.overrides.yaml` and the triage prompt against `jobs.json`), `tree` (a folder,
   file by file). `jobs` and `tree` are new to the bot's design; its brain intent gets them too.
-- **`after`:** `none`, `restart-gateway`, `new-chat` or `rebuild-sandbox`. Whether Hermes reloads
-  hooks without a restart is read in its code in PR 2.
+- **`after`:** `none`, `restart-gateway`, `new-chat`, `rebuild-sandbox` or `reapprove-hook`.
+  Hermes (`ae2a81c`, `agent/shell_hooks.py`) spawns a hook script fresh on every call, so a new hook
+  runs without a restart. Consent is per event and command, not per file, but the doctor compares
+  the script's mtime with the one recorded at approval, so after a deploy the check reads `hooks not
+  ok` until the hook is re-approved: `hermes hooks revoke '<command>'` (the gateway drops the hook
+  within about 30 seconds), `hermes chat --accept-hooks`, a gateway restart, back to back. The three
+  hooks' lines say `reapprove-hook`, and `deploy.py` prints those three commands for each.
 
 ## Steps
 
@@ -125,11 +140,17 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 | 1 | **This plan.** | The owner merges it | done (#67) |
 | 2 | **PR 0: move `vps/telma/` to `vps/`.** `git mv`; fix CI, `evals/grade.py`, the test scripts' "Run:" lines and the live docs. In the frozen docs fix only the 6 broken links, prose left as history; `AGENTS.md` names this second exception. Then a PR in ticket-bay-bot for its two links to `kill-switch.md` (`vps/host.md` and its own `kill-switch.md`), merged right after this one, and the brain's `projects/telma.md`. Nothing deployed changes. | CI green; no `vps/telma` left outside history prose (devlogs, finished plans and rows) | done (#68) |
 | 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.py` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | done (#70), after the owner re-approved two hooks; `deployed` on `dcee608` |
-| 4 | **PR 2: `deploy.sh`.** As decided above. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; the tag moved | |
+| 4 | **PR 2: `deploy.py`.** As decided above, with the `deploy/<date>-<n>` tag. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; its `deploy/` tag pushed and `deployed` moved | in progress |
 | 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results folder has `drift.txt` | |
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |
 
 ## Open
+
+- How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
+  from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
+  `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the
+  run tested it. Step 5 is the natural place: have the eval copy the repo's filled `SOUL.md` when
+  asked, and then require the run's `eval_soul_sha` to equal what is deployed.
 
 - A forced-command ssh key (`command=…,restrict` in root's `authorized_keys`) that can only run a
   read-only script, instead of root. It guards against a stolen local-machine key, which today

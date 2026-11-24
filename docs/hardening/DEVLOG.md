@@ -100,7 +100,7 @@ the app-password file from the VPS.
 - The owner deleted the "brain box" deploy key. The brain repo now has no deploy keys; the local machine reaches it
   with the owner's own SSH key.
 - The owner deleted the bug-inbox app password, and the one made on the wrong Google account. The bug
-  inbox's Sent folder holds nothing he didn't send.
+  inbox's Sent folder holds nothing they didn't send.
 - Shredded the dead `gh` token (`hosts.yml`) and the app-password file on the VPS. `gh` there now
   reports no login. The sandbox mounts in `config.yaml` stay until steps 1 and 2 rewrite them.
 - The stopped Lima VM still holds copies of the same dead credentials. They go when the VM is deleted.

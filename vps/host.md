@@ -27,10 +27,6 @@ Copied by hand; `~` is Telma's home, `/home/agent`.
 | `telma/brain-skills/` | the brain repo's `skills/`, which sync-brain brings to `~/brain/skills/` |
 | `telma/sandbox/Dockerfile` | `~/sandbox/` |
 
-The deployed `sync-brain.sh`, `brain-files.py` and `memory-diff.sh` name the owner and their
-machine where these copies say "the owner" and "the local machine" (comments, and one
-`sync-brain.sh` message), until the owner redeploys them.
-
 The deployed `SOUL.md` differs from this copy on purpose: it names the owner where this copy says
 `<OWNER'S NAME>`.
 

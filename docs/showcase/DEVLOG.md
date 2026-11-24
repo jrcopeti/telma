@@ -22,7 +22,7 @@
 
 - The owner changed the rule: agents draft the public docs, the owner approves each in its PR. `AGENTS.md` and the
   plan's Rules say so now.
-- His calls: the README uses the `crafting-effective-readmes` skill with the portfolio template;
+- The owner's calls: the README uses the `crafting-effective-readmes` skill with the portfolio template;
   Telma's README shows the brain work only and links the bot for the bug loop; the owner captures the
   screenshots from a shot list (in the plan); threat model first, README last.
 - Threat model drafted from the frozen hardening docs (audit-after, injection suite, step 6 results,
@@ -219,8 +219,25 @@
   machine" everywhere in the repo, frozen docs and the step 6 results included. It closes the two
   rename items in Open. Lines that named the old word to describe the rename itself were reworded
   by hand, and "he", "his" and "himself" for the owner became "they", "their" and "themselves".
+- Code review found what the first pass missed: its file list used `\b` in `git grep -E`, which the
+  local machine's git doesn't support, so `kill-switch.md` (only "Mac") and pronouns in files with no
+  name (`threat-model.md`: "what he captures") were skipped. Fixed; `git grep -w` now finds none.
+  `kill-switch.md` isn't a deployed file.
 - Three deployed scripts changed in comments: `sync-brain.sh`, `brain-files.py`, `memory-diff.sh`.
   `sync-brain.sh` also changed one Discord message (a conflict now names the local machine). They
-  differ from the VPS until the owner redeploys them (owner, 2026-11-24); `host.md` says so.
+  are deployed right after this PR merges (owner, 2026-11-24), so `host.md` lists no difference.
   `test-sync-brain.sh` changed in test names and commit messages only; its `mac` helpers keep
   their names.
+- `/code-review` (default effort, all findings), third pass on the whole branch, 12 findings:
+  - Fixed: the rename missed `kill-switch.md` and pronouns in files that didn't name the owner
+    (above).
+  - Capture runs `node sync.mjs` in chats, where her sandbox has no network. Owner: she already says
+    she doesn't push, the host does. Stays.
+  - `SOUL.md`'s last line: stays, the owner's call (second pass).
+  - Brain-skill edge cases, three of them new (the `sources/` substring match, the exact match on
+    section headings, capture blocking on stdin). Owner: edge cases; a change would need an eval
+    run. Not touched now.
+  - The three deployed scripts differ from the VPS. Owner: deployed after this PR merges.
+  - Nothing checks the config hash: the next step, the deployment-check plan in Open.
+  - `docs/hardening/` is frozen but edited here: approved by the owner; `AGENTS.md` names the
+    exception.

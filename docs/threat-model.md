@@ -1,7 +1,7 @@
 # Threat model: Telma
 
 Telma is a [Hermes](https://hermes-agent.nousresearch.com) agent on a VPS. She keeps the owner's second
-brain, a git repo of notes: she files what he captures, answers questions from it and keeps it tidy.
+brain, a git repo of notes: she files what the owner captures, answers questions from it and keeps it tidy.
 This page says what can go wrong, which control stops it, and which risks are accepted.
 
 She shares the VPS with one other agent, ticket-bay-bot, which reads strangers' bug emails and opens

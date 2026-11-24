@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/assets/telma-avatar.jpg" width="120" alt="Telma"></p>
+<p align="center"><img src="docs/assets/screenshots/telma-avatar.jpg" width="120" alt="Telma"></p>
 
 <h1 align="center">Telma</h1>
 
@@ -23,7 +23,7 @@ She is a personal assistant the owner reaches from a phone, with the brain as he
 - **Looks things up:** web search and a browser, in chats.
 - **Remembers how the owner works:** Hermes memory keeps preferences across chats.
 
-<p align="center"><img src="docs/assets/capabilities.jpg" width="320" alt="Telma describing what she does and what she won't do"></p>
+<p align="center"><img src="docs/assets/screenshots/capabilities.png" width="320" alt="Telma describing what she does and what she won't do"></p>
 
 ### The brain
 
@@ -33,27 +33,17 @@ nobody does.
 
 **Capture.** Say "save this" with a link, a snippet or a decision, and she writes it to the inbox.
 
-<p align="center"><img src="docs/assets/capture-1.jpg" width="320" alt="Asking Telma to save a link"></p>
+<p align="center"><img src="docs/assets/screenshots/capture-1.png" width="320" alt="Asking Telma to save a link; she reads the capture skill and the page"></p>
 
-<p align="center"><img src="docs/assets/capture-2.jpg" width="320" alt="She opens a thread for it"></p>
-
-<p align="center"><img src="docs/assets/capture-3.jpg" width="320" alt="She reads the capture skill and the page"></p>
-
-<p align="center"><img src="docs/assets/capture-4.jpg" width="320" alt="Her reply: saved to the inbox"></p>
+<p align="center"><img src="docs/assets/screenshots/capture-2.png" width="320" alt="Her reply: saved to the inbox"></p>
 
 **Ask the brain.** Ask "what does my brain say about X?" and she answers from the notes, with a
 link to each one. If the brain has nothing, she says so.
 
-<p align="center"><img src="docs/assets/ask-1.jpg" width="320" alt="Asking what the brain says about mocking the database"></p>
-
-<p align="center"><img src="docs/assets/ask-2.jpg" width="320" alt="She reads the ask-brain skill and searches the notes"></p>
-
-<p align="center"><img src="docs/assets/ask-3.jpg" width="320" alt="Her answer, with a link to each note"></p>
-
 **Triage.** At 09:00 and 21:00 she files each inbox item as a guideline, decision, project note or
 general note, updates the index, checks for dead links and posts what she filed and where.
 
-<p align="center"><img src="docs/assets/brain-triage.jpg" width="320" alt="A brain-triage post: what she filed and where"></p>
+<p align="center"><img src="docs/assets/screenshots/triage.png" width="320" alt="A brain-triage post: what she filed and where"></p>
 
 ## How she runs
 
@@ -88,7 +78,7 @@ config change. The owner's picks today:
 | Fallback 1 | `inclusionai/ling-3.2-flash:free` | free |
 | Fallback 2 | `baidu/ernie-5.5-flash-preview:free` | free |
 
-<p align="center"><img src="docs/assets/new-session.jpg" width="320" alt="A new session shows the model and provider"></p>
+<p align="center"><img src="docs/assets/screenshots/new-session.png" width="320" alt="A new session shows the model and provider"></p>
 
 Hermes moves down the chain when a model fails or times out. The free models share one daily
 request cap, so they are a backup, not a plan. The chain is the owner's choice; Hermes takes any
@@ -119,7 +109,7 @@ The walls are permissions, mounts, network rules and hooks, not prompts. The
 [threat model](docs/threat-model.md) maps each threat to the control that stops it, and names the
 few places where only the model stands in the way.
 
-<p align="center"><img src="docs/assets/alerts.jpg" width="320" alt="Exfil tripwire alerts in #alerts"></p>
+<p align="center"><img src="docs/assets/screenshots/alert.png" width="320" alt="An exfil tripwire alert in #alerts"></p>
 
 Read more:
 

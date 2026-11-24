@@ -57,7 +57,7 @@ Decided:
 
 ## Screenshot shot list (José captures)
 
-PNGs, or one short GIF, into `docs/assets/`. An agent checks each one for personal data before it's
+PNGs, or one short GIF, into `docs/assets/screenshots/`. An agent checks each one for personal data before it's
 committed. Blur or crop: Discord server and channel names other than Telma's, user names and avatars
 other than hers and José's, IPs, URLs of private repos, webhook URLs, the canary's link or file name,
 and any note with personal content.
@@ -67,3 +67,6 @@ and any note with personal content.
 3. **Triage summary:** a brain-triage post in Discord: what she filed, and where.
 4. **An alert:** the T6 canary or tripwire post in `#alerts` (crop the source IP).
 5. **Optional GIF:** 20 to 30 seconds of 1 then 2.
+
+Retaken 2026-11-24 after her new icon: 1, 3 and 4 plus the capabilities and new-session shots. No
+ask-brain shot yet, so the README's ask-brain part has none.

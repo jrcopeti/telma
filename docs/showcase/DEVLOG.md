@@ -145,3 +145,14 @@
   "What she does" list. Checked: no private data or location metadata.
 - Owner disliked mixed sizes side by side: every screenshot is now one per row, centered, 420px
   wide, then cut to 320px at the owner's request.
+
+## 2026-11-24: new screenshots for her new icon
+
+- Her Discord icon changed, so the owner retook the shots into `docs/assets/screenshots/`: the
+  avatar, capabilities, capture (two shots: the request with her reads, then her "saved to inbox"
+  reply), triage, new session and the tripwire alert. The README points at them; the eleven old
+  jpgs and the old avatar are deleted.
+- The two capture shots arrived named `ask-1` and `ask-2`; renamed to `capture-1` and `capture-2`
+  to match what they show. There is no new ask-brain shot, so that README part has no image for now.
+- Checked each: no IPs, webhooks, private repos, canary or other people, and no GPS or device
+  metadata (only macOS's "Screenshot" comment). The owner's Discord username shows, as before.

@@ -16,7 +16,7 @@ PRs, gists, git, open network and Python, which the command guard doesn't check.
 | Third-party skills repo, pulled daily | root cron at 07:50, then loaded as skills | medium: supply chain |
 | npm packages during `npm ci` | inside the sandbox; install scripts run | medium |
 | Web pages captured into the brain inbox | brain-triage, 21:00 | low to medium |
-| Discord | only José is allowed | low |
+| Discord | only the owner is allowed | low |
 
 ## Private data the sandbox can reach
 
@@ -40,15 +40,15 @@ PRs, gists, git, open network and Python, which the command guard doesn't check.
 | Email over SMTP | the app password | medium |
 | Brain auto-sync | pushes every 15 minutes | a way out and a way in |
 
-## Worst path: the Mac
+## Worst path: the local machine
 
-The Mac's capture, triage, lint and ask-brain skills are symlinks into `~/brain/skills`, which is
+The local machine's capture, triage, lint and ask-brain skills are symlinks into `~/brain/skills`, which is
 writable from the sandbox:
 
 1. An injected run writes a poisoned skill into the brain.
 2. `sync-brain` pushes it.
-3. The Mac pulls it on the next capture.
-4. Claude Code, Codex or Cursor on the Mac runs it with full permissions.
+3. The local machine pulls it on the next capture.
+4. Claude Code, Codex or Cursor on the local machine runs it with full permissions.
 
 ## Persistence
 

@@ -30,7 +30,7 @@ helper() {
   return "$rc"
 }
 # Stops the run if a change from $1 to $2 is outside ALLOWED, adds a link or a gitlink, or touches a
-# .gitignore, .gitattributes or .gitmodules (git on the Mac reads them; José's own reach her copy).
+# .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy).
 refuse_outside() {
   local bad
   bad=$( (g diff --name-only --no-renames "$1" "$2" -- || echo "(git diff failed)") | grep -Ev "$ALLOWED"
@@ -70,7 +70,7 @@ base=$(g rev-parse --verify -q 'refs/sync/github^{commit}') || { say "no main on
 given=$(g rev-parse --verify -q 'refs/sync/given^{commit}') || given=$base
 
 # A refresh that didn't finish (killed, or a folder she made unwritable): finish it before reading her
-# files, or what GitHub sent her would look like her own change and undo José's later work.
+# files, or what GitHub sent her would look like her own change and undo the owner's later work.
 if pending=$(g rev-parse --verify -q 'refs/sync/pending^{commit}'); then
   g checkout -q -f --detach "$pending" || { say "checkout failed in $P"; exit 0; }
   g diff --name-status --no-renames -z "$given" "$pending" -- | helper apply "$P" "$B" || exit 0
@@ -94,14 +94,14 @@ new=$hers
 if [ "$base" != "$given" ]; then
   if [ "$hers" = "$given" ]; then
     new=$base
-  # Only her commit, and no rename detection: an edit must not follow a Mac rename into skills/.
+  # Only her commit, and no rename detection: an edit must not follow a rename on the local machine into skills/.
   elif g rebase -q -Xno-renames --onto "$base" "$given" >/dev/null 2>&1; then
     new=$(g rev-parse HEAD)
     refuse_outside "$base" "$new"
   else
     conflicts=$(g diff --name-only --diff-filter=U)
     g rebase --abort >/dev/null 2>&1
-    echo "⚠️ sync-brain: conflict with GitHub, nothing pushed. Telma and the Mac both changed these:"
+    echo "⚠️ sync-brain: conflict with GitHub, nothing pushed. Telma and the local machine both changed these:"
     block <<<"$conflicts"
     echo "Copy GitHub's version over hers in $B, then redo her change."
     exit 0

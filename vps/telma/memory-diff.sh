@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Twice a day, as a Hermes no-agent job after brain-triage: print what Telma saved to her memory or
-# skills since the last run. Memory and skill_manage stay on so she learns; this is how José sees what
+# skills since the last run. Memory and skill_manage stay on so she learns; this is how the owner sees what
 # she saved, and undoes a bad entry with the restore line it prints.
 # The snapshot repo is outside the sandbox's mounts.
 # Silent when nothing changed. The first run only takes the baseline.

@@ -27,6 +27,10 @@ Copied by hand; `~` is Telma's home, `/home/agent`.
 | `telma/brain-skills/` | the brain repo's `skills/`, which sync-brain brings to `~/brain/skills/` |
 | `telma/sandbox/Dockerfile` | `~/sandbox/` |
 
+The deployed `sync-brain.sh`, `brain-files.py` and `memory-diff.sh` name the owner and their
+machine where these copies say "the owner" and "the local machine" (comments, and one
+`sync-brain.sh` message), until the owner redeploys them.
+
 The deployed `SOUL.md` differs from this copy on purpose: it names the owner where this copy says
 `<OWNER'S NAME>`.
 
@@ -76,4 +80,4 @@ These rules are the same, word for word, in both repos.
   [bot's](https://github.com/jrcopeti/ticket-bay-bot/blob/main/vps/ticket-bay-bot/kill-switch.md) and
   [Telma's](telma/kill-switch.md) kill switches, then rebuild the VPS.
 - **Scripts are deployed by hand.** Nothing on the host clones either repo. A change here reaches the
-  VPS only when José says yes and copies it.
+  VPS only when the owner says yes and copies it.

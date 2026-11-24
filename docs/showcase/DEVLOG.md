@@ -15,20 +15,20 @@
 
 - The README, threat model, ADRs and before/after table were named in `AGENTS.md` and hardening step 6,
   but no plan tracked them. Hardening step 6 shows "done" while two of its docs don't exist.
-- José chose a new plan for them, which also takes Telma's open items from the frozen hardening plan.
+- The owner chose a new plan for them, which also takes Telma's open items from the frozen hardening plan.
   Lessons 8.5 and 8.6 moved to jrcopeti/ticket-bay-bot's own plan, because they run on the bot.
 
 ## 2026-11-19: order, scope, and who writes
 
-- José changed the rule: agents draft the public docs, he approves each in its PR. `AGENTS.md` and the
+- The owner changed the rule: agents draft the public docs, the owner approves each in its PR. `AGENTS.md` and the
   plan's Rules say so now.
 - His calls: the README uses the `crafting-effective-readmes` skill with the portfolio template;
-  Telma's README shows the brain work only and links the bot for the bug loop; José captures the
+  Telma's README shows the brain work only and links the bot for the bug loop; the owner captures the
   screenshots from a shot list (in the plan); threat model first, README last.
 - Threat model drafted from the frozen hardening docs (audit-after, injection suite, step 6 results,
   postmortem, kill switch). Checked against the hardening devlog: brain-triage has no memory or
-  cronjob tool; chats keep both (José's call in step 2).
-- The public docs say "the owner", not "José": the threat model and `AGENTS.md` changed. The rest of
+  cronjob tool; chats keep both (the owner's call in step 2).
+- The public docs say "the owner", not the owner's name: the threat model and `AGENTS.md` changed. The rest of
   the docs follow later (open item in the plan).
 
 ## 2026-11-20: chat tools stay
@@ -61,7 +61,7 @@
   job now stated next to "no unattended job holds all three legs"; refusal vs quarantine in
   sync-brain; memory-diff relays injectable text to Discord; the diagram (web tools pointed at the
   owner, ragged right edge).
-- Not fixed here: plan and devlog status (done in #34), new "José" lines in the plan (the open rename
+- Not fixed here: plan and devlog status (done in #34), new lines naming the owner in the plan (the open rename
   item covers them).
 
 ## 2026-11-20: review of the merged table
@@ -69,7 +69,7 @@
 - #34 was merged with the Telma-only cut in it; `/code-review` on that commit. Fixed: Telma's
   sandbox is loopback only (the "no DNS" probe was the bot's); "her `execute_code`" names Telma;
   the moved bot jobs keep their leg count, so "no unattended job holds all three" stays checkable.
-  Dropped the PLAN.md fix: #35 merged, so the threat model's Mac rename is done.
+  Dropped the PLAN.md fix: #35 merged, so the threat model's local machine rename is done.
 - Not changed: a memory write in a chat shows in the diff only after the next triage. The threat
   model says the same, so the page matches it; the owner can decide whether to name the gap.
 
@@ -212,3 +212,15 @@
     multi-line notes). Not fixed; a fix would be a brain PR and an eval run.
   - Nothing catches the copies drifting from the VPS. Owner: the next step, the deployment-check
     plan in Open.
+
+## 2026-11-24: the owner's name and machine out of the repo
+
+- The owner's call: replace the owner's first name with "the owner" and "the Mac" with "the local
+  machine" everywhere in the repo, frozen docs and the step 6 results included. It closes the two
+  rename items in Open. Lines that named the old word to describe the rename itself were reworded
+  by hand, and "he", "his" and "himself" for the owner became "they", "their" and "themselves".
+- Three deployed scripts changed in comments: `sync-brain.sh`, `brain-files.py`, `memory-diff.sh`.
+  `sync-brain.sh` also changed one Discord message (a conflict now names the local machine). They
+  differ from the VPS until the owner redeploys them (owner, 2026-11-24); `host.md` says so.
+  `test-sync-brain.sh` changed in test names and commit messages only; its `mac` helpers keep
+  their names.

@@ -1250,10 +1250,18 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
     notes carry `c12634b`'s commit time, the rule files HEAD's).
   - The model behind the `deepseek/deepseek-v4.1-flash` alias, which follows DeepSeek's newest
     snapshot.
-- Not settled. The test proposed to the owner: `lint-1` × 10 on `main`'s harness with
-  `--brain-ref d53bcca`, which is `-baseline-2`'s brain today. Near 10/10 points at the brain
-  (the notes or the triage line); near 3/10 clears the brain and this harness and points at the
-  model.
+- The test, with the owner's yes: `lint-1` × 10 on `main`'s harness (`cbd3e39`, from before this
+  PR) with `--brain-ref d53bcca`, which is `-baseline-2`'s brain, notes and skills. Run
+  `2026-11-24T1152-cbd3e39`: **6 of 10**, $0.059, 11 min. The fails are the same: no banners,
+  judgment pass cut short.
+- So the brain isn't the cause: the same brain and harness passed 5/5 on 2026-11-22. This PR's
+  harness isn't shown to be either: 3/10 against 6/10 at k = 10 is within chance (Fisher's
+  exact, p ≈ 0.37); both fit a pass rate near 45%. What's left is the model behind the alias or
+  OpenRouter's provider mix (the cron hook is silenced in the eval). At a rate near 50%, 5/5 has
+  about a 3% chance, so `lint-1` most likely got worse since 2026-11-22, not this harness.
+- Consequence for the rule in `AGENTS.md`: `lint-1` now fails without any change to her setup,
+  so the next full run will show it newly failing against `-baseline-2` whatever is being
+  tested. That run should become the new baseline, and `lint-1` be named as failing before it.
 
 ### How to run the eval
 

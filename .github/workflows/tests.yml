@@ -45,6 +45,19 @@ jobs:
       - name: Test Telma's cron alert
         run: bash vps/test-cron-alert.sh
 
+  drift-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install PyYAML for the drift check
+        run: sudo apt-get install -y --no-install-recommends python3-yaml
+
+      - name: Test the drift check against a fake host
+        run: python3 -m unittest vps/test_check_drift.py vps/test_check_drift_adversarial.py
+
   decoy-brain:
     runs-on: ubuntu-24.04
     steps:

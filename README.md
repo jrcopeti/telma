@@ -162,6 +162,8 @@ secret ever left the server. The [results](evals/README.md#results) explain each
 | Path | What |
 |---|---|
 | [`vps/telma/`](vps/telma/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests |
+| [`vps/telma/hermes/`](vps/telma/hermes/) | her live setup: `SOUL.md`, the config settings chosen for her, the triage job's prompt |
+| [`vps/telma/brain-skills/`](vps/telma/brain-skills/) | the four skills she runs on the brain: capture, triage, lint, ask-brain |
 | [`vps/host.md`](vps/host.md) | the host from her side, and what runs where |
 | [`evals/`](evals/) | the eval: its tasks, grader, harness and every run's report |
 | [`docs/`](docs/) | threat model, before/after, decisions, and the plans and devlogs of each piece of work |
@@ -171,6 +173,7 @@ The tests run in CI, and gitleaks scans the full history on every push.
 ## Credits
 
 Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
+Her brain skills started as the ones in Daniel Moka's [brain template](https://github.com/dmoka/brain-template) (MIT).
 
 A personal project: issues are welcome, pull requests aren't expected. To report a security
 problem, see [SECURITY.md](SECURITY.md).

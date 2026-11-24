@@ -18,9 +18,47 @@ Copied by hand; `~` is Telma's home, `/home/agent`.
 
 | In this repo | On the VPS |
 |---|---|
+| `telma/sync-brain.sh`, `brain-files.py`, `memory-diff.sh`, `tripwire-health.sh` | `~/.hermes/scripts/` |
 | `telma/guard-network.sh` | `~/.hermes/agent-hooks/` |
 | `telma/exfil-tripwire.py`, `telma/cron-alert.py` | `~/.hermes/agent-hooks/`; their config entries in `telma/*.hooks.yaml` |
+| `telma/hermes/SOUL.md` | `~/.hermes/` |
+| `telma/hermes/config.overrides.yaml` | merged by hand into `~/.hermes/config.yaml` (below) |
+| `telma/hermes/brain-triage-prompt.txt` | the `brain-triage` job's prompt in `~/.hermes/cron/jobs.json` |
+| `telma/brain-skills/` | the brain repo's `skills/`, which sync-brain brings to `~/brain/skills/` |
 | `telma/sandbox/Dockerfile` | `~/sandbox/` |
+
+The deployed `SOUL.md` differs from this copy on purpose: it names the owner where this copy says
+`<OWNER'S NAME>`.
+
+Most of `~/.hermes/config.yaml` is Hermes's own defaults, written by its installer.
+[`config.overrides.yaml`](telma/hermes/config.overrides.yaml) holds only the settings chosen for
+her: the model and its free fallbacks, the Docker sandbox with no network and its brain mounts, the
+brain's skills folder, approvals, and the three hooks under `hooks:`. Two of them equal Hermes's
+defaults and are pinned on purpose. Every key in it must match the live file. Hermes also writes the
+`terminal:` settings into `~/.hermes/.env` as `TERMINAL_*`; `hermes config set` keeps the two in step.
+
+## The skills
+
+Her four brain skills (capture, ask-brain, triage, lint) live in the brain repo, which she reads
+read-only. [`brain-skills/`](telma/brain-skills/) is a copy of them, credited to the MIT brain
+template they come from. A change to them goes through a PR on the brain repo; update this copy
+after it merges. The bundled skills Hermes installs in `~/.hermes/skills/` are its own and aren't
+copied.
+
+## Her jobs
+
+Each is a job in `~/.hermes/cron/jobs.json`; scripts are in `~/.hermes/scripts/`. Every job posts
+to her Discord channel.
+
+| Job | When (Berlin) | Script | Agent | Skills, toolsets and prompt |
+|---|---|---|---|---|
+| `sync-brain` | every 15 min | `sync-brain.sh` | no | — |
+| `tripwire-health` | every 15 min | `tripwire-health.sh` | no | — |
+| `brain-triage` | 09:00, 21:00 | — | yes | `triage`, `lint`; terminal, file, skills, todo; [brain-triage-prompt.txt](telma/hermes/brain-triage-prompt.txt) |
+| `memory-diff` | 09:30, 21:30 | `memory-diff.sh` | no | — |
+
+Jobs she makes in a chat (a reminder) land in the same file; the cron alert hook posts each one to
+`#alerts`. None of them is copied here.
 
 ## Rules for the whole host
 

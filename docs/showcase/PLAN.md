@@ -26,7 +26,7 @@ does.
 | 2 | **Threat model** | [threat-model.md](../threat-model.md): the lethal trifecta per session, which leg each control cuts, and the accepted risks from the hardening plan's Decisions. | done (#33) |
 | 3 | **ADRs** | [docs/adr/](../adr/), short, one per decision the owner picked: why Telma exists, the two-agent split, one repo per agent, sync-brain's own clone, the exfil tripwire. | done (#38) |
 | 4 | **Before/after table** | [before-after.md](../before-after.md), from [audit-before.md](../hardening/audit-before.md) and [audit-after.md](../hardening/audit-after.md). Telma's side only: rows about the shared agent before the split stay, bot-only rows are parked in the brain inbox for ticket-bay-bot's docs. | done (#34, #37) |
-| 5 | **Telma's live files** | Copies of what runs on the VPS, so a reader sees her whole setup: her `SOUL.md`; her `config.yaml` (models, fallback order, toolsets) with channel IDs and personal data removed; the brain-triage cron prompt from `jobs.json`; and the brain skills (capture, triage, lint, ask-brain) from the MIT [brain template](https://github.com/dmoka/brain-template), credited. Never memories, `auth.json`, `channel_directory.json` or anything else in her home. The PR right after eval-v1 step 6 merges, so the skills shown are the final ones (owner, 2026-11-22). A small check compares the repo's `SOUL.md` and config with the SHAs each eval run stamps (`soul_sha`, `config_sha`), so a stale copy shows. | to do |
+| 5 | **Telma's live files** | Copies of what runs on the VPS, so a reader sees her whole setup: her `SOUL.md`; her `config.yaml` (models, fallback order, toolsets) with channel IDs and personal data removed; the brain-triage cron prompt from `jobs.json`; and the brain skills (capture, triage, lint, ask-brain) from the MIT [brain template](https://github.com/dmoka/brain-template), credited. Never memories, `auth.json`, `channel_directory.json` or anything else in her home. The PR right after eval-v1 step 6 merges, so the skills shown are the final ones (owner, 2026-11-22). The check that the copies match the VPS moved to its own plan (Open, below). | in review |
 
 ## Open
 
@@ -34,6 +34,10 @@ Carried over from the frozen hardening plan:
 
 - Should Telma's triage file into `guidelines/` directly, or into a proposals folder José promotes?
   Her model once filed a capture as a guideline.
+- A deployment check, its own plan and PR (owner, 2026-11-24): what is deployed on the VPS and
+  whether this repo's copies match it, files, config and skills, not only the hashes each eval run
+  stamps. Like ticket-bay-bot's manifest and drift check. Step 5's first try (compare `SOUL.md` and
+  the config hash with the newest run's stamp) was too thin.
 - Later detection, not planned: ship tool-call logs off the VPS, so the evidence survives root on the
   host.
 

@@ -162,3 +162,34 @@
 - Owner's correction: the "started as the coding employee in AI Agent Engineer" line in the README
   credits is true only of ticket-bay-bot. Removed. ADR 1's context said the same; it now says one
   agent first ran both the course's bug loop and the brain, and ADR 2 split them.
+
+## 2026-11-24: her live files (step 5)
+
+- Mirrors ticket-bay-bot's step 5 as trimmed in its #27: `vps/telma/hermes/` holds `SOUL.md`,
+  `config.overrides.yaml` (only the settings that differ from Hermes's `cli-config.yaml.example`,
+  plus two pinned defaults), and the brain-triage prompt from `jobs.json`. No full `config.yaml`,
+  no hooks allowlist, no units.
+- Copied read-only from the VPS. `SOUL.md` and `config.yaml` hash to `122f63f725da` and
+  `2776ccf243cd`, the stamp of the newest eval run (`2026-11-24T1152-cbd3e39`). Every key in the
+  overrides checked equal to the live file. The config holds no channel IDs (they're in `.env`).
+- Her own changes besides the bot's set: `terminal.docker_network: false` (Hermes default `true`) and
+  `approvals.destructive_slash_confirm: false` (default `true`). No toolset is disabled; the triage
+  job names its own four.
+- Cron prompts: only brain-triage has one. The other agent job in `jobs.json` is a completed
+  one-off reminder made in a chat, with personal content: left out. sync-brain, memory-diff and
+  tripwire-health are no-agent scripts, already here; `host.md` now lists the jobs and maps those
+  scripts, which its deploy table lacked.
+- Telma-only: the four brain skills, in `vps/telma/brain-skills/` with the template's MIT license and
+  a README crediting it. Unlike the bot's skills (a third-party checkout, pinned by commit only),
+  these are the owner's: `triage` and `lint` differ from the template, and the brain repo is
+  private. The VPS copy equals the brain repo's `skills/`; `capture` and `ask-brain` are unchanged
+  from the template.
+- A stale check was drafted (`evals/live_files.py`: `SOUL.md`'s hash and a config hash written in
+  the overrides header, against the newest eval run's stamp). Owner's call: too thin, and not this
+  PR's concern. Dropped; a deployment-check plan of its own (files, config, skills against the VPS)
+  goes in Open. The overrides header keeps the live config's hash as a record.
+- Every file already in `vps/telma/` checked against the VPS: all equal.
+- `SOUL.md` names the owner by first name; this copy says `<OWNER'S NAME>` instead, the one
+  deliberate difference from the deployed file (owner's call), listed in `host.md`. It also ends
+  with a stray line about the brain's path, like the local machine's global agent rule; rewording
+  the deployed file is a SOUL change: eval first.

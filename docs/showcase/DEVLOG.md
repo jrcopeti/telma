@@ -169,8 +169,9 @@
   `config.overrides.yaml` (only the settings that differ from Hermes's `cli-config.yaml.example`,
   plus two pinned defaults), and the brain-triage prompt from `jobs.json`. No full `config.yaml`,
   no hooks allowlist, no units.
-- Copied read-only from the VPS. `SOUL.md` and `config.yaml` hash to `122f63f725da` and
-  `2776ccf243cd`, the stamp of the newest eval run (`2026-11-24T1152-cbd3e39`). Every key in the
+- Copied read-only from the VPS. The deployed `SOUL.md` and `config.yaml` hash to `122f63f725da`
+  and `2776ccf243cd`, the stamp of the newest eval run (`2026-11-24T1152-cbd3e39`). The repo's
+  `SOUL.md` doesn't: it has the owner's name replaced (below). Every key in the
   overrides checked equal to the live file. The config holds no channel IDs (they're in `.env`).
 - Her own changes besides the bot's set: `terminal.docker_network: false` (Hermes default `true`) and
   `approvals.destructive_slash_confirm: false` (default `true`). No toolset is disabled; the triage
@@ -193,3 +194,21 @@
   deliberate difference from the deployed file (owner's call), listed in `host.md`. It also ends
   with a stray line about the brain's path, like the local machine's global agent rule; rewording
   the deployed file is a SOUL change: eval first.
+- `/code-review` (default effort, all findings), second pass, 12 findings:
+  - Fixed: the hash line above now says only the deployed `SOUL.md` has the stamped hash; `host.md`
+    names the two pinned defaults (it read as two of the hooks); says most job runs post nothing
+    and the hooks post to `#alerts` (it said every job posts to her channel); says to change
+    `terminal:` keys with `hermes config set`, since Hermes keeps them in `.env` too (which file
+    wins wasn't tested); and this plan's row describes the overrides, not a redacted `config.yaml`.
+  - `SOUL.md`'s last line ("save new decisions, guidelines and gotchas there") read as writing
+    straight into the brain, against her inbox-only rule. Owner: "there" is the inbox, named just
+    before it. Stays.
+  - The triage prompt says "triage, then lint" and the triage skill runs lint too, so lint may run
+    twice. Owner: it does every run and has never added a duplicate. Stays.
+  - Brain-skill code: capture's front-matter escaping and a slug that can end in `-`; lint's
+    `--fix` dropping a whole index line over one dead link, `%`-encoded links, insert position, and
+    its root fallback in the dead-link check. Owner: edge cases. None has happened in the brain
+    (checked: one link per index line, no encoded links, no blank line under a heading, no
+    multi-line notes). Not fixed; a fix would be a brain PR and an eval run.
+  - Nothing catches the copies drifting from the VPS. Owner: the next step, the deployment-check
+    plan in Open.

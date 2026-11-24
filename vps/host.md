@@ -33,9 +33,13 @@ The deployed `SOUL.md` differs from this copy on purpose: it names the owner whe
 Most of `~/.hermes/config.yaml` is Hermes's own defaults, written by its installer.
 [`config.overrides.yaml`](telma/hermes/config.overrides.yaml) holds only the settings chosen for
 her: the model and its free fallbacks, the Docker sandbox with no network and its brain mounts, the
-brain's skills folder, approvals, and the three hooks under `hooks:`. Two of them equal Hermes's
-defaults and are pinned on purpose. Every key in it must match the live file. Hermes also writes the
-`terminal:` settings into `~/.hermes/.env` as `TERMINAL_*`; `hermes config set` keeps the two in step.
+brain's skills folder, approvals, and the three hooks under `hooks:`. Two settings,
+`terminal.docker_mount_cwd_to_workspace` and `gateway.allow_all_users`, equal Hermes's defaults and
+are pinned on purpose. Every key in it must match the live file.
+
+Hermes also keeps the `terminal:` settings in `~/.hermes/.env`, as `TERMINAL_*`. Change those keys
+with `hermes config set`, which writes both files; a hand edit of `config.yaml` alone may leave
+`.env` stale. Which of the two Hermes reads when they differ hasn't been tested.
 
 ## The skills
 
@@ -47,8 +51,9 @@ copied.
 
 ## Her jobs
 
-Each is a job in `~/.hermes/cron/jobs.json`; scripts are in `~/.hermes/scripts/`. Every job posts
-to her Discord channel.
+Each is a job in `~/.hermes/cron/jobs.json`; scripts are in `~/.hermes/scripts/`. A job's output
+goes to her Discord channel, and the scripts print nothing when all is well, so most runs post
+nothing. The tripwire and cron alert hooks post to `#alerts`.
 
 | Job | When (Berlin) | Script | Agent | Skills, toolsets and prompt |
 |---|---|---|---|---|

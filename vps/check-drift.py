@@ -45,11 +45,29 @@ def st(p):
 def sha(p):
     with open(R + p, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
+def link_on_path(p):
+    """The first symlink on p, the path's own folders included, or None."""
+    parts = p.rstrip("/").split("/")
+    for i in range(2, len(parts) + 1):
+        if os.path.islink(R + "/".join(parts[:i])):
+            return "/".join(parts[:i])
+    return None
 def entry(p):
-    """A file's stat and hash; a symlink only as one, never followed; None when absent."""
-    if os.path.islink(R + p):
-        return {"stat": st(p), "sha": None, "link": True}
+    """A file's stat and hash; a symlink (or one on its path) only as one, never followed; None when absent."""
+    link = link_on_path(p)
+    if link:
+        return {"stat": st(link), "sha": None, "link": True}
     return {"stat": st(p), "sha": sha(p)} if os.path.isfile(R + p) else None
+def skill_list(j):
+    """The skills a job loads, as Hermes reads them (cron/jobs.py _normalize_skill_list)."""
+    skills = j.get("skills")
+    raw = ([j.get("skill")] if j.get("skill") else []) if skills is None else [skills] if isinstance(skills, str) else list(skills)
+    out = []
+    for s in raw:
+        s = str(s or "").strip()
+        if s and s not in out:
+            out.append(s)
+    return out
 def run(cmd):
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode, r.stdout
@@ -57,17 +75,20 @@ out = {"files": {}, "texts": {}, "trees": {}}
 for p in req["files"] + req["texts"] + req["jobs_files"]:
     out["files"][p] = entry(p)
 for p in req["texts"]:
-    if os.path.isfile(R + p) and not os.path.islink(R + p):
+    if os.path.isfile(R + p) and not link_on_path(p):
         out["texts"][p] = open(R + p).read()
 for root in req["trees"]:
     files = {}
+    if link_on_path(root):
+        out["trees"][root] = {"": entry(root)}
+        continue
     for d, dirs, names in os.walk(R + root):
         for n in names + [n for n in dirs if os.path.islink(os.path.join(d, n))]:
             p = os.path.join(d, n)[len(R):]
             files[p[len(root):]] = entry(p)
     out["trees"][root] = files
 for p in req["jobs_files"]:
-    if not os.path.isfile(R + p) or os.path.islink(R + p):
+    if not os.path.isfile(R + p) or link_on_path(p):
         continue
     jobs = json.load(open(R + p))["jobs"]
     found = {}
@@ -75,7 +96,8 @@ for p in req["jobs_files"]:
         if j.get("name") in req["jobs"]:
             found.setdefault(j["name"], []).append({
                 "schedule": (j.get("schedule") or {}).get("display"), "script": j.get("script"),
-                "skills": j.get("skills") or [], "toolsets": j.get("enabled_toolsets"),
+                "skills": skill_list(j), "toolsets": j.get("enabled_toolsets"),
+                "enabled": j.get("enabled"), "no_agent": j.get("no_agent"), "deliver": j.get("deliver"),
                 "prompt_sha": hashlib.sha256((j.get("prompt") or "").encode()).hexdigest()})
     out["jobs"] = {"found": found, "others": sum(1 for j in jobs if j.get("name") not in req["jobs"])}
 env = {}
@@ -153,8 +175,8 @@ class Repo:
 
     def tree(self, folder, at_tag=False):
         """Relative path -> bytes, tracked files only, the template's credit left out."""
-        args = ["ls-tree", "-r", "--name-only", TAG, "--", folder] if at_tag else ["ls-files", "--", folder]
-        names = git(*args).stdout.decode().splitlines()
+        args = ["ls-tree", "-rz", "--name-only", TAG, "--", folder] if at_tag else ["ls-files", "-z", "--", folder]
+        names = [n for n in git(*args).stdout.decode().split("\0") if n]
         rel = [n[len(folder):] for n in names]
         return {r: self.read(folder + r, at_tag) for r in rel if r not in TREE_SKIP}
 
@@ -210,7 +232,7 @@ def load_yaml(data, where):
     """Parsed YAML, or a stop that names the line only: a host file's text is never printed."""
     try:
         return yaml.safe_load(data) or {}
-    except yaml.YAMLError as e:
+    except Exception as e:  # a bad tag raises ValueError or KeyError, carrying the value
         mark = getattr(e, "problem_mark", None)
         raise Stop(f"{where} isn't valid YAML" + (f" (line {mark.line + 1})" if mark else ""))
 
@@ -221,6 +243,8 @@ def sha(data):
 
 def collect(request):
     root = os.environ.get("DRIFT_HOST_ROOT")
+    if root == "":
+        raise Stop("DRIFT_HOST_ROOT is set but empty: a fake host folder, or unset for the VPS")
     request = {**request, "root": root or "", "installs": INSTALLS, "env_file": ENV_FILE,
                "as_agent": ["bash", "-c"] if root else ["su", "-", "agent", "-c"]}
     arg = json.dumps(request)
@@ -344,7 +368,7 @@ def check():
                 notes.append(f"{others} other job(s), not checked")
             line(row["repo"], status, f and f["stat"], None, row, notes)
         else:
-            have = {p: v for p, v in host["trees"][row["host"]].items() if p not in TREE_SKIP}
+            have = {p: v for p, v in host["trees"][row["host"]].items() if p not in TREE_SKIP or (v or {}).get("link")}
             for rel in sorted(set(now) | set(have)):
                 f = have.get(rel)
                 status = status_of(f, lambda w: sha(w) == f["sha"], now.get(rel), tag.get(rel))

@@ -35,7 +35,9 @@ eval run writes the check's summary into its results.
   it can be a sync-brain cycle off. Right after a brain skill PR merges, this shows host ahead until
   `vps/brain-skills/` is updated; that's real drift.
 - **Jobs get a hand-written `jobs.overrides.yaml`.** The four jobs' schedule, script, skills and
-  toolsets, as the `host.md` table says them today; `host.md` links to it instead. brain-triage's
+  toolsets, as the `host.md` table says them today, plus whether each is enabled, runs an agent and
+  where it delivers (PR 1: a chat's `cronjob` tool can pause a job, the threat model's case);
+  `host.md` links to it instead. brain-triage's
   toolsets are the threat model's "no way out for unattended work", and a chat's `cronjob` tool can
   change them. `jobs.json` is read on the host by a short `python3` that prints only those four
   jobs' fields; other jobs (chat-made reminders, personal) are counted, never named. `jobs.json`
@@ -55,7 +57,7 @@ eval run writes the check's summary into its results.
   | no | no, main changed too | both changed |
   | file absent on the host | – | missing |
   | file only on the host (a tree) | – | host only |
-  | a symlink on the host, never followed | – | link |
+  | a symlink on the host, or one in the folders above it, never followed | – | link |
   | no | file absent at `deployed` | differs |
 
   Until the tag exists, a difference is `differs`, no direction. The owner creates it after the first

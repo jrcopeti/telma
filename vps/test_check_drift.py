@@ -14,9 +14,10 @@ SCRIPT = Path(__file__).resolve().parent / "check-drift.py"
 OWNER = f"{pwd.getpwuid(os.getuid()).pw_name}:{grp.getgrgid(os.getgid()).gr_name}"
 GIT_ENV = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t",
            "GIT_AUTHOR_EMAIL": "t@example.com", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
-JOBS = {"job-a": {"schedule": "every 15m", "script": "a.sh", "skills": [], "toolsets": None},
+JOBS = {"job-a": {"schedule": "every 15m", "script": "a.sh", "skills": [], "toolsets": None,
+                  "enabled": True, "no_agent": True, "deliver": "discord"},
         "job-b": {"schedule": "0 9 * * *", "script": None, "skills": ["triage"], "toolsets": ["file"],
-                  "prompt": "vps/prompt.txt"}}
+                  "enabled": True, "no_agent": False, "deliver": "discord", "prompt": "vps/prompt.txt"}}
 
 
 class Fake:
@@ -52,9 +53,10 @@ class Fake:
         self.write_host("/home/agent/.hermes/.env", 'OPENROUTER_API_KEY=sk-secret\nTERMINAL_ENV=docker\n'
                         'TERMINAL_DOCKER_VOLUMES="[\\"/a:/b\\"]"\nTERMINAL_TIMEOUT=60\n', 0o600)
         self.jobs = [{"name": "job-a", "schedule": {"display": "every 15m"}, "script": "a.sh", "skills": [],
-                      "enabled_toolsets": None, "prompt": ""},
+                      "enabled_toolsets": None, "prompt": "", "enabled": True, "no_agent": True, "deliver": "discord"},
                      {"name": "job-b", "schedule": {"display": "0 9 * * *"}, "script": None, "skills": ["triage"],
-                      "enabled_toolsets": ["file"], "prompt": "Run triage."},
+                      "enabled_toolsets": ["file"], "prompt": "Run triage.", "enabled": True, "no_agent": False,
+                      "deliver": "discord"},
                      {"name": "dentist-reminder", "schedule": {"display": "once"}, "prompt": "call the dentist"}]
         self.write_jobs()
         self.write_host("/h/skills/triage/SKILL.md", "# triage\n")

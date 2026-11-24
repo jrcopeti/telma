@@ -85,3 +85,14 @@
   `/`; CI installs `python3-yaml`; no `git show` before the tag exists; `shlex.quote`. Left as is:
   `.env` values built the way Hermes writes them, not parsed the way it reads them (exact for
   today's keys, tested), and the ssh constants not shared with `evals/vps.py`.
+- Adversarial test (a fresh agent, Opus): 8 breaking tests, kept as
+  `vps/test_check_drift_adversarial.py`. Proved and fixed: a non-ASCII skill name never read in
+  sync (git quotes names without `-z`); a symlinked folder above a file or a tree was followed and
+  read in sync, now `link`; a bad YAML tag (`!!int`) printed the host value through `ValueError`.
+  Its three reasoned findings, checked in Hermes's code at `ae2a81c` and fixed: a pause sets
+  `enabled: false` and `no_agent` decides whether a job runs an agent, so `enabled`, `no_agent` and
+  `deliver` are now checked; a job's skills are compared as Hermes reads them (`skills`, else the
+  old single `skill`); skill discovery walks with `followlinks=True`, so a `README.md` or `LICENSE`
+  link is reported, not skipped; an empty `DRIFT_HOST_ROOT` stops the check instead of using ssh.
+  The empty-root test's assertion changed from "the first call isn't ssh" to "no call is ssh",
+  since the check now stops before any call. Live run after: 17 of 17 in sync.

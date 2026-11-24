@@ -150,8 +150,8 @@
 
 - Her Discord icon changed, so the owner retook the shots into `docs/assets/screenshots/`: the
   avatar, capabilities, capture (two shots: the request with her reads, then her "saved to inbox"
-  reply), ask-brain, triage, new session and the tripwire alert. The README points at them; the eleven old
-  jpgs and the old avatar are deleted.
+  reply), ask-brain, triage, new session and the tripwire alert. The README points at them; the
+  eleven old jpgs and the old avatar are deleted.
 - The two capture shots arrived named `ask-1` and `ask-2`; renamed to `capture-1` and `capture-2`
   to match what they show. Ask-brain is one shot now (`ask-1`: the question, her reads, the start
   of her answer with the note link), down from three.

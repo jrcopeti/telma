@@ -153,8 +153,8 @@
   reply), ask-brain, triage, new session and the tripwire alert. The README points at them; the
   eleven old jpgs and the old avatar are deleted.
 - The two capture shots arrived named `ask-1` and `ask-2`; renamed to `capture-1` and `capture-2`
-  to match what they show. Ask-brain is one shot now (`ask-1`: the question, her reads, the start
-  of her answer with the note link), down from three.
+  to match what they show. Ask-brain is two shots now (`ask-1`: the question and her reads;
+  `ask-2`: her answer with the note links), down from three.
 - Checked each: no IPs, webhooks, private repos, canary or other people, and no GPS or device
   metadata (only macOS's "Screenshot" comment). The owner's Discord username shows, as before;
   so do channel and thread names, a cron job ID and a Hermes session ID, none of which identify

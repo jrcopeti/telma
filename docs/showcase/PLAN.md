@@ -57,10 +57,10 @@ Decided:
 
 ## Screenshot shot list (José captures)
 
-PNGs, or one short GIF, into `docs/assets/screenshots/`. An agent checks each one for personal data before it's
-committed. Blur or crop: Discord server and channel names other than Telma's, user names and avatars
-other than hers and José's, IPs, URLs of private repos, webhook URLs, the canary's link or file name,
-and any note with personal content.
+PNGs, or one short GIF, into `docs/assets/screenshots/`. An agent checks each one for personal data
+before it's committed. Blur or crop: Discord server and channel names other than Telma's, user names
+and avatars other than hers and José's, IPs, URLs of private repos, webhook URLs, the canary's link
+or file name, and any note with personal content.
 
 1. **Capture:** a chat where José says "save this" with a link, and her reply that it's in the inbox.
 2. **Ask-brain:** "what does my brain say about …?" and her answer, with links to the notes.

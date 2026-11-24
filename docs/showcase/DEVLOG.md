@@ -155,4 +155,6 @@
 - The two capture shots arrived named `ask-1` and `ask-2`; renamed to `capture-1` and `capture-2`
   to match what they show. There is no new ask-brain shot, so that README part has no image for now.
 - Checked each: no IPs, webhooks, private repos, canary or other people, and no GPS or device
-  metadata (only macOS's "Screenshot" comment). The owner's Discord username shows, as before.
+  metadata (only macOS's "Screenshot" comment). The owner's Discord username shows, as before;
+  so do channel and thread names, a cron job ID and a Hermes session ID, none of which identify
+  anyone or open anything.

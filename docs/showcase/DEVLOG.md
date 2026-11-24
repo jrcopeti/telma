@@ -160,4 +160,5 @@
   `capture-1`, `capabilities` and `ask-1` (owner's request). Channel and thread names, a cron job
   ID and a Hermes session ID show; none of them identify anyone or open anything.
 - Owner's correction: the "started as the coding employee in AI Agent Engineer" line in the README
-  credits is true only of ticket-bay-bot. Removed.
+  credits is true only of ticket-bay-bot. Removed. ADR 1's context said the same; it now says one
+  agent first ran both the course's bug loop and the brain, and ADR 2 split them.

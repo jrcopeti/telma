@@ -5,6 +5,7 @@
 | Branch | Step | State |
 |---|---|---|
 | `docs/deploy-plan` | 1 | in review |
+| `refactor/vps-flatten` | 2 | in review |
 
 ## 2026-11-24: design
 
@@ -30,3 +31,23 @@
   would otherwise show the undeployed files as `host ahead`); the `SOUL.md` hash stays, though it
   can confirm a guessed name, as the name is tied to the account; `deploy.sh` takes every yes
   first, then checks no job runs and copies all files at once, so a job never sees half a deploy.
+
+## 2026-11-24: PR 0, `vps/telma/` to `vps/`
+
+- `git mv` of everything in `vps/telma/`; nothing else in the files changed but the `Run:` lines of
+  the five test scripts. They find their siblings through `dirname "$0"`, so the move needed no
+  code change in them.
+- Fixed: `tests.yml`, `evals/grade.py` (the tripwire path), `README.md`'s three rows, `host.md`'s
+  links and file table, `kill-switch.md`'s link to `host.md`, and two links in the threat model.
+- Frozen `docs/hardening/DEVLOG.md`: the 6 links only. `AGENTS.md` names this as its second
+  exception.
+- Left as written: `vps/telma` in devlogs (evals, showcase, repo-split), the repo-split and rename
+  plans and `docs/evals/PLAN.md`'s done row 8, all history. The step's check now says so; it
+  said "outside the frozen docs' prose", too narrow for the other finished docs.
+- One link text in the hardening devlog showed the old path; changed with its link.
+- Relative-link check over every tracked `.md`: 7 broken before the move and the same 7 after
+  (brain-relative examples in the triage skill and lint-1 items, `…` placeholders).
+- Outside this repo, `vps/telma/kill-switch.md` is named in ticket-bay-bot (two links, not one:
+  `vps/host.md` and its own `kill-switch.md`; `host.md`'s rules are meant word for word in both)
+  and in the brain's `projects/telma.md`. The bot's PR is opened beside this one and merged right
+  after it: its links are 404 from one merge to the other.

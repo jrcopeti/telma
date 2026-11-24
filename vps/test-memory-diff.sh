@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Tests for memory-diff.sh against a throwaway Hermes home. Hermes runs cron scripts from
 # $HERMES_HOME/scripts, so every run here starts there.
-# Run: bash vps/telma/test-memory-diff.sh
+# Run: bash vps/test-memory-diff.sh
 set -u
 SCRIPT=$(cd "$(dirname "$0")" && pwd)/memory-diff.sh
 T=$(mktemp -d)

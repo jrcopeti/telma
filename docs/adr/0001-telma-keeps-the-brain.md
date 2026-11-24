@@ -9,9 +9,10 @@ coding agents read before they work. Notes arrive all day, from a chat, a link o
 session, and land unsorted in `inbox/`. Sorting them into the right place is the work that gets
 skipped.
 
-Telma started as the coding employee in
-[AI Agent Engineer](https://aiagentengineer.dev/), Daniel Moka's course: an always-on agent that
-reads bug emails and opens pull requests. The brain was one of her jobs.
+At first one agent did both: the bug loop from [AI Agent Engineer](https://aiagentengineer.dev/),
+Daniel Moka's course, which reads bug emails and opens pull requests, and the brain.
+[ADR 2](0002-two-agents-split-by-trust-boundary.md) split them: the bug loop went to ticket-bay-bot,
+and Telma kept the brain.
 
 ## Decision
 

@@ -145,3 +145,20 @@
   "What she does" list. Checked: no private data or location metadata.
 - Owner disliked mixed sizes side by side: every screenshot is now one per row, centered, 420px
   wide, then cut to 320px at the owner's request.
+
+## 2026-11-24: new screenshots for her new icon
+
+- Her Discord icon changed, so the owner retook the shots into `docs/assets/screenshots/`: the
+  avatar, capabilities, capture (two shots: the request with her reads, then her "saved to inbox"
+  reply), ask-brain, triage, new session and the tripwire alert. The README points at them; the
+  eleven old jpgs and the old avatar are deleted.
+- The two capture shots arrived named `ask-1` and `ask-2`; renamed to `capture-1` and `capture-2`
+  to match what they show. Ask-brain is two shots now (`ask-1`: the question and her reads;
+  `ask-2`: her answer with the note links), down from three.
+- Checked each: no IPs, webhooks, private repos, canary or other people, and no GPS or device
+  metadata (only macOS's "Screenshot" comment). The owner's Discord username is blurred in
+  `capture-1`, `capabilities` and `ask-1` (owner's request). Channel and thread names, a cron job
+  ID and a Hermes session ID show; none of them identify anyone or open anything.
+- Owner's correction: the "started as the coding employee in AI Agent Engineer" line in the README
+  credits is true only of ticket-bay-bot. Removed. ADR 1's context said the same; it now says one
+  agent first ran both the course's bug loop and the brain, and ADR 2 split them.

@@ -57,13 +57,15 @@ Decided:
 
 ## Screenshot shot list (José captures)
 
-PNGs, or one short GIF, into `docs/assets/`. An agent checks each one for personal data before it's
-committed. Blur or crop: Discord server and channel names other than Telma's, user names and avatars
-other than hers and José's, IPs, URLs of private repos, webhook URLs, the canary's link or file name,
-and any note with personal content.
+PNGs, or one short GIF, into `docs/assets/screenshots/`. An agent checks each one for personal data
+before it's committed. Blur or crop: Discord server and channel names other than Telma's, user names
+and avatars other than hers and José's, IPs, URLs of private repos, webhook URLs, the canary's link
+or file name, and any note with personal content.
 
 1. **Capture:** a chat where José says "save this" with a link, and her reply that it's in the inbox.
 2. **Ask-brain:** "what does my brain say about …?" and her answer, with links to the notes.
 3. **Triage summary:** a brain-triage post in Discord: what she filed, and where.
 4. **An alert:** the T6 canary or tripwire post in `#alerts` (crop the source IP).
 5. **Optional GIF:** 20 to 30 seconds of 1 then 2.
+
+Retaken 2026-11-24 after her new icon: 1 to 4 plus the capabilities and new-session shots.

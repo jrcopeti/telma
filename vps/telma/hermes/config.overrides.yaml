@@ -1,0 +1,85 @@
+# Telma's settings in ~/.hermes/config.yaml that differ from Hermes's defaults
+# (cli-config.yaml.example), plus two defaults pinned on purpose, marked "pinned default".
+# The rest of the live file is Hermes's own, written by its installer.
+# Checked against the live config.yaml with sha256 2776ccf243cd.
+
+model:
+  default: "deepseek/deepseek-v4.1-flash"
+  provider: "openrouter"
+
+fallback_providers:
+  - provider: openrouter
+    model: inclusionai/ling-3.2-flash:free
+  - provider: openrouter
+    model: baidu/ernie-5.5-flash-preview:free
+
+# Every command runs in the sandbox, with no network. The brain is mounted read-write; its skills
+# and rules files read-only, at the sandbox path and at the host path both.
+terminal:
+  backend: "docker"
+  cwd: "/home/agent/brain"
+  container_cpu: 2
+  container_memory: 3072
+  docker_mount_cwd_to_workspace: false   # pinned default: the host's launch folder stays out
+  docker_image: agent-sandbox:3
+  docker_run_as_host_user: false
+  docker_network: false
+  docker_volumes:
+    - /home/agent/brain:/workspace/brain
+    - /home/agent/brain/skills:/workspace/brain/skills:ro
+    - /home/agent/brain/AGENTS.md:/workspace/brain/AGENTS.md:ro
+    - /home/agent/brain/CLAUDE.md:/workspace/brain/CLAUDE.md:ro
+    - /home/agent/brain/taste.md:/workspace/brain/taste.md:ro
+    - /home/agent/brain/README.md:/workspace/brain/README.md:ro
+    - /home/agent/brain/sync.mjs:/workspace/brain/sync.mjs:ro
+    - /home/agent/brain/install.mjs:/workspace/brain/install.mjs:ro
+    - /home/agent/brain/.github:/workspace/brain/.github:ro
+    - /home/agent/brain/test:/workspace/brain/test:ro
+    - /home/agent/brain/.git/hooks:/workspace/brain/.git/hooks:ro
+    - /home/agent/brain/.git/config:/workspace/brain/.git/config:ro
+    - /home/agent/brain:/home/agent/brain
+    - /home/agent/brain/skills:/home/agent/brain/skills:ro
+    - /home/agent/brain/AGENTS.md:/home/agent/brain/AGENTS.md:ro
+    - /home/agent/brain/CLAUDE.md:/home/agent/brain/CLAUDE.md:ro
+    - /home/agent/brain/taste.md:/home/agent/brain/taste.md:ro
+    - /home/agent/brain/README.md:/home/agent/brain/README.md:ro
+    - /home/agent/brain/sync.mjs:/home/agent/brain/sync.mjs:ro
+    - /home/agent/brain/install.mjs:/home/agent/brain/install.mjs:ro
+    - /home/agent/brain/.github:/home/agent/brain/.github:ro
+    - /home/agent/brain/test:/home/agent/brain/test:ro
+    - /home/agent/brain/.git/hooks:/home/agent/brain/.git/hooks:ro
+    - /home/agent/brain/.git/config:/home/agent/brain/.git/config:ro
+
+# No toolset is disabled: chats get Hermes's default Discord set, web and browser included, which run
+# in her process on the host. The brain-triage job names its own (terminal, file, skills, todo).
+
+skills:
+  external_dirs:
+    - /home/agent/brain/skills
+
+gateway:
+  allow_all_users: false   # pinned default: only allowed users reach her
+
+updates:
+  check: false
+
+approvals:
+  mode: smart
+  timeout: 300
+  cron_mode: deny
+  destructive_slash_confirm: false
+
+hooks:
+  pre_tool_call:
+    - matcher: terminal
+      command: /home/agent/.hermes/agent-hooks/guard-network.sh
+      timeout: 10
+      fail_closed: true
+    - matcher: web_.*|browser_.*|vision_analyze|video_analyze|image_generate|text_to_speech|manage_connections|computer_use|x_search
+      command: /usr/bin/python3 -I /home/agent/.hermes/agent-hooks/exfil-tripwire.py
+      timeout: 15
+    - matcher: cronjob_manage
+      command: /usr/bin/python3 -I /home/agent/.hermes/agent-hooks/cron-alert.py
+      timeout: 15
+
+timezone: Europe/Berlin

@@ -6,7 +6,8 @@ trust boundary as the agents.
 
 - **Start here:** `docs/rename/PLAN.md` (closing), `docs/showcase/PLAN.md` and `docs/evals/PLAN.md`
   (eval-v1 done; how to run the eval), each with the `DEVLOG.md` beside it. Keep them current.
-  Finished work: `docs/hardening/` (frozen) and `docs/repo-split/`.
+  Finished work: `docs/hardening/` (frozen, bar the 2026-11-24 rename to "the owner" and "the local
+  machine") and `docs/repo-split/`.
 - **Running agents:** ask the owner before resuming, triggering (`hermes cron run`) or switching on
   any job, every time. After an interrupted command, check what partly ran before saying nothing
   ran: remote commands keep running.

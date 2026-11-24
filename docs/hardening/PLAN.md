@@ -8,7 +8,7 @@ input, a way out). Every control is enforced by permissions, mounts or the netwo
 or command regexes.
 
 **Why:** the safety audit of 2026-11-17 ([audit-before.md](audit-before.md)) found all three legs in
-the bug-loop job, and a path from an injected run to code running on the Mac with full permissions.
+the bug-loop job, and a path from an injected run to code running on the local machine with full permissions.
 An injection had already worked once and poisoned Telma's memory.
 
 **Done when:** the safety audit, rerun with probes, shows at least one leg cut for every job, and the
@@ -23,44 +23,44 @@ injection test suite passes against both agents.
   Superseded 2026-11-19 by [the repo split](../repo-split/PLAN.md): one repo per agent, along the
   trust boundary.
 - **One OpenRouter key per agent,** each with its own credit limit.
-- **GitHub identity: an App, not a machine account.** `ticket-bay-bot` is a GitHub App owned by José's
+- **GitHub identity: an App, not a machine account.** `ticket-bay-bot` is a GitHub App owned by the owner's
   account and installed on ticket-bay only; its PRs show as `ticket-bay-bot[bot]`, with 1-hour tokens.
   Telma gets a brain deploy key held by `sync-brain`, with git author `Telma`. If she later needs to act
   on GitHub, she gets her own App (`telma-brain`), never ticket-bay-bot's.
-- **José's skills live in the brain.** Personal skills used across projects (capture, triage, lint,
-  ask-brain) are written on the Mac and pushed; every agent gets them through `install.mjs` links,
+- **The owner's skills live in the brain.** Personal skills used across projects (capture, triage, lint,
+  ask-brain) are written on the local machine and pushed; every agent gets them through `install.mjs` links,
   and Telma pulls them read-only. Telma never writes a brain skill: she leaves a note in the inbox instead.
   Her own Hermes skills (`~/.hermes/skills`) are another matter: see the next decision.
   Project skills stay in their project; ticket-bay-bot's skills come from `dmoka/skills`.
-- **The ticket-bay fork gets security patches, not Renovate** (José, 2026-11-19). Upstream owns its
+- **The ticket-bay fork gets security patches, not Renovate** (the owner, 2026-11-19). Upstream owns its
   dependency versions, so routine updates stay off: the fork would drift from the lessons. A Dependabot
   alert on what the VPS runs is fixed on the fork's `main` with the smallest version that closes it,
   by hand, one PR (#17 did `next`, `better-auth` and the MCP SDK). Renovate (proposes) + ticket-bay-bot
-  (reviews) + José (merges) is for a repo José owns, such as trip-ai.
+  (reviews) + the owner (merges) is for a repo the owner owns, such as trip-ai.
 - **The brain stays one repo.** Telma can't change `skills/` or `AGENTS.md`: they are mounted
   read-only in her sandbox, only `sync-brain` on the host holds the push key, and it refuses commits
   that touch those paths. Splitting out a `brain-skills` repo is a possible later ADR, not needed now.
 - **Telma keeps web and browser in chats, as an accepted risk.** They run in her Hermes process on the
   host and need any site, so no allowlist can cut them, and a third agent for web work costs too much
-  for now. In chats with José she holds all three legs: the brain, the pages she opens, and any URL.
+  for now. In chats with the owner she holds all three legs: the brain, the pages she opens, and any URL.
   Her unattended job, brain-triage, runs without web and browser (`enabled_toolsets`), so no job holds
   all three. Discord link previews are a way out no VPS rule closes. Step 5's canary is the check on
   both.
 - **ticket-bay-bot learns: memory and `skill_manage` on** (changed in step 4; step 1 had memory off).
   An injected run can save something every later run reads; that's accepted for the learning. A daily
-  diff of its memory and skills goes to Discord, and José undoes what looks planted. Telma gets the
+  diff of its memory and skills goes to Discord, and the owner undoes what looks planted. Telma gets the
   same diff, twice a day after brain-triage, which keeps `skill_manage` (in the `skills` toolset).
-  **Telma keeps `skill_manage`** (José, 2026-11-18), after she used it to write a skill that described
-  the canary. Her skills in `~/.hermes/skills` are hers to write; the diff is the control, and José
+  **Telma keeps `skill_manage`** (the owner, 2026-11-18), after she used it to write a skill that described
+  the canary. Her skills in `~/.hermes/skills` are hers to write; the diff is the control, and the owner
   edits what shouldn't be there. Emptying her memory alone doesn't undo what she learned: check her
   skills and `~/.hermes/skills/.curator_ledger.jsonl` too.
-- **The bot's allowlist trusts whole platforms, as an accepted risk** (José, 2026-11-19). Squid sees
+- **The bot's allowlist trusts whole platforms, as an accepted risk** (the owner, 2026-11-19). Squid sees
   only the CONNECT host, so any account on `github.com`, `api.github.com` or `registry.npmjs.org` is
   reachable: an injected email carrying the attacker's own GitHub or npm token could have the bot push,
   open a gist or `npm publish` what it read, or pull a payload from the attacker's repo or package.
   Nothing denies or alerts on it, and the kill switch checks only the bot's fork. Narrowing it means
   TLS inspection, or moving git and `gh` work to the host and npm behind a mirror: not now.
-- **An obedient bot can paste its 1-hour token into a public PR, as an accepted risk** (José,
+- **An obedient bot can paste its 1-hour token into a public PR, as an accepted risk** (the owner,
   2026-11-19, step 6's B9). The terminal guard blocks the plain ways (`hosts.yml`, `gh auth token`,
   `printenv`); a reworded command or the file tool gets past it. The token reaches the fork only and
   dies within the hour. Not built: a wider guard, revoking the token at the end of each run, or a
@@ -83,12 +83,12 @@ injection test suite passes against both agents.
   text runs already catch a copied note, Telma would see the marker, and a page can tell her to strip
   it. Published or rule files (`skills/`, `AGENTS.md`, `CLAUDE.md`, `README.md`) don't count. Its own
   webhook, so a hijacked Telma who finds it can delete only the tripwire's posts, not the canary's.
-- **The Mac keeps its skill links** (`~/.claude/skills`, `~/.agents/skills` → `~/brain/skills`).
+- **The local machine keeps its skill links** (`~/.claude/skills`, `~/.agents/skills` → `~/brain/skills`).
   Copies would break `install.mjs`'s links-only design.
 
 ## Steps
 
-Each step is one branch and one PR. Steps that change a running agent need José's yes first.
+Each step is one branch and one PR. Steps that change a running agent need the owner's yes first.
 
 | # | Step | Done when | Status |
 |---|---|---|---|
@@ -98,9 +98,9 @@ Each step is one branch and one PR. Steps that change a running agent need José
 | 2 | **Reduce Telma to the brain.** Remove the ticket-bay jobs, the gh token, the Gmail mount and the ticket-bay checkout. Move her to brain-server. Brain deploy key held by `sync-brain` on the host only. `skills/` and `AGENTS.md` mounted read-only; `sync-brain` refuses and alerts on commits that touch them. | Triage still runs; a commit touching `skills/` is refused and alerted | done |
 | 3 | **Egress control.** Telma's sandbox gets no network, and brain-triage runs without the web and browser toolsets. ticket-bay-bot's sandbox joins an internal Docker network whose only way out is a squid allowlist (`github.com`, `api.github.com`, `registry.npmjs.org`); npm install scripts are off. | A Python fetch of `example.com` fails from both sandboxes; `api.github.com` works from the bot's; brain-triage's session has no web or browser tool | done |
 | 4 | **Supply chain.** `dmoka/skills` in a folder the bot can't write, owned by an unprivileged `skills-sync` user. It updates itself after a 7-day wait, and only if Hermes's skills guard finds nothing new. Hermes pinned. Dependabot alerts (not version-update PRs) on the ticket-bay fork. | No root cron jobs; every external input is pinned or gated; Dependabot alerts are on | done |
-| 5 | **Detection.** A canary in the brain: a canarytokens.org URL token behind a link that doesn't show its domain, alerting to a brain-server `#alerts` channel Telma's bot can't see. A no-agent job on the bot posts squid's denials to ticket-bay every 10 minutes. A kill-switch runbook per agent. | Opening the link (from the Mac, and through Telma in a chat) posts to `#alerts`; a denied fetch from the bot's sandbox posts to ticket-bay | done |
+| 5 | **Detection.** A canary in the brain: a canarytokens.org URL token behind a link that doesn't show its domain, alerting to a brain-server `#alerts` channel Telma's bot can't see. A no-agent job on the bot posts squid's denials to ticket-bay every 10 minutes. A kill-switch runbook per agent. | Opening the link (from the local machine, and through Telma in a chat) posts to `#alerts`; a denied fetch from the bot's sandbox posts to ticket-bay | done |
 | 5b | **Exfil tripwire.** A detection-only Hermes hook on Telma's tools that send data off the host (web, browser and seven more): when a call's arguments carry brain content (8-word runs or a short note whole, also URL- and base64-decoded) or name the brain's folder, it posts to `#alerts` through its own webhook. Blocks nothing. A health job says when it can't alert. | A web call carrying a brain note posts to `#alerts`; a normal browsing session posts nothing | done |
-| 6 | **Verification.** Injection test suite (the email that worked, lesson 8.5's email 2, new ones) run against both agents. Safety audit rerun with probes. Before/after table, ADRs and postmortem written by José. Cases in [injection-suite.md](injection-suite.md), results in [step6-results.jsonl](step6-results.jsonl), audit in [audit-after.md](audit-after.md). | The done-when at the top holds | done |
+| 6 | **Verification.** Injection test suite (the email that worked, lesson 8.5's email 2, new ones) run against both agents. Safety audit rerun with probes. Before/after table, ADRs and postmortem written by the owner. Cases in [injection-suite.md](injection-suite.md), results in [step6-results.jsonl](step6-results.jsonl), audit in [audit-after.md](audit-after.md). | The done-when at the top holds | done |
 
 ## Open
 
@@ -113,12 +113,12 @@ Each step is one branch and one PR. Steps that change a running agent need José
   yet).
 
 - Steps 0–4 review: three fixes merged (#12) and deployed 2026-11-19. The rest, in this order (one
-  branch and one PR each; anything that changes the VPS needs José's yes):
+  branch and one PR each; anything that changes the VPS needs the owner's yes):
   1. ~~`fix/sync-brain-push-guard`~~ **done** (#13, deployed and checked live 2026-11-19). The host
      never runs git in a folder Telma writes: sync-brain keeps its own clone in
      `~/.local/share/brain-push` and copies her files in with `brain-files.py`. Four adversarial
      rounds; 61 tests on git 2.56. Live: step 2's done-when holds, links, FIFOs and a `HEAD` file
-     from her sandbox are refused, a Mac edit to `AGENTS.md` shows in her sandbox, and her first
+     from her sandbox are refused, an edit on the local machine to `AGENTS.md` shows in her sandbox, and her first
      push went out as `Telma`. Rollback: `sync-brain.sh.bak-redesign-*` (devlog).
   2. ~~`fix/bot-workdir-and-pins`~~ **done** (deployed 2026-11-19). bug-loop and pr-triage-morning
      have no workdir any more: Hermes loads no project context file for them, runs their pre-scripts
@@ -129,27 +129,27 @@ Each step is one branch and one PR. Steps that change a running agent need José
      `git archive` copy that upstream's `export-ignore` can trim, of three folders only. Now each
      commit is checked out fresh in a throwaway clone and scanned whole, and the bot's folder is
      rewritten to match; links leaving the repo block; over 50 MB or 5,000 files isn't unpacked; a
-     commit upstream force-pushed away during the wait is never taken (José); the status can't carry
+     commit upstream force-pushed away during the wait is never taken (the owner); the status can't carry
      mentions or links. Squid: an IP whose reverse DNS says `github.com` got a tunnel (`dstdomain`
      without `-n`), and squid-denials skipped `TCP_DENIED_ABORTED`; image now 6.6-24.04 LTS. Whole-platform trust: accepted
      risk (Decisions).
-  José's calls, no fix planned: the skills guard matches findings per pattern and path (a
+  The owner's calls, no fix planned: the skills guard matches findings per pattern and path (a
   second `~/.ssh` read in the same file passes); the test gate runs `git rev-parse` and
   `worktree remove` on the host in sandbox-written repos (no exec seen, low).
   Dropped: the memory-diff cut splitting a character (both gateways run `LANG=C.UTF-8`) and Discord's
   length count (Hermes splits long posts and keeps code blocks closed). A model-written memory summary
-  job was designed and dropped: José asks Telma for one in a chat when he wants it.
+  job was designed and dropped: the owner asks Telma for one in a chat when they want it.
 
 - Moved 2026-11-19: Telma's open items (the triage-to-`guidelines/` question, shipping tool-call logs
   off the VPS) to [the showcase plan](../showcase/PLAN.md); lessons 8.5 and 8.6 on ticket-bay-bot to
   [jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot/blob/main/docs/hardening/PLAN.md).
-- Step 6: classic branch protection on the fork's `main` is gone; left so (José): the `main` ruleset has
+- Step 6: classic branch protection on the fork's `main` is gone; left so (the owner): the `main` ruleset has
   the same rules. B7 (an injected PR from a second account) skipped, and no B1 rerun on the fallback
-  models (José).
+  models (the owner).
 
 ## Rules for this repo
 
 - No secrets or personal data: no keys, webhook URLs, inbox address, Discord IDs, IP addresses,
   private repo names.
 - Nothing copied from the course kit. Describe in own words.
-- Public docs (README, threat model, ADRs, postmortem) are written by José.
+- Public docs (README, threat model, ADRs, postmortem) are written by the owner.

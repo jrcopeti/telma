@@ -10,7 +10,7 @@ comes second. This replaces the hardening plan's "One showcase repo for both age
 No link in Telma's docs points at a file that's gone, and every script deployed on the VPS matches
 its copy in one of the two repos.
 
-## Decisions (José, 2026-11-19)
+## Decisions (the owner, 2026-11-19)
 
 - **History stays where it happened.** Telma's `docs/hardening/` is kept whole and frozen at the tag
   `pre-split`. Its links to files that move become permalinks at that tag, so an entry shows the file
@@ -35,8 +35,8 @@ its copy in one of the two repos.
 
 ## Steps
 
-Each step stops for José's yes before any commit, push, repo setting or SSH command. From
-2026-11-19 on, PRs open without asking and José merges them; VPS changes still wait for his yes.
+Each step stops for the owner's yes before any commit, push, repo setting or SSH command. From
+2026-11-19 on, PRs open without asking and the owner merges them; VPS changes still wait for their yes.
 
 | # | Step | Done when | Status |
 |---|---|---|---|

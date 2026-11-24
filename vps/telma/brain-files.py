@@ -3,12 +3,12 @@
 
   export BRAIN DEST QUARANTINE [ROOT_NAME...]   copy her files into DEST, move out instruction files
   apply SRC BRAIN < name-status                 write `git diff --name-status -z` changes from SRC
-  gitfiles < paths                              print the -z paths that git on the Mac reads as config
+  gitfiles < paths                              print the -z paths that git on the local machine reads as config
 
 Every folder in BRAIN is opened relative to its parent and never through a symlink, so a folder she
 swaps for a link mid-run can't send a read or a write outside the brain. Prints only problems, as
 Discord text with her names in a code block. Exit 0 ok, 3 refused or failed something, 1 error.
-ROOT_NAME: names at the brain's root that come from GitHub (José's): not quarantined, and nor is
+ROOT_NAME: names at the brain's root that come from GitHub (the owner's): not quarantined, and nor is
 anything inside them except in Telma's folders (ALLOWED_TOP, sync-brain.sh's ALLOWED).
 """
 import errno
@@ -24,15 +24,15 @@ DIR = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 FILE = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
 ALLOWED_TOP = {"inbox", "sources", "notes", "guidelines", "decisions", "projects", "intents", "index.md"}
 # Files and folders an agent loads as instructions: Hermes, Claude Code, Codex, Cursor, Gemini, Copilot,
-# Windsurf, Cline. Matched after folding(): the Mac's disk opens agentſ.md as AGENTS.md.
+# Windsurf, Cline. Matched after folding(): the local machine's disk opens agentſ.md as AGENTS.md.
 INSTRUCTIONS = {
     "agents.md", "agents.override.md", "claude.md", "claude.local.md", "gemini.md", ".hermes.md",
     "hermes.md", ".cursorrules", ".windsurfrules", ".clinerules", ".cursor", ".hermes", ".agents",
     ".claude", ".github", ".codex", ".gemini", ".windsurf",
 }
-# A .git, or a HEAD that makes its folder a bare repo git on the Mac would load config from.
+# A .git, or a HEAD that makes its folder a bare repo git on the local machine would load config from.
 GIT_NAMES = {".git", "head"}
-# Read by git on the Mac: her .gitignore in notes/ would hide José's new notes from `git add`.
+# Read by git on the local machine: her .gitignore in notes/ would hide the owner's new notes from `git add`.
 GIT_FILES = {".gitignore", ".gitattributes", ".gitmodules"}
 # GitHub refuses bigger files. Sparse ones are refused too: a few KB of her disk, gigabytes once copied.
 MAX_FILE = 100 << 20

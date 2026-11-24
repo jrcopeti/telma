@@ -14,7 +14,7 @@ then rebuild the VPS (see [host.md](../host.md)).
   keyless Exa, whose crawler does the fetch (step 6: FDCservers, Chrome on macOS);
 - user agent `Discordbot`: she put it in a Discord reply and the link preview fetched it;
 - from anywhere else: the content already left, and someone is using it. Unless it was you: your own
-  open, or a preview of the link on your Mac or phone.
+  open, or a preview of the link on your local machine or phone.
 
 **A tripwire alert** names the tool, the session and the notes the call carried. The call went
 ahead: treat the notes named as gone. A search you asked for with a note's words in it fires it too.

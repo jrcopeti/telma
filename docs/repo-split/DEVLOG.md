@@ -11,14 +11,14 @@
 
 ## 2026-11-19: plan
 
-- Decisions made with José in one grilling session. They're in [PLAN.md](PLAN.md).
+- Decisions made with the owner in one grilling session. They're in [PLAN.md](PLAN.md).
 - Found before starting: #19 (step 6) was stacked on #18's branch and merged into it three seconds
   after #18 merged into `main`, so step 6 never reached `main`. #20 brought it over unchanged. Check a
   stacked PR's base before merging it.
 - Count before the split: 14 relative links in `docs/hardening/` point at files that move
   (`vps/ticket-bay-bot/`, `vps/skills-sync/`, `vps/ticket-bay-app/`, `vps/shared/`).
 
-## 2026-11-19: tag and bot repo (José said yes)
+## 2026-11-19: tag and bot repo (the owner said yes)
 
 - `pre-split` tagged on `43a7b25` (#21's merge) and pushed.
 - [jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot) created, public. Import commit
@@ -59,7 +59,7 @@ Gotcha: in zsh, a loop variable named `path` overwrites `PATH`, and every comman
 ## 2026-11-19: guard-network.sh into the repo
 
 - Added `vps/telma/guard-network.sh`, copied from `/home/agent/.hermes/agent-hooks/` byte for byte
-  (mode 755). José: publish it despite the course kit's license. It is the kit's hook with 4 lines
+  (mode 755). The owner: publish it despite the course kit's license. It is the kit's hook with 4 lines
   changed. Read first: it holds no secret, only patterns (`/opt/secrets`, `app-password`) it blocks.
 - The bot's deployed copy is identical to this one; it gets its own PR in jrcopeti/ticket-bay-bot.
 - `vps/host.md` now maps the file to its path on the VPS. No test yet: the hook needs a Hermes payload.

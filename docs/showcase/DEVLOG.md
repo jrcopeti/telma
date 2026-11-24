@@ -15,20 +15,20 @@
 
 - The README, threat model, ADRs and before/after table were named in `AGENTS.md` and hardening step 6,
   but no plan tracked them. Hardening step 6 shows "done" while two of its docs don't exist.
-- José chose a new plan for them, which also takes Telma's open items from the frozen hardening plan.
+- The owner chose a new plan for them, which also takes Telma's open items from the frozen hardening plan.
   Lessons 8.5 and 8.6 moved to jrcopeti/ticket-bay-bot's own plan, because they run on the bot.
 
 ## 2026-11-19: order, scope, and who writes
 
-- José changed the rule: agents draft the public docs, he approves each in its PR. `AGENTS.md` and the
+- The owner changed the rule: agents draft the public docs, the owner approves each in its PR. `AGENTS.md` and the
   plan's Rules say so now.
-- His calls: the README uses the `crafting-effective-readmes` skill with the portfolio template;
-  Telma's README shows the brain work only and links the bot for the bug loop; José captures the
+- The owner's calls: the README uses the `crafting-effective-readmes` skill with the portfolio template;
+  Telma's README shows the brain work only and links the bot for the bug loop; the owner captures the
   screenshots from a shot list (in the plan); threat model first, README last.
 - Threat model drafted from the frozen hardening docs (audit-after, injection suite, step 6 results,
   postmortem, kill switch). Checked against the hardening devlog: brain-triage has no memory or
-  cronjob tool; chats keep both (José's call in step 2).
-- The public docs say "the owner", not "José": the threat model and `AGENTS.md` changed. The rest of
+  cronjob tool; chats keep both (the owner's call in step 2).
+- The public docs say "the owner", not the owner's name: the threat model and `AGENTS.md` changed. The rest of
   the docs follow later (open item in the plan).
 
 ## 2026-11-20: chat tools stay
@@ -61,7 +61,7 @@
   job now stated next to "no unattended job holds all three legs"; refusal vs quarantine in
   sync-brain; memory-diff relays injectable text to Discord; the diagram (web tools pointed at the
   owner, ragged right edge).
-- Not fixed here: plan and devlog status (done in #34), new "José" lines in the plan (the open rename
+- Not fixed here: plan and devlog status (done in #34), new lines naming the owner in the plan (the open rename
   item covers them).
 
 ## 2026-11-20: review of the merged table
@@ -69,7 +69,7 @@
 - #34 was merged with the Telma-only cut in it; `/code-review` on that commit. Fixed: Telma's
   sandbox is loopback only (the "no DNS" probe was the bot's); "her `execute_code`" names Telma;
   the moved bot jobs keep their leg count, so "no unattended job holds all three" stays checkable.
-  Dropped the PLAN.md fix: #35 merged, so the threat model's Mac rename is done.
+  Dropped the PLAN.md fix: #35 merged, so the threat model's local machine rename is done.
 - Not changed: a memory write in a chat shows in the diff only after the next triage. The threat
   model says the same, so the page matches it; the owner can decide whether to name the gap.
 
@@ -162,3 +162,82 @@
 - Owner's correction: the "started as the coding employee in AI Agent Engineer" line in the README
   credits is true only of ticket-bay-bot. Removed. ADR 1's context said the same; it now says one
   agent first ran both the course's bug loop and the brain, and ADR 2 split them.
+
+## 2026-11-24: her live files (step 5)
+
+- Mirrors ticket-bay-bot's step 5 as trimmed in its #27: `vps/telma/hermes/` holds `SOUL.md`,
+  `config.overrides.yaml` (only the settings that differ from Hermes's `cli-config.yaml.example`,
+  plus two pinned defaults), and the brain-triage prompt from `jobs.json`. No full `config.yaml`,
+  no hooks allowlist, no units.
+- Copied read-only from the VPS. The deployed `SOUL.md` and `config.yaml` hash to `122f63f725da`
+  and `2776ccf243cd`, the stamp of the newest eval run (`2026-11-24T1152-cbd3e39`). The repo's
+  `SOUL.md` doesn't: it has the owner's name replaced (below). Every key in the
+  overrides checked equal to the live file. The config holds no channel IDs (they're in `.env`).
+- Her own changes besides the bot's set: `terminal.docker_network: false` (Hermes default `true`) and
+  `approvals.destructive_slash_confirm: false` (default `true`). No toolset is disabled; the triage
+  job names its own four.
+- Cron prompts: only brain-triage has one. The other agent job in `jobs.json` is a completed
+  one-off reminder made in a chat, with personal content: left out. sync-brain, memory-diff and
+  tripwire-health are no-agent scripts, already here; `host.md` now lists the jobs and maps those
+  scripts, which its deploy table lacked.
+- Telma-only: the four brain skills, in `vps/telma/brain-skills/` with the template's MIT license and
+  a README crediting it. Unlike the bot's skills (a third-party checkout, pinned by commit only),
+  these are the owner's: `triage` and `lint` differ from the template, and the brain repo is
+  private. The VPS copy equals the brain repo's `skills/`; `capture` and `ask-brain` are unchanged
+  from the template.
+- A stale check was drafted (`evals/live_files.py`: `SOUL.md`'s hash and a config hash written in
+  the overrides header, against the newest eval run's stamp). Owner's call: too thin, and not this
+  PR's concern. Dropped; a deployment-check plan of its own (files, config, skills against the VPS)
+  goes in Open. The overrides header keeps the live config's hash as a record.
+- Every file already in `vps/telma/` checked against the VPS: all equal.
+- `SOUL.md` names the owner by first name; this copy says `<OWNER'S NAME>` instead, the one
+  deliberate difference from the deployed file (owner's call), listed in `host.md`. It also ends
+  with a stray line about the brain's path, like the local machine's global agent rule; rewording
+  the deployed file is a SOUL change: eval first.
+- `/code-review` (default effort, all findings), second pass, 12 findings:
+  - Fixed: the hash line above now says only the deployed `SOUL.md` has the stamped hash; `host.md`
+    names the two pinned defaults (it read as two of the hooks); says most job runs post nothing
+    and the hooks post to `#alerts` (it said every job posts to her channel); says to change
+    `terminal:` keys with `hermes config set`, since Hermes keeps them in `.env` too (which file
+    wins wasn't tested); and this plan's row describes the overrides, not a redacted `config.yaml`.
+  - `SOUL.md`'s last line ("save new decisions, guidelines and gotchas there") read as writing
+    straight into the brain, against her inbox-only rule. Owner: "there" is the inbox, named just
+    before it. Stays.
+  - The triage prompt says "triage, then lint" and the triage skill runs lint too, so lint may run
+    twice. Owner: it does every run and has never added a duplicate. Stays.
+  - Brain-skill code: capture's front-matter escaping and a slug that can end in `-`; lint's
+    `--fix` dropping a whole index line over one dead link, `%`-encoded links, insert position, and
+    its root fallback in the dead-link check. Owner: edge cases. None has happened in the brain
+    (checked: one link per index line, no encoded links, no blank line under a heading, no
+    multi-line notes). Not fixed; a fix would be a brain PR and an eval run.
+  - Nothing catches the copies drifting from the VPS. Owner: the next step, the deployment-check
+    plan in Open.
+
+## 2026-11-24: the owner's name and machine out of the repo
+
+- The owner's call: replace the owner's first name with "the owner" and "the Mac" with "the local
+  machine" everywhere in the repo, frozen docs and the step 6 results included. It closes the two
+  rename items in Open. Lines that named the old word to describe the rename itself were reworded
+  by hand, and "he", "his" and "himself" for the owner became "they", "their" and "themselves".
+- Code review found what the first pass missed: its file list used `\b` in `git grep -E`, which the
+  local machine's git doesn't support, so `kill-switch.md` (only "Mac") and pronouns in files with no
+  name (`threat-model.md`: "what he captures") were skipped. Fixed; `git grep -w` now finds none.
+  `kill-switch.md` isn't a deployed file.
+- Three deployed scripts changed in comments: `sync-brain.sh`, `brain-files.py`, `memory-diff.sh`.
+  `sync-brain.sh` also changed one Discord message (a conflict now names the local machine). They
+  are deployed right after this PR merges (owner, 2026-11-24), so `host.md` lists no difference.
+  `test-sync-brain.sh` changed in test names and commit messages only; its `mac` helpers keep
+  their names.
+- `/code-review` (default effort, all findings), third pass on the whole branch, 12 findings:
+  - Fixed: the rename missed `kill-switch.md` and pronouns in files that didn't name the owner
+    (above).
+  - Capture runs `node sync.mjs` in chats, where her sandbox has no network. Owner: she already says
+    she doesn't push, the host does. Stays.
+  - `SOUL.md`'s last line: stays, the owner's call (second pass).
+  - Brain-skill edge cases, three of them new (the `sources/` substring match, the exact match on
+    section headings, capture blocking on stdin). Owner: edge cases; a change would need an eval
+    run. Not touched now.
+  - The three deployed scripts differ from the VPS. Owner: deployed after this PR merges.
+  - Nothing checks the config hash: the next step, the deployment-check plan in Open.
+  - `docs/hardening/` is frozen but edited here: approved by the owner; `AGENTS.md` names the
+    exception.

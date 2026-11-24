@@ -59,32 +59,28 @@ def hashed_paths(pinned):
             for p in pinned.rglob("*") if p.is_file()}
 
 
-def stale_strips(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
-    """Entries that don't fit the pinned notes: a note that isn't there, or a passage that isn't there
-    once. strip_eval_notes would skip them quietly, and eval_leaks's few spellings may not see what
-    they leave, so a run stops on them (a moved NOTES_REF needs its entries checked)."""
-    paths = hashed_paths(pinned)
-    return ([f"{n}: no such note" for n in notes if n not in paths]
-            + [f"{paths.get(n, n)}: " + (f"passage {s['sha256'][:12]}" if n in paths else "no such note")
-               for n, specs in reword.items() for s in specs
-               if n not in paths or not passage((pinned / paths[n]).read_text(), s)])
-
-
 def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
-    """The pinned brain without `notes` and their index lines, and `reword` applied; both name files
-    by the hash of their path, like a task. Returns the stripped paths. One the brain no longer has is
-    skipped; a note that still names the eval is eval_leaks's."""
+    """The pinned brain without `notes` and their index lines, and `reword` applied in order; both name
+    files by the hash of their path, like a task. Returns the stripped paths. An entry that doesn't fit
+    (no such note, or a passage not there once when its turn comes) stops the run: skipped quietly, it
+    could leave prose about the eval that eval_leaks's few spellings miss (a moved NOTES_REF)."""
     paths = hashed_paths(pinned)
-    stripped = [paths[n] for n in notes if n in paths]
+    problems = [f"{n}: no such note" for n in [*notes, *reword] if n not in paths]
+    if problems:
+        raise ValueError(problems)
+    stripped = [paths[n] for n in notes]
     for f in stripped:
         (pinned / f).unlink()
     for n, specs in reword.items():
-        if n in paths:
-            text = (pinned / paths[n]).read_text()
-            for spec in specs:
-                if span := passage(text, spec):
-                    text = text[:span[0]] + spec["with"] + text[span[1]:]
-            (pinned / paths[n]).write_text(text)
+        text = (pinned / paths[n]).read_text()
+        for spec in specs:
+            if span := passage(text, spec):
+                text = text[:span[0]] + spec["with"] + text[span[1]:]
+            else:
+                problems.append(f"{paths[n]}: passage {spec['sha256'][:12]}")
+        (pinned / paths[n]).write_text(text)
+    if problems:
+        raise ValueError(problems)
     index = pinned / "index.md"
     index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in stripped)))
     return stripped
@@ -106,16 +102,19 @@ def pin_brain(dest, ref=None):
     with a skill change). Returns that commit."""
     git = ["git", "-C", str(BRAIN)]
     if ref is None:
-        dirty = subprocess.run(git + ["status", "--porcelain", "--no-renames"], capture_output=True, text=True).stdout
+        dirty = subprocess.run(git + ["status", "--porcelain", "--no-renames", "--untracked-files=all"],
+                               capture_output=True, text=True).stdout
         if any(is_rule(l[3:].strip('"')) for l in dirty.splitlines()):
             sys.exit("~/brain has uncommitted changes to her skills or rules: commit or sync them first")
     commit = resolve(ref or "HEAD")
     extract(resolve(NOTES_REF), dest)
-    for p in sorted(dest.rglob("*"), reverse=True):  # files before their folders
-        if is_rule(str(p.relative_to(dest))):
-            shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink()
-    files = subprocess.run(git + ["ls-tree", "-r", "--name-only", "-z", commit], capture_output=True, text=True, check=True).stdout
-    extract(commit, dest, [f for f in files.split("\0") if f and is_rule(f)])
+    for p in [*(dest / n for n in [*OVERLAY, "taste.md"]), *dest.glob("*/README.md")]:
+        if p.is_dir() and not p.is_symlink():
+            shutil.rmtree(p)
+        elif p.exists() or p.is_symlink():
+            p.unlink()
+    top = subprocess.run(git + ["ls-tree", "--name-only", commit], capture_output=True, text=True, check=True).stdout.split()
+    extract(commit, dest, [n for n in [*OVERLAY, "taste.md"] if n in top] + [":(glob)*/README.md"])
     shutil.rmtree(dest / "evals", ignore_errors=True)
     return commit
 

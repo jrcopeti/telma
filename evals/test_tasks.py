@@ -13,7 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "evals"))
 import brain_copy  # noqa: E402
-from brain_copy import eval_leaks, passage, stale_strips, strip_eval_notes  # noqa: E402
+from brain_copy import eval_leaks, passage, strip_eval_notes  # noqa: E402
 
 HASHED = re.compile(r"sha256:[0-9a-f]{64}")  # a brain path by its hash (brain_copy.unhash)
 FOLDERS = {"intents", "guidelines", "decisions", "projects", "notes"}
@@ -125,11 +125,15 @@ class EvalNotesTest(unittest.TestCase):
         (root / "index.md").write_text(f"# Index\n- [Design]({design}) — x\n- [Other](decisions/other.md) — y\n")
         old = "(telma\nrepo, eval-v1 step 7)"
         reword = {hashed("notes/price.md"): [{**PassageTest.spec(None, old), "with": "(telma\nrepo)"}]}
-        self.assertEqual(stale_strips(root, [hashed(design), hashed(amend)], reword), [])
-        moved = {hashed("notes/price.md"): [{**reword[hashed("notes/price.md")][0], "chars": 5}]}
-        self.assertEqual(stale_strips(root, [hashed("decisions/gone.md")], moved),
-                         [f"{hashed('decisions/gone.md')}: no such note",
-                          f"notes/price.md: passage {moved[hashed('notes/price.md')][0]['sha256'][:12]}"])
+        with self.assertRaises(ValueError) as e:
+            strip_eval_notes(root, [hashed("decisions/gone.md")], reword)
+        self.assertEqual(e.exception.args[0], [f"{hashed('decisions/gone.md')}: no such note"])
+        # Applied in order: the second passage was inside the first, so it's gone when its turn comes.
+        inner = PassageTest.spec(None, "eval-v1")
+        with self.assertRaises(ValueError) as e:
+            strip_eval_notes(root, [], {hashed("notes/price.md"): [reword[hashed("notes/price.md")][0], {**inner, "with": ""}]})
+        self.assertEqual(e.exception.args[0], [f"notes/price.md: passage {inner['sha256'][:12]}"])
+        (root / "notes/price.md").write_text("Pinning is planned (telma\nrepo, eval-v1 step 7).\n")
         stripped = strip_eval_notes(root, [hashed(design), hashed(amend)], reword)
         self.assertEqual(sorted(stripped), [amend, design])
         self.assertFalse((root / design).exists())
@@ -148,7 +152,8 @@ class PinBrainTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         brain, dest = Path(tmp.name) / "brain", Path(tmp.name) / "out" / "pinned"
-        git = ["git", "-C", str(brain), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null"]
+        git = ["git", "-C", str(brain), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null",
+               "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"]
 
         def commit(files, gone=()):
             for f, text in files.items():
@@ -174,6 +179,11 @@ class PinBrainTest(unittest.TestCase):
             (brain / "skills/triage/SKILL.md").write_text("v3\n")  # a rule a trial would read: refused
             with self.assertRaises(SystemExit):
                 brain_copy.pin_brain(Path(tmp.name) / "again")
+            subprocess.run(git + ["checkout", "-q", "--", "skills"], check=True)
+            (brain / "intents").mkdir()
+            (brain / "intents/README.md").write_text("a rule in a new folder\n")  # untracked folder: refused
+            with self.assertRaises(SystemExit):
+                brain_copy.pin_brain(Path(tmp.name) / "again2")
         self.assertEqual((dest / "projects/p.md").read_text(), "old\n")
         self.assertFalse((dest / "notes/new.md").exists())
         self.assertEqual((dest / "skills/triage/SKILL.md").read_text(), "v2\n")

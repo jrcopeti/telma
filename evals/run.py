@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from brain_copy import NOTES_REF, check_tasks, eval_leaks, item_path, pin_brain, stale_strips, strip_eval_notes, unhash  # noqa: E402
+from brain_copy import NOTES_REF, check_tasks, eval_leaks, item_path, pin_brain, strip_eval_notes, unhash  # noqa: E402
 from eval_profile import setup_stamp, sync_profile  # noqa: E402
 from report import write as write_report  # noqa: E402
 from trial import trial  # noqa: E402
@@ -99,9 +99,10 @@ def main(argv=None):
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
-        if stale := stale_strips(tmp / "pinned"):
-            sys.exit("EVAL_NOTES or EVAL_REWORD doesn't fit the notes at NOTES_REF; update these:\n  " + "\n  ".join(stale))
-        stripped = strip_eval_notes(tmp / "pinned")
+        try:
+            stripped = strip_eval_notes(tmp / "pinned")
+        except ValueError as e:
+            sys.exit("EVAL_NOTES or EVAL_REWORD doesn't fit the notes at NOTES_REF; update these:\n  " + "\n  ".join(e.args[0]))
         if leaks := eval_leaks(tmp / "pinned", stripped):
             sys.exit("the brain still names the eval; add these to EVAL_NOTES or reword them:\n  " + "\n  ".join(leaks))
         tasks = json.loads((HERE / "tasks/tasks.json").read_text())
@@ -109,11 +110,12 @@ def main(argv=None):
         shas = {t["id"]: task_sha(t) for t in tasks}  # before unhash: the definition as committed
         unhash(tasks, tmp / "pinned")
         check_tasks(tasks, tmp / "pinned")  # all of them, so a partial run warns of the rest too
-        if a.check:
-            print(f"ok: brain {brain_commit}, notes {NOTES_REF[:7]} less {len(stripped)} eval notes, all {len(tasks)} tasks fit")
-            return
         if a.only:
             tasks = [t for t in tasks if t["id"] in a.only]
+        if a.check:
+            print(f"ok: skills and rules {brain_commit}, notes {NOTES_REF[:7]} less {len(stripped)} eval notes; "
+                  f"all {len(full)} tasks fit" + (f", {len(tasks)} selected" if a.only else ""))
+            return
         started = True
         pages_file = HERE / "tasks/pages.json"
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}

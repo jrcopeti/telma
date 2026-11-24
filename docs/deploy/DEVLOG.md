@@ -163,3 +163,27 @@
   strings in `deploy.py` to `vps/remote/deploy_host.py` (read and copy, sharing the symlink and
   stat helpers) and `vps/remote/running_jobs.py` (run as `agent`, its code on stdin, so no Python
   quoted through `su`). `check-drift.py`'s `COLLECT` is still a string: merged code, its own PR.
+
+## 2026-11-24: PR 2, second adversarial review
+
+- A second fresh agent: 8 breaking tests, kept as `vps/test_deploy_adversarial2.py`, in CI. The
+  owner's calls: gate the model, fallback and skills lines too; close the symlink race.
+- Proved and fixed:
+  - The backup folders were handed to `agent` before root wrote into them, so a link she planted
+    there made root write anywhere. Now `deploy-backups/` must be root's and closed to others, and
+    each run's folder is made by root inside it, `0700`.
+  - The symlink race from the first round (a folder on the path swapped mid-copy), with the same
+    change: every path is opened one folder at a time with `O_NOFOLLOW`, and the read, the backup,
+    the temp file and the swap all work on the opened folder (`dir_fd`). The first round's
+    expected failure now passes.
+  - A folder at a host path read as `missing` and failed only at the swap, after other files were
+    swapped. A path that isn't a plain file is now reported and not deployed.
+  - An uncommitted edit to a committed eval run was read; the run is now read from `HEAD`.
+  - The config and skills lines weren't gated by `--eval-run` (see the plan's deploy bullet).
+  - A stop after the copy exited 2 and printed no tag; Ctrl-C during the copy or the re-check gave
+    a traceback. After any copy the tag commands are printed (`finish()` never raises); Ctrl-C
+    during the copy exits 3, during the re-check 4.
+- Reasoned and fixed: every file is hashed again right before the swap; the host script's
+  docstring names its real invocation.
+- Reasoned, in the plan's Open: a job starting between the running-jobs check and the swap; two
+  deploys in a day before the first tag exists (kept as an expected failure).

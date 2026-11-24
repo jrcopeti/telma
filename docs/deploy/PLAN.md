@@ -90,20 +90,24 @@ eval run writes the check's summary into its results.
   ahead". It shows each diff and takes a yes per file, copying
   nothing until all are answered, keeps a backup in
   `~/.hermes/deploy-backups/<timestamp>/` (not beside the live file, where a hook loader or a
-  `tree` folder would see it), writes each file to a temp name in the target's folder with its
+  `tree` folder would see it; root's, `0700`, so she can't plant a link root would write through), writes each file to a temp name in the target's folder with its
   owner and mode set first and swaps it over the target atomically (`os.replace`, the step's
   `install -o -g -m` and `mv -f` in Python), then runs the whole check. It doesn't write `config.yaml`, `.env` or `jobs.json` (it prints the
   `hermes config set` commands or the job change), and skills go through a brain PR and sync-brain.
   `SOUL.md`, the skills and the model or fallback keys need `--eval-run <results .jsonl>`, per
-  `AGENTS.md`. Right before the copy it checks no job of hers is running (it
+  `AGENTS.md`: without it the skills line stops and the config line leaves out the `model` and
+  `fallback_providers` commands. The run is read from `HEAD`, never the working tree. Every host
+  path is opened one folder at a time without following a symlink, and every later step works on
+  the folder opened, so a link planted or swapped in mid-copy is never written through (her folders
+  are hers; the copy runs as root). A path that isn't a plain file is not deployed. Right before the copy it checks no job of hers is running (it
   stops, copying nothing, if one is), then copies all the files in one quick step, so no job sees
   half the new files and half the old. It only prints what each file still needs
   after (`after` below); it never restarts, rebuilds or runs a job. It deploys only main as pushed,
   with nothing uncommitted under `vps/`: the re-check reads the checkout, so an uncommitted file
   there could read in sync and move `deployed` to a commit the host doesn't match.
 - **Each deploy gets a permanent tag** (owner, 2026-11-24, step 4). `deployed` moves, so it keeps no
-  history; the devlog records each move only while this plan is open; the backups on the host are in
-  her home, where she could edit them, and don't name a commit. So `deploy.py` ends by printing an
+  history; the devlog records each move only while this plan is open; the backups on the host don't
+  name a commit. So `deploy.py` ends by printing an
   annotated tag, `deploy/<date>-<n>` (the UTC date, as in the backup folder's name; `n` one past the
   highest on that day, here or on origin, and no copy when origin's tags can't be read), on
   the deployed commit, whose message holds the files, the backup folder and the check's summary line
@@ -149,13 +153,13 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 
 ## Open
 
-- A folder on a deployed file's path swapped for a symlink between the copy's check and its write
-  is written through (`O_NOFOLLOW` covers only the last part). The copy runs as root in folders
-  `agent` owns, so something running as her that wins the race could have root write a file she
-  chose into any folder. Closing it means opening every part of the path with `dir_fd` and
-  `O_NOFOLLOW`. Accept it beside "the hooks stay agent's", or close it: the owner's call
-  (`test_deploy_adversarial.py` keeps the race as an expected failure).
-
+- A job can start in the moment between the copy's running-jobs check and its swap. Closing it
+  would mean holding Hermes's scheduler lock (`~/.hermes/cron/.tick.lock`) across the swap: about
+  ten lines, but it ties the deploy to a Hermes internal, and it doesn't cover a job fired by hand
+  or by her cron tool. The owner's call.
+- Two deploys on one day before the owner runs the first one's tag commands both print
+  `deploy/<day>-1`; a copy that ran part way (exit 3) prints its tag too. The owner's call
+  (`test_deploy_adversarial2.py` keeps the first as an expected failure).
 - How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
   from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
   `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the

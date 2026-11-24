@@ -10,8 +10,9 @@ file staged to a temp name in its folder with its owner and mode, the old one ke
 Then check-drift.py runs (its hooks doctor posts one test-session alert), and the script prints what
 each file still needs and the tag commands for the owner. It never restarts, rebuilds or runs a job,
 and never writes a tag. Exit 0 after a copy the check finds in sync, 1 when it finds drift, 2 when
-nothing was copied (a stop, every answer no, nothing to copy), 3 when the copy may have run part way,
-4 when the copy ran but the check couldn't. DRIFT_HOST_ROOT=<folder> deploys to a fake host folder
+nothing was copied (a stop, every answer no, nothing to copy), 3 when the copy may have run part way
+(an error or Ctrl-C during it), 4 when the copy ran but the check couldn't finish. After a copy the
+tag commands are always printed. DRIFT_HOST_ROOT=<folder> deploys to a fake host folder
 instead of the VPS (the tests).
 """
 import argparse
@@ -34,9 +35,10 @@ _spec.loader.exec_module(drift)
 REPO, Stop, git, sha = drift.REPO, drift.Stop, drift.git, drift.sha
 
 COPIED = {"exact", "redacted"}
-# AGENTS.md: a change to SOUL.md needs an eval run first. The skills and the model keys, also gated
-# there, are never copied here (a brain PR, `hermes config set`).
-EVAL_GATED = {"SOUL.md"}  # by file name
+# AGENTS.md: a change to SOUL.md, a brain skill or the model or fallback order needs an eval run
+# first. The skills and the config aren't copied here, but their lines are gated all the same.
+EVAL_GATED = {"SOUL.md"}  # by file name; the tree line and the keys below are gated too
+EVAL_KEYS = {"model", "fallback_providers"}
 BACKUPS = "/home/agent/.hermes/deploy-backups"
 LEDGER = "/home/agent/.hermes/cron/executions.db"
 RESTART = "sudo systemctl --user -M agent@ restart hermes-gateway"
@@ -97,10 +99,11 @@ def check_eval_run(path, results):
         rel = p.relative_to(REPO / "evals/results")
     except ValueError:
         raise Stop(f"--eval-run {results}: not in evals/results/")
-    if p.suffix != ".jsonl" or git("ls-files", "--error-unmatch", f"evals/results/{rel}", check=False).returncode:
+    committed = git("show", f"HEAD:evals/results/{rel}", check=False)  # never the working tree's copy
+    if p.suffix != ".jsonl" or committed.returncode:
         raise Stop(f"--eval-run {results}: not a committed results .jsonl")
     try:
-        ran_on = json.loads(p.read_text().splitlines()[0])["setup"]["telma_commit"]
+        ran_on = json.loads(committed.stdout.decode().splitlines()[0])["setup"]["telma_commit"]
     except (IndexError, ValueError, KeyError, TypeError):
         raise Stop(f"--eval-run {results}: no setup stamp in its first line")
     if not re.fullmatch(r"[0-9a-f]{7,40}", str(ran_on)):
@@ -149,8 +152,9 @@ def overrides(rows):
     return drift.load_yaml((REPO / path).read_bytes(), path) if path else {}
 
 
-def config_commands(rows):
-    """`hermes config set` for each overridden key but the hooks; lists as JSON."""
+def config_commands(rows, gated):
+    """`hermes config set` for each overridden key but the hooks (and the model and fallback keys
+    when `gated`); lists as JSON."""
     def leaves(d, prefix=""):
         for k, v in d.items():
             if isinstance(v, dict):
@@ -158,7 +162,8 @@ def config_commands(rows):
             else:
                 yield prefix + k, v
     return [f"hermes config set {k} {shlex.quote(json.dumps(v) if isinstance(v, (list, dict)) else str(v))}"
-            for k, v in leaves({k: v for k, v in overrides(rows).items() if k != "hooks"})]
+            for k, v in leaves({k: v for k, v in overrides(rows).items()
+                                if k != "hooks" and not (gated and k in EVAL_KEYS)})]
 
 
 def hook_command(rows, host_path):
@@ -195,12 +200,18 @@ def deploy(args):
             files.append(row)
             continue
         if row["mode"] == "subset":
+            gated = not args.eval_run
+            if args.eval_run:
+                print(f"{path}: eval run on {check_eval_run(path, args.eval_run)}")
             print(f"{path}: config.yaml isn't written here. As agent, run the line of each key check-drift "
-                  "names (the hooks are changed by hand):\n  " + "\n  ".join(config_commands(rows)))
+                  "names (the hooks are changed by hand):\n  " + "\n  ".join(config_commands(rows, gated)))
+            if gated:
+                print(f"  {', '.join(sorted(EVAL_KEYS))}: not printed without --eval-run (AGENTS.md)")
         elif row["mode"] == "jobs":
             print(f"{path}: jobs.json isn't written here. Change each job check-drift names with Hermes's "
                   f"cron tool until its fields match {path}.")
         else:
+            print(f"{path}: eval run on {check_eval_run(path, args.eval_run)}")
             print(f"{path}: skills change through a PR on the brain repo; sync-brain brings them to the host.")
         if after_step(rows, row):
             print(f"  then: {after_step(rows, row)}")
@@ -243,6 +254,9 @@ def deploy(args):
         if have and "link" in have:
             print(f"\n{row['repo']}: {have['link']} on the host is a symlink: not deployed, look at it by hand")
             continue
+        if have and "unsafe" in have:
+            print(f"\n{row['repo']}: {have['unsafe']}: not deployed, look at it by hand")
+            continue
         status = "missing" if have is None else drift.direction(
             lambda w: sha(w) == have["sha"], new, want(row, True), repo.tagged)
         if status == "in sync" and have["stat"] == f"{row['owner']} {row['perm']}":
@@ -255,44 +269,64 @@ def deploy(args):
         print("nothing deployed")
         return 2
 
-    backup = f"{BACKUPS}/{now:%Y%m%dT%H%M%SZ}"
+    stamp = f"{now:%Y%m%dT%H%M%SZ}"
+    backup = f"{BACKUPS}/{stamp}"
     files_req = []
     for row, new, have in chosen:
         user, group = row["owner"].split(":")
         files_req.append({"host": row["host"], "data": base64.b64encode(new).decode(), "user": user,
                           "group": group, "perm": row["perm"], "was": have and have["sha"]})
-    r = remote({"action": "copy", "backup": backup, "files": files_req, "ledger": LEDGER,
-                "running_code": (HERE / "remote/running_jobs.py").read_text(),
-                "as_agent": ["bash", "-c"] if root() else ["su", "-", "agent", "-c"]})
-    if r.returncode in (4, 5):
-        raise Stop(f"nothing copied: {r.stderr.strip()[-500:]}")
-    if r.returncode:
-        print(f"deploy: the copy may have run part way ({r.returncode}): {r.stderr.strip()[-500:]}\n"
-              f"run check-drift.py; the old files are in {backup}/ on the host", file=sys.stderr)
-        return 3
     deployed = [row for row, _, _ in chosen]
+    try:
+        r = remote({"action": "copy", "backups": BACKUPS, "stamp": stamp, "files": files_req, "ledger": LEDGER,
+                    "running_code": (HERE / "remote/running_jobs.py").read_text(),
+                    "as_agent": ["bash", "-c"] if root() else ["su", "-", "agent", "-c"]})
+    except KeyboardInterrupt:
+        r = None
+    if r is not None and r.returncode in (4, 5):
+        raise Stop(f"nothing copied: {r.stderr.strip()[-500:]}")
+    if r is None or r.returncode:
+        why = "Ctrl-C" if r is None else f"{r.returncode}: {r.stderr.strip()[-500:]}"
+        print(f"deploy: the copy may have run part way ({why}); over ssh it may still be running.\n"
+              f"run check-drift.py; the old files are in {backup}/ on the host", file=sys.stderr)
+        finish(rows, deployed, head, tag, backup, "summary: the copy may have run part way", None)
+        return 3
     print(f"\ncopied {len(deployed)} file(s); the old ones are in {backup}/ on the host\n")
+    try:
+        check = subprocess.run([sys.executable, str(HERE / "check-drift.py")], capture_output=True, text=True)
+        print(check.stdout + check.stderr, end="")
+        code = check.returncode
+        summary = next((line for line in check.stdout.splitlines() if line.startswith("summary:")),
+                       f"summary: check-drift exited {code}")
+    except KeyboardInterrupt:
+        code, summary = None, "summary: the re-check was stopped (Ctrl-C)"
+        print("\ndeploy: the re-check was stopped; run check-drift.py", file=sys.stderr)
+    finish(rows, deployed, head, tag, backup, summary, code)
+    return {0: 0, 1: 1}.get(code, 4)
 
-    check = subprocess.run([sys.executable, str(HERE / "check-drift.py")], capture_output=True, text=True)
-    print(check.stdout + check.stderr, end="")
-    summary = next((line for line in check.stdout.splitlines() if line.startswith("summary:")),
-                   f"summary: check-drift exited {check.returncode}")
 
-    steps = [s for s in (after_step(rows, row) for row in deployed) if s]
+def finish(rows, deployed, head, tag, backup, summary, code):
+    """What each file still needs and the tag commands. Runs after every copy, so it never raises."""
+    steps = []
+    for row in deployed:
+        try:
+            step = after_step(rows, row)
+        except Exception as e:
+            step = f"{row['repo']}: {row['after']} (couldn't print its steps: {e})"
+        if step:
+            steps.append(step)
     if steps:
         print("\nstill to do:\n  " + "\n  ".join(steps))
-
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
     print("\ntag commands (the owner runs them; this script never writes a tag):")
     print(f"  git tag -a {tag} {head[:7]} " + " ".join(f"-m {shlex.quote(m)}" for m in msg))
     print(f"  git push origin {tag}")
-    if check.returncode == 0:
+    if code == 0:
         print(f"  git tag -f {drift.TAG} {head[:7]} && git push -f origin {drift.TAG}")
     else:
         print(f"  {drift.TAG} stays: move it to {head[:7]} when check-drift.py exits 0"
               + (" (after the steps above)" if steps else ""))
-    return {0: 0, 1: 1}.get(check.returncode, 4)
 
 
 def main():

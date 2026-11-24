@@ -68,6 +68,10 @@ class DeployFake(Fake):
         self.code, self.out = r.returncode, r.stdout + r.stderr
         return self.code
 
+    def head(self):
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.repo, capture_output=True,
+                              text=True).stdout.strip()
+
     def host_text(self, path):
         return (self.host / path.lstrip("/")).read_text()
 
@@ -223,12 +227,18 @@ class Deploy(unittest.TestCase):
         self.f.change({"vps/config.overrides.yaml": (self.f.repo / "vps/config.overrides.yaml").read_text()
                        .replace("default: m1", "default: m2")})
         config = self.f.host_text("/h/config.yaml")
-        self.assertEqual(self.f.deploy("vps/config.overrides.yaml", "vps/jobs.overrides.yaml", "vps/skills/"), 2,
-                         self.f.out)
-        self.assertIn("hermes config set model.default m2", self.f.out)
+        self.assertEqual(self.f.deploy("vps/config.overrides.yaml", "vps/jobs.overrides.yaml"), 2, self.f.out)
+        self.assertNotIn("hermes config set model.default", self.f.out)
+        self.assertIn("fallback_providers, model: not printed without --eval-run", self.f.out)
         self.assertIn("hermes config set terminal.docker_volumes '[\"/a:/b\"]'", self.f.out)
         self.assertNotIn("config set hooks", self.f.out)
         self.assertIn("jobs.json isn't written here", self.f.out)
+        self.assertEqual(self.f.deploy("vps/skills/"), 2, self.f.out)
+        self.assertIn("vps/skills/ needs --eval-run", self.f.out)
+        run = "evals/results/2026-11-25T1000-x.jsonl"
+        self.f.change({run: json.dumps({"setup": {"telma_commit": self.f.head()}}) + "\n"})
+        self.assertEqual(self.f.deploy("--eval-run", run, "vps/config.overrides.yaml", "vps/skills/"), 2, self.f.out)
+        self.assertIn("hermes config set model.default m2", self.f.out)
         self.assertIn("PR on the brain repo", self.f.out)
         self.assertEqual(self.f.host_text("/h/config.yaml"), config)
 

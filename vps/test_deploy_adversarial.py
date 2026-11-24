@@ -101,8 +101,8 @@ class Attack(unittest.TestCase):
     # PLAN table: a symlink on the path is "never followed"; deploy test says "never deployed through".
     # The folder is swapped for a symlink after COPY's check and before its write (race injected
     # the same way test_deploy.py's test_a_host_change_after_the_diff_stops_the_copy injects one).
-    # Open: the owner decides whether to close this race (dir_fd and O_NOFOLLOW on every part).
-    @unittest.expectedFailure
+    # Closed in the second fix round (owner): every path is opened part by part, O_NOFOLLOW, and later
+    # steps work on the opened folder. The swap is injected right before the temp file is written.
     def test_a_folder_swapped_for_a_symlink_mid_copy_is_not_written_through(self):
         elsewhere = self.f.host / "elsewhere"
         elsewhere.mkdir()
@@ -112,7 +112,7 @@ class Attack(unittest.TestCase):
                 f"        os.rename({str(h)!r}, {str(h) + '.real'!r}); os.symlink({str(elsewhere)!r}, {str(h)!r})\n")
         script = self.f.repo / "vps/remote/deploy_host.py"
         src = script.read_text()
-        anchor = '    tmp = os.path.join(folder, ".%s.deploy-tmp" % os.path.basename(p))\n'
+        anchor = '    write_new(dfd, tmp, base64.b64decode(f["data"])'
         self.assertIn(anchor, src)
         self.f.change({"vps/a.sh": "echo a2\n", "vps/remote/deploy_host.py": src.replace(anchor, swap + anchor, 1)})
         self.f.deploy("vps/a.sh", answers="y\n")

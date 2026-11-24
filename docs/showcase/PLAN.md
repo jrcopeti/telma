@@ -68,5 +68,4 @@ or file name, and any note with personal content.
 4. **An alert:** the T6 canary or tripwire post in `#alerts` (crop the source IP).
 5. **Optional GIF:** 20 to 30 seconds of 1 then 2.
 
-Retaken 2026-11-24 after her new icon: 1, 3 and 4 plus the capabilities and new-session shots. No
-ask-brain shot yet, so the README's ask-brain part has none.
+Retaken 2026-11-24 after her new icon: 1 to 4 plus the capabilities and new-session shots.

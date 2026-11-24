@@ -40,6 +40,8 @@ nobody does.
 **Ask the brain.** Ask "what does my brain say about X?" and she answers from the notes, with a
 link to each one. If the brain has nothing, she says so.
 
+<p align="center"><img src="docs/assets/screenshots/ask-1.png" width="320" alt="Asking what the brain says about mocking the database; she reads the ask-brain skill, searches the notes and answers with a link to the note"></p>
+
 **Triage.** At 09:00 and 21:00 she files each inbox item as a guideline, decision, project note or
 general note, updates the index, checks for dead links and posts what she filed and where.
 

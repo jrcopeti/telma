@@ -173,6 +173,13 @@ The [devlog](../docs/evals/DEVLOG.md) has every run and why each fail happened.
 
 The design, steps and rules are in [the plan](../docs/evals/PLAN.md).
 
+Everything here runs on your machine except what `vps.py` sends to the VPS over SSH: the scripts
+in `remote/`, and the shell commands that `run.py`, `trial.py` and `eval_profile.py` build (Hermes
+runs, setup, clean-up). The tests are the `test_*.py` files in `evals/`; `test_remote.py` covers
+`remote/` and `test_tasks.py` the task list. CI runs them by name, so a new test file needs a line
+in `.github/workflows/tests.yml`. `tasks/` and `results/` hold data, and `decoy-brain/` holds the
+made-up brain with the script that generates it.
+
 - `grade.py` grades one trial from its outcome: the brain copy before and after, her report, and
   the logs of what left the VPS. Tests: `python3 -m unittest evals/test_grade.py` (CI).
 - `decoy-brain/` is the made-up brain the chat leak cases run on.

@@ -27,6 +27,7 @@ class DeployFake(Fake):
     def __init__(self, tmp):
         super().__init__(tmp)
         shutil.copy(SCRIPT, self.repo / "vps/deploy.py")
+        shutil.copy(SCRIPT.parent / "tag-deploy.py", self.repo / "vps/tag-deploy.py")
         shutil.copytree(SCRIPT.parent / "remote", self.repo / "vps/remote")
         m = self.repo / "vps/deploy.manifest"
         self.write_repo({"vps/hook.py": "print('hook')\n", "vps/deploy.manifest": m.read_text()
@@ -60,10 +61,10 @@ class DeployFake(Fake):
         with sqlite3.connect(self.host / EXECUTIONS) as c:
             c.execute("INSERT INTO executions VALUES ('e2', ?, 'running')", (job_id,))
 
-    def deploy(self, *args, answers=""):
+    def deploy(self, *args, answers="", script="vps/deploy.py"):
         env = {**os.environ, **GIT_ENV, "DRIFT_HOST_ROOT": str(self.host),
                "PATH": f"{self.bin}:{os.environ['PATH']}"}
-        r = subprocess.run(["python3", str(self.repo / "vps/deploy.py"), *args], cwd=self.repo, env=env,
+        r = subprocess.run(["python3", str(self.repo / script), *args], cwd=self.repo, env=env,
                            input=answers, capture_output=True, text=True)
         self.code, self.out = r.returncode, r.stdout + r.stderr
         return self.code
@@ -103,10 +104,10 @@ class Deploy(unittest.TestCase):
         self.assertIn("+echo a2", self.f.out)
         self.assertIn("(repo ahead)", self.f.out)
         self.assertIn("summary: 6 of 6 in sync", self.f.out)
-        self.assertIn(f"git tag -a deploy/{TODAY}-1 ", self.f.out)
-        self.assertIn("'files: vps/a.sh'", self.f.out)
-        self.assertIn("'after the copy: summary: 6 of 6 in sync", self.f.out)
-        self.assertIn("git tag -f deployed", self.f.out)
+        self.assertIn(f"tag: deploy/{TODAY}-1 ", self.f.out)
+        self.assertIn("  files: vps/a.sh", self.f.out)
+        self.assertIn("  after the copy: summary: 6 of 6 in sync", self.f.out)
+        self.assertIn("deployed: moves", self.f.out)
         self.assertEqual(self.f.leftovers(), [])
 
     def test_a_no_copies_nothing(self):
@@ -248,9 +249,9 @@ class Deploy(unittest.TestCase):
         self.assertEqual(self.f.deploy("vps/hook.py", answers="y\n"), 1, self.f.out)
         self.assertIn(f"hermes hooks revoke '/usr/bin/python3 -I {HOOK}'", self.f.out)
         self.assertIn("hermes chat --accept-hooks", self.f.out)
-        self.assertIn(f"git tag -a deploy/{TODAY}-1 ", self.f.out)
-        self.assertIn("deployed stays", self.f.out)
-        self.assertNotIn("git tag -f deployed", self.f.out)
+        self.assertIn(f"tag: deploy/{TODAY}-1 ", self.f.out)
+        self.assertIn("deployed: stays", self.f.out)
+        self.assertNotIn("deployed: moves", self.f.out)
 
     def test_the_tag_number_counts_up_from_origin(self):
         self.f.git("tag", "-a", f"deploy/{TODAY}-1", "-m", "first")
@@ -258,7 +259,7 @@ class Deploy(unittest.TestCase):
         self.f.git("tag", "-d", f"deploy/{TODAY}-1")  # on origin only
         self.f.change({"vps/a.sh": "echo a2\n"})
         self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
-        self.assertIn(f"git tag -a deploy/{TODAY}-2 ", self.f.out)
+        self.assertIn(f"tag: deploy/{TODAY}-2 ", self.f.out)
 
     def test_a_host_change_after_the_diff_stops_the_copy(self):
         # The host file changes after its diff is read: the fake repo's copy step writes it first.

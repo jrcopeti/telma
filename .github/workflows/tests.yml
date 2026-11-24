@@ -56,7 +56,7 @@ jobs:
         run: sudo apt-get install -y --no-install-recommends python3-yaml
 
       - name: Test the drift check and the deploy against a fake host
-        run: python3 -m unittest vps/test_check_drift.py vps/test_check_drift_adversarial.py vps/test_deploy.py vps/test_deploy_adversarial.py
+        run: python3 -m unittest vps/test_check_drift.py vps/test_check_drift_adversarial.py vps/test_deploy.py vps/test_deploy_adversarial.py vps/test_deploy_adversarial2.py vps/test_tag_deploy.py
 
   decoy-brain:
     runs-on: ubuntu-24.04

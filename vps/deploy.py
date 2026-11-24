@@ -64,14 +64,29 @@ def remote(request):
     return subprocess.run(cmd, input=json.dumps({**request, "root": root()}), capture_output=True, text=True)
 
 
+def pending_dir():
+    """Where a deploy leaves its tag for tag-deploy.py: the common git dir, so worktrees share it."""
+    common = Path(git("rev-parse", "--git-common-dir").stdout.decode().strip())
+    return (REPO / common if not common.is_absolute() else common) / "deploy-pending"
+
+
+def pending():
+    """The tags deploys left and tag-deploy.py hasn't made yet, oldest first."""
+    found = []
+    for f in pending_dir().glob("*.json"):
+        found.append(json.loads(f.read_text()) | {"file": f})
+    return sorted(found, key=lambda p: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", p["tag"])])
+
+
 def next_tag(day):
-    """deploy/<day>-<n>, n one past the highest taken here or on origin."""
+    """deploy/<day>-<n>, n one past the highest taken here, on origin or pending."""
     pattern = f"deploy/{day}-*"
     remote_tags = git("ls-remote", "--tags", "origin", f"refs/tags/{pattern}", check=False)
     if remote_tags.returncode:
         raise Stop("git ls-remote origin failed: the deploy tag's number needs origin's tags")
     taken = git("tag", "-l", pattern).stdout.decode().split()
     taken += [line.split("refs/tags/")[1].removesuffix("^{}") for line in remote_tags.stdout.decode().splitlines()]
+    taken += [p["tag"] for p in pending()]
     numbers = [int(m.group(1)) for t in taken if (m := re.fullmatch(rf"deploy/{day}-(\d+)", t))]
     return f"deploy/{day}-{max(numbers, default=0) + 1}"
 
@@ -306,7 +321,8 @@ def deploy(args):
 
 
 def finish(rows, deployed, head, tag, backup, summary, code):
-    """What each file still needs and the tag commands. Runs after every copy, so it never raises."""
+    """What each file still needs, and the tag left pending for tag-deploy.py. Runs after every copy,
+    so it never raises: if the pending file can't be written, it prints the tag commands instead."""
     steps = []
     for row in deployed:
         try:
@@ -319,14 +335,22 @@ def finish(rows, deployed, head, tag, backup, summary, code):
         print("\nstill to do:\n  " + "\n  ".join(steps))
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
-    print("\ntag commands (the owner runs them; this script never writes a tag):")
-    print(f"  git tag -a {tag} {head[:7]} " + " ".join(f"-m {shlex.quote(m)}" for m in msg))
-    print(f"  git push origin {tag}")
+    try:
+        pending_dir().mkdir(exist_ok=True)
+        (pending_dir() / (tag.replace("/", "_") + ".json")).write_text(json.dumps(
+            {"tag": tag, "commit": head, "message": msg, "in_sync": code == 0}))
+    except Exception as e:
+        print(f"\ndeploy: couldn't leave the tag pending ({e}); its commands:")
+        print(f"  git tag -a {tag} {head[:7]} " + " ".join(f"-m {shlex.quote(m)}" for m in msg))
+        print(f"  git push origin {tag}")
+        return
+    print(f"\ntag: {tag} on {head[:7]}, pending (this script never writes a tag)\n  " + "\n  ".join(msg[1:]))
     if code == 0:
-        print(f"  git tag -f {drift.TAG} {head[:7]} && git push -f origin {drift.TAG}")
+        print(f"{drift.TAG}: moves to {head[:7]} with it")
     else:
-        print(f"  {drift.TAG} stays: move it to {head[:7]} when check-drift.py exits 0"
-              + (" (after the steps above)" if steps else ""))
+        print(f"{drift.TAG}: stays; once check-drift.py exits 0"
+              + (" (after the steps above)" if steps else "") + ": python3 vps/tag-deploy.py --deployed")
+    print("create and push it: python3 vps/tag-deploy.py")
 
 
 def main():

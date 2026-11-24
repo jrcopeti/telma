@@ -187,3 +187,19 @@
   docstring names its real invocation.
 - Reasoned, in the plan's Open: a job starting between the running-jobs check and the swap; two
   deploys in a day before the first tag exists (kept as an expected failure).
+
+## 2026-11-24: PR 2, `tag-deploy.py`
+
+- The owner's answers to the second round's open items: a script for the tag commands, and the job
+  window between the running-jobs check and the swap accepted (plan's deploy bullet).
+- `deploy.py` leaves each deploy's tag in `<common git dir>/deploy-pending/<tag>.json` instead of
+  printing commands to copy (it prints them only if it can't write the file). `next_tag` counts
+  these, so two deploys before tagging get `-1` and `-2`: the second round's expected failure
+  passes now.
+- `vps/tag-deploy.py`, run by the owner: each pending tag after a yes, oldest first, made and
+  pushed, its file removed. A tag that exists already is left pending, to look at by hand.
+  `deployed` moves with the newest only when its re-check was in sync and nothing was skipped;
+  `--deployed` runs check-drift now (its doctor alert included) and moves `deployed` to HEAD if it
+  exits 0, for a hook moved in sync by its re-approval. "Only the owner moves tags" holds: the
+  owner runs it and answers each yes.
+- Tests: `vps/test_tag_deploy.py`, 5, against the bare origin; 71 across the six suites, in CI.

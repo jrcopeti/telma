@@ -101,7 +101,9 @@ eval run writes the check's summary into its results.
   the folder opened, so a link planted or swapped in mid-copy is never written through (her folders
   are hers; the copy runs as root). A path that isn't a plain file is not deployed. Right before the copy it checks no job of hers is running (it
   stops, copying nothing, if one is), then copies all the files in one quick step, so no job sees
-  half the new files and half the old. It only prints what each file still needs
+  half the new files and half the old. A job that starts in the moment between that check and the
+  swap is accepted (owner, 2026-11-24): closing it would mean holding Hermes's scheduler lock, tied
+  to a Hermes internal and still open to a job fired by hand or by her cron tool. It only prints what each file still needs
   after (`after` below); it never restarts, rebuilds or runs a job. It deploys only main as pushed,
   with nothing uncommitted under `vps/`: the re-check reads the checkout, so an uncommitted file
   there could read in sync and move `deployed` to a commit the host doesn't match.
@@ -112,10 +114,14 @@ eval run writes the check's summary into its results.
   highest on that day, here or on origin, and no copy when origin's tags can't be read), on
   the deployed commit, whose message holds the files, the backup folder and the check's summary line
   after the copy. `git tag -l 'deploy/*' -n20` lists every deploy. It lives in the repo, where she
-  can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. The script
-  prints the tag commands and the owner runs them, as with `deployed`: it never writes or pushes a
-  tag. The `deployed` move is printed only when the re-check exits 0; otherwise it says `deployed`
-  stays, per the rule above.
+  can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. `deploy.py`
+  never writes a tag: it leaves the tag pending in the common git dir (`deploy-pending/`, counted
+  when it numbers the next one, so two deploys before tagging get two names), and the owner runs
+  `vps/tag-deploy.py`, which makes and pushes each pending tag after a yes, oldest first. It moves
+  `deployed` with the newest only when that deploy's re-check was in sync and none was skipped;
+  otherwise `deployed` stays, per the rule above, until `tag-deploy.py --deployed` runs the check
+  and finds it in sync (after a hook's re-approval, say). A copy that ran part way leaves its tag
+  pending too (owner, 2026-11-24).
 - **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
   in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
 
@@ -147,19 +153,12 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 | 1 | **This plan.** | The owner merges it | done (#67) |
 | 2 | **PR 0: move `vps/telma/` to `vps/`.** `git mv`; fix CI, `evals/grade.py`, the test scripts' "Run:" lines and the live docs. In the frozen docs fix only the 6 broken links, prose left as history; `AGENTS.md` names this second exception. Then a PR in ticket-bay-bot for its two links to `kill-switch.md` (`vps/host.md` and its own `kill-switch.md`), merged right after this one, and the brain's `projects/telma.md`. Nothing deployed changes. | CI green; no `vps/telma` left outside history prose (devlogs, finished plans and rows) | done (#68) |
 | 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.py` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | done (#70), after the owner re-approved two hooks; `deployed` on `dcee608` |
-| 4 | **PR 2: `deploy.py`.** As decided above, with the `deploy/<date>-<n>` tag. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; its `deploy/` tag pushed and `deployed` moved | in progress |
+| 4 | **PR 2: `deploy.py` and `tag-deploy.py`.** As decided above, with the `deploy/<date>-<n>` tag. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; its `deploy/` tag pushed and `deployed` moved by `tag-deploy.py` | in progress |
 | 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results folder has `drift.txt` | |
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |
 
 ## Open
 
-- A job can start in the moment between the copy's running-jobs check and its swap. Closing it
-  would mean holding Hermes's scheduler lock (`~/.hermes/cron/.tick.lock`) across the swap: about
-  ten lines, but it ties the deploy to a Hermes internal, and it doesn't cover a job fired by hand
-  or by her cron tool. The owner's call.
-- Two deploys on one day before the owner runs the first one's tag commands both print
-  `deploy/<day>-1`; a copy that ran part way (exit 3) prints its tag too. The owner's call
-  (`test_deploy_adversarial2.py` keeps the first as an expected failure).
 - How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
   from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
   `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the

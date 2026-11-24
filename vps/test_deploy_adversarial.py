@@ -28,7 +28,7 @@ class Attack(unittest.TestCase):
             self.f.git("push", "-q", "origin", f"deploy/{TODAY}-{n}")
         self.f.change({"vps/a.sh": "echo a2\n"})
         self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
-        self.assertIn(f"git tag -a deploy/{TODAY}-4 ", self.f.out)
+        self.assertIn(f"tag: deploy/{TODAY}-4 ", self.f.out)
 
     # PLAN: "here or on origin" -- a failed ls-remote must not silently drop origin's tags
     def test_a_failed_ls_remote_is_not_silently_ignored(self):
@@ -41,7 +41,7 @@ class Attack(unittest.TestCase):
         shim.chmod(0o755)
         self.f.change({"vps/a.sh": "echo a2\n"})
         self.f.deploy("vps/a.sh", answers="y\n")
-        self.assertNotIn(f"git tag -a deploy/{TODAY}-1 ", self.f.out)
+        self.assertNotIn(f"tag: deploy/{TODAY}-1 ", self.f.out)
 
     # deploy.py docstring: "2 when nothing was copied"
     def test_a_no_exits_2_as_the_docstring_says(self):
@@ -63,7 +63,7 @@ class Attack(unittest.TestCase):
         self.f.write_repo({"vps/hook.py": "print('hand fix')\n"})  # uncommitted, not named
         self.f.write_host("/home/agent/.hermes/agent-hooks/hook.py", "print('hand fix')\n", 0o755)
         self.f.deploy("vps/a.sh", answers="y\n")
-        self.assertNotIn("git tag -f deployed", self.f.out)
+        self.assertNotIn("deployed: moves", self.f.out)
 
     # PLAN: "It only prints what each file still needs after (`after` below)"; config's after is
     # restart-gateway. REASONED: the expected value is a reading of the plan.

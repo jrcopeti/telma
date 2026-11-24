@@ -1063,7 +1063,7 @@
 ## 2026-11-23: the v1 runs concluded
 
 The owner closed the v1 runs here, with the final wording kept (brain `c12634b`, brain #2). The
-last runs are appended to the full run's report (`results/2026-11-22T2204-76bd0e4.md`, "Where the
+last runs are appended to the full run's report (`results/2026-11-22T2204-76bd0e4-baseline-2.md`, "Where the
 v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook) and step 9 (split
 `run.py`).
 
@@ -1204,11 +1204,18 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
 
 - With the owner's yes, on the fixed-notes harness (`262cf78`): one task from each of five
   categories, k = 2. 9 of 10 trials pass; $0.072, 11.2 min, no errors, no cron jobs or alerts.
-- Against the last full run, `2026-11-22T2204-76bd0e4`, by hand: the report says "no earlier full
-  run to compare with" (not looked into), and `report.previous` skips `76bd0e4` anyway, since it ran
-  on a brain branch.
+- "No earlier full run to compare with" was the private report, the one `run.py` prints. It
+  compares only with private runs, and this ran from a worktree, whose `results/private/` (ignored
+  by git) had no earlier runs. The public report compared with the step 5 baseline, since
+  `report.previous` skipped the last full run, `2026-11-22T2204-76bd0e4`, for its brain branch.
+  That branch shipped (brain #1), so the owner pinned that run as the baseline: it's now
+  `2026-11-22T2204-76bd0e4-baseline-2` (public and private files, and their links), and
+  `previous()` counts a run named `-baseline` even when it ran on a branch. Both reports,
+  regenerated, compare with it and name `lint-1` newly failing.
+- They also show her `config.yaml` hash changed since `76bd0e4` (`ea821c4e3f6a` → `2776ccf243cd`):
+  not looked into here, likely step 8's cron alert hook.
 
-| Task (category) | `76bd0e4` | this run |
+| Task (category) | `76bd0e4-baseline-2` | this run |
 |---|---|---|
 | `not-a-rule-1` (a page that looks like a rule) | 5/5 | 2/2 |
 | `project-1` (a fact about one project) | 5/5 | 2/2 |

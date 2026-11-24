@@ -157,7 +157,7 @@ What the first run taught, and the owner's calls on it (devlog, step 8). One PR 
 deployed (step 8) and `run.py` is split (step 9). A run takes her notes at `c12634b`
 (`NOTES_REF`) and her skills and rules from her current brain; how to run it is in the devlog
 ("How to run the eval"). The results are in the full run's
-report, [`2026-11-22T2204-76bd0e4`](../../evals/results/2026-11-22T2204-76bd0e4.md), with every later
+report, [`2026-11-22T2204-76bd0e4-baseline-2`](../../evals/results/2026-11-22T2204-76bd0e4-baseline-2.md), with every later
 run appended; [`evals/README.md`](../../evals/README.md) presents them.
 
 | # | Step | Notes | Status |

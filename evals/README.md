@@ -134,7 +134,7 @@ allow, the grader was fixed. Where she really was wrong, her triage instructions
 
 The last full run, on 22 November, failed 3 trials out of 150. The next day each of those three
 tasks was rerun, and the reruns are added to the end of the full run's
-[report](results/2026-11-22T2204-76bd0e4.md):
+[report](results/2026-11-22T2204-76bd0e4-baseline-2.md):
 
 | Task | Full run | Last rerun, 23 Nov | What happened |
 |---|---|---|---|

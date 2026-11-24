@@ -170,9 +170,7 @@ The tests run in CI, and gitleaks scans the full history on every push.
 
 ## Credits
 
-Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research. Telma
-started as the coding employee in [AI Agent Engineer](https://aiagentengineer.dev/), Daniel Moka's
-course.
+Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
 
 A personal project: issues are welcome, pull requests aren't expected. To report a security
 problem, see [SECURITY.md](SECURITY.md).

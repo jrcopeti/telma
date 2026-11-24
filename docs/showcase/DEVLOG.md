@@ -159,3 +159,5 @@
   metadata (only macOS's "Screenshot" comment). The owner's Discord username is blurred in
   `capture-1`, `capabilities` and `ask-1` (owner's request). Channel and thread names, a cron job
   ID and a Hermes session ID show; none of them identify anyone or open anything.
+- Owner's correction: the "started as the coding employee in AI Agent Engineer" line in the README
+  credits is true only of ticket-bay-bot. Removed.

@@ -74,6 +74,10 @@ eval run writes the check's summary into its results.
   says where it came from, and the check runs only on demand, after a deploy and before an eval
   (owner, 2026-11-24, PR 1). The ssh is otherwise read-only: files are read as root, only the
   doctor runs as `agent`.
+- **The hooks stay owned by `agent`.** Her file and terminal tools run in the sandbox and can't
+  reach `~/.hermes/agent-hooks/`, so they are safe from her (owner, 2026-11-24). Accepted with it: a
+  change to a hook or to `config.yaml` by something else running as `agent` on the host shows only
+  when this check runs, never on a schedule (`memory-diff` watches `memories` and `skills` only).
 - **A tree's mode isn't checked, only its owner.** The skills' modes come from git through
   sync-brain (`644`, `664`, `755` and `775` on the VPS today), not from a deploy (PR 1).
 - **Host state too:** the Hermes commit of both installs and `/opt/hermes-guard` (the lockstep
@@ -120,7 +124,7 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 |---|---|---|---|
 | 1 | **This plan.** | The owner merges it | done (#67) |
 | 2 | **PR 0: move `vps/telma/` to `vps/`.** `git mv`; fix CI, `evals/grade.py`, the test scripts' "Run:" lines and the live docs. In the frozen docs fix only the 6 broken links, prose left as history; `AGENTS.md` names this second exception. Then a PR in ticket-bay-bot for its two links to `kill-switch.md` (`vps/host.md` and its own `kill-switch.md`), merged right after this one, and the brain's `projects/telma.md`. Nothing deployed changes. | CI green; no `vps/telma` left outside history prose (devlogs, finished plans and rows) | done (#68) |
-| 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.py` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | in review: 17 of 17 in sync, Hermes ok; hooks wait on the owner's re-approval, then the tag |
+| 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.py` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | done (#70), after the owner re-approved two hooks; `deployed` on `dcee608` |
 | 4 | **PR 2: `deploy.sh`.** As decided above. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; the tag moved | |
 | 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results folder has `drift.txt` | |
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |

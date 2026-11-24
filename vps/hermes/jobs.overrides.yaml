@@ -1,0 +1,25 @@
+# Telma's four jobs as they should be in ~/.hermes/cron/jobs.json, checked by check-drift.py.
+# Hermes's names: `schedule` is its schedule.display, `toolsets` its enabled_toolsets. `prompt`
+# names the file the job's prompt comes from. brain-triage's toolsets give unattended work no way
+# out (the threat model), and a chat's cronjob tool can change them.
+sync-brain:
+  schedule: every 15m
+  script: sync-brain.sh
+  skills: []
+  toolsets: null
+tripwire-health:
+  schedule: every 15m
+  script: tripwire-health.sh
+  skills: []
+  toolsets: null
+brain-triage:
+  schedule: 0 9,21 * * *
+  script: null
+  skills: [triage, lint]
+  toolsets: [terminal, file, skills, todo]
+  prompt: vps/hermes/brain-triage-prompt.txt
+memory-diff:
+  schedule: 30 9,21 * * *
+  script: memory-diff.sh
+  skills: []
+  toolsets: null

@@ -14,7 +14,9 @@ The bot runs as `ticket-bay-bot`, next to `ticket-bay-app` and `skills-sync`. Bo
 
 ## Where each file is deployed
 
-Copied by hand; `~` is Telma's home, `/home/agent`.
+Copied by hand; `~` is Telma's home, `/home/agent`. [`deploy.manifest`](deploy.manifest) lists each
+file with its owner and mode, and [`check-drift.py`](check-drift.py), run from the local machine,
+says whether the VPS still matches the repo.
 
 | In this repo | On the VPS |
 |---|---|
@@ -28,7 +30,7 @@ Copied by hand; `~` is Telma's home, `/home/agent`.
 | `sandbox/Dockerfile` | `~/sandbox/` |
 
 The deployed `SOUL.md` differs from this copy on purpose: it names the owner where this copy says
-`<OWNER'S NAME>`.
+`{{OWNER_NAME}}`. The check fills that in from a private file outside the repo before comparing.
 
 Most of `~/.hermes/config.yaml` is Hermes's own defaults, written by its installer.
 [`config.overrides.yaml`](hermes/config.overrides.yaml) holds only the settings chosen for
@@ -55,12 +57,10 @@ Each is a job in `~/.hermes/cron/jobs.json`; scripts are in `~/.hermes/scripts/`
 goes to her Discord channel, and the scripts print nothing when all is well, so most runs post
 nothing. The tripwire and cron alert hooks post to `#alerts`.
 
-| Job | When (Berlin) | Script | Agent | Skills, toolsets and prompt |
-|---|---|---|---|---|
-| `sync-brain` | every 15 min | `sync-brain.sh` | no | — |
-| `tripwire-health` | every 15 min | `tripwire-health.sh` | no | — |
-| `brain-triage` | 09:00, 21:00 | — | yes | `triage`, `lint`; terminal, file, skills, todo; [brain-triage-prompt.txt](hermes/brain-triage-prompt.txt) |
-| `memory-diff` | 09:30, 21:30 | `memory-diff.sh` | no | — |
+[`jobs.overrides.yaml`](hermes/jobs.overrides.yaml) holds the four jobs' schedules (Berlin time),
+scripts, skills and toolsets: `sync-brain` and `tripwire-health` every 15 minutes, `brain-triage`
+(an agent run, with [this prompt](hermes/brain-triage-prompt.txt)) at 09:00 and 21:00, and
+`memory-diff` at 09:30 and 21:30.
 
 Jobs she makes in a chat (a reminder) land in the same file; the cron alert hook posts each one to
 `#alerts`. None of them is copied here.

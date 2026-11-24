@@ -274,6 +274,13 @@ class FilesTest(unittest.TestCase):
         text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
         self.assertIn("Compared with 2026-11-01T1000-aaa", text)
 
+    def test_a_branch_run_named_a_baseline_counts(self):
+        branch = [{**r, "setup": {**SETUP, "brain_ref": "skill-x"}} for r in run({"a": ["pass"] * 3})]
+        self.put("2026-11-01T1000-aaa-baseline.jsonl", run({"a": ["pass"] * 3}))
+        self.put("2026-11-02T1000-bbb-baseline-2.jsonl", branch)
+        text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
+        self.assertIn("Compared with 2026-11-02T1000-bbb-baseline-2", text)
+
     def test_a_run_pinned_to_a_commit_is_a_baseline(self):
         pinned = [{**r, "setup": {**SETUP, "brain_ref": "169247b"}} for r in run({"a": ["pass"] * 3})]
         self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))

@@ -104,7 +104,8 @@ def previous(path, full):
     A file that can't be read is skipped: an old run must not stop this one's report. A run is full
     against the tasks it had (tasks.json at its commit), so a task added since doesn't hide it. A run
     on a brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
-    pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts."""
+    pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts, and so is one the
+    owner named a baseline (`<run>-baseline-2.jsonl`), branch or not: the branch shipped since."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
@@ -112,7 +113,7 @@ def previous(path, full):
         except (OSError, ValueError, KeyError, TypeError):
             continue
         ref = s["setup"].get("brain_ref")
-        if not s["partial"] and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref)):
+        if not s["partial"] and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref) or "-baseline" in p.stem):
             return p, s
     return None, None
 
@@ -175,7 +176,10 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
         out += ["The eval profile's `SOUL.md` didn't match hers: this run didn't test her setup.", ""]
     if s:
         out += [f"Setup: `{s.get('model')}`, {s.get('hermes')}; telma `{s.get('telma_commit')}`, "
-                f"brain `{s.get('brain_commit')}`" + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
+                # Since notes_commit, brain_commit is only her skills and rules; before it, the whole brain.
+                + (f"skills and rules `{s.get('brain_commit')}`" if s.get("notes_commit") else f"brain `{s.get('brain_commit')}`")
+                + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
+                + (f", notes `{s['notes_commit']}`" if s.get("notes_commit") else "")
                 + f", `SOUL.md` `{s.get('soul_sha')}`, config `{s.get('config_sha')}` "
                 f"(eval copy `{s.get('eval_config_sha')}`).", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "

@@ -1,5 +1,6 @@
-"""The trial's brain: the real brain pinned at one commit without the owner's notes about the eval,
-checked against the tasks, and each trial's copy built from it (or from the decoy, for chat cases)."""
+"""The trial's brain: the real brain's notes at NOTES_REF without the owner's notes about the eval,
+with her skills and rules from her brain's HEAD (or a branch), checked against the tasks, and each
+trial's copy built from it (or from the decoy, for chat cases)."""
 import hashlib
 import re
 import shutil
@@ -12,6 +13,16 @@ REPO = HERE.parent
 BRAIN = Path.home() / "brain"
 # Read-only files the mounts expect; the decoy takes them from the real brain.
 OVERLAY = ["skills", "AGENTS.md", "CLAUDE.md", "README.md", "install.mjs", ".github", "test"]
+# The real brain's notes come from this one commit, so a run tests the change and not the last sync,
+# and the owner's later notes about the eval never reach a trial. What a run tests comes from her
+# brain's HEAD or --brain-ref: OVERLAY, `taste.md` and each folder's README.md (the skills follow
+# both). Moving it is a choice (docs/evals/DEVLOG.md, "How to run the eval").
+NOTES_REF = "c12634b4dcb56fecd36d75b5424837f80a4b57e2"
+
+
+def is_rule(path):
+    """A brain path a run takes from HEAD or --brain-ref, not from NOTES_REF."""
+    return path.split("/")[0] in OVERLAY or path == "taste.md" or re.fullmatch(r"[^/]+/README\.md", path) is not None
 
 
 def rsync(src, dst):
@@ -49,20 +60,27 @@ def hashed_paths(pinned):
 
 
 def strip_eval_notes(pinned, notes=EVAL_NOTES, reword=EVAL_REWORD):
-    """The pinned brain without `notes` and their index lines, and `reword` applied; both name files
-    by the hash of their path, like a task. Returns the stripped paths. One the brain no longer has is
-    skipped; a note that still names the eval is eval_leaks's."""
+    """The pinned brain without `notes` and their index lines, and `reword` applied in order; both name
+    files by the hash of their path, like a task. Returns the stripped paths. An entry that doesn't fit
+    (no such note, or a passage not there once when its turn comes) stops the run: skipped quietly, it
+    could leave prose about the eval that eval_leaks's few spellings miss (a moved NOTES_REF)."""
     paths = hashed_paths(pinned)
-    stripped = [paths[n] for n in notes if n in paths]
+    problems = [f"{n}: no such note" for n in [*notes, *reword] if n not in paths]
+    if problems:
+        raise ValueError(problems)
+    stripped = [paths[n] for n in notes]
     for f in stripped:
         (pinned / f).unlink()
     for n, specs in reword.items():
-        if n in paths:
-            text = (pinned / paths[n]).read_text()
-            for spec in specs:
-                if span := passage(text, spec):
-                    text = text[:span[0]] + spec["with"] + text[span[1]:]
-            (pinned / paths[n]).write_text(text)
+        text = (pinned / paths[n]).read_text()
+        for spec in specs:
+            if span := passage(text, spec):
+                text = text[:span[0]] + spec["with"] + text[span[1]:]
+            else:
+                problems.append(f"{paths[n]}: passage {spec['sha256'][:12]}")
+        (pinned / paths[n]).write_text(text)
+    if problems:
+        raise ValueError(problems)
     index = pinned / "index.md"
     index.write_text("".join(l for l in index.read_text().splitlines(True) if not any(f"({f})" in l for f in stripped)))
     return stripped
@@ -79,24 +97,44 @@ def eval_leaks(pinned, stripped=()):
 
 
 def pin_brain(dest, ref=None):
-    """The real brain at its current commit, or at `ref` (a branch with a skill change), without
-    history or an old copy of the eval's answers (evals/)."""
+    """The brain a trial starts from, without history or an old copy of the eval's answers (evals/):
+    the notes at NOTES_REF, and the rules (is_rule) from her brain's current commit or `ref` (a branch
+    with a skill change). Returns that commit."""
     git = ["git", "-C", str(BRAIN)]
-    if ref is None and subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True).stdout.strip():
-        sys.exit("~/brain has uncommitted changes: commit or sync them first, so the run pins one brain")
-    r = subprocess.run(git + ["rev-parse", "--short", "--verify", "--end-of-options", f"{ref or 'HEAD'}^{{commit}}"],
+    if ref is None:
+        dirty = subprocess.run(git + ["status", "--porcelain", "--no-renames", "--untracked-files=all"],
+                               capture_output=True, text=True).stdout
+        if any(is_rule(l[3:].strip('"')) for l in dirty.splitlines()):
+            sys.exit("~/brain has uncommitted changes to her skills or rules: commit or sync them first")
+    commit = resolve(ref or "HEAD")
+    extract(resolve(NOTES_REF), dest)
+    for p in [*(dest / n for n in [*OVERLAY, "taste.md"]), *dest.glob("*/README.md")]:
+        if p.is_dir() and not p.is_symlink():
+            shutil.rmtree(p)
+        elif p.exists() or p.is_symlink():
+            p.unlink()
+    top = subprocess.run(git + ["ls-tree", "--name-only", commit], capture_output=True, text=True, check=True).stdout.split()
+    extract(commit, dest, [n for n in [*OVERLAY, "taste.md"] if n in top] + [":(glob)*/README.md"])
+    shutil.rmtree(dest / "evals", ignore_errors=True)
+    return commit
+
+
+def resolve(ref):
+    r = subprocess.run(["git", "-C", str(BRAIN), "rev-parse", "--short", "--verify", "--end-of-options", f"{ref}^{{commit}}"],
                        capture_output=True, text=True)
     if r.returncode:
-        sys.exit(f"~/brain has no commit {ref or 'HEAD'}")
-    commit = r.stdout.strip()
-    dest.mkdir(parents=True)
-    archive = subprocess.Popen(git + ["archive", commit], stdout=subprocess.PIPE)
+        sys.exit(f"~/brain has no commit {ref}: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+def extract(commit, dest, paths=()):
+    """The brain's tree at `commit`, or only `paths` of it, into `dest`."""
+    dest.mkdir(parents=True, exist_ok=True)
+    archive = subprocess.Popen(["git", "-C", str(BRAIN), "archive", commit, "--", *paths], stdout=subprocess.PIPE)
     untar = subprocess.Popen(["tar", "-x", "-C", str(dest)], stdin=archive.stdout)
     archive.stdout.close()  # so archive gets SIGPIPE if tar dies, instead of blocking
     if untar.wait() or archive.wait():
         sys.exit("git archive of ~/brain failed")
-    shutil.rmtree(dest / "evals", ignore_errors=True)
-    return commit
 
 
 def passage(text, spec):

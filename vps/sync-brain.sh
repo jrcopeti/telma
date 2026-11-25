@@ -33,26 +33,34 @@ helper() {
   return "$rc"
 }
 # Hermes writes a file as a temp file next to it, then renames it over the target; the rename can't replace a
-# read-only mount, and the temp file stays. The rule file beside temp file $2 (in commit $1) that holds the
-# most of its lines, if it holds half of them and no other file holds as many; else "unknown".
+# read-only mount, and the temp file stays. The rule file beside temp file $2 (in commit $1) most of whose
+# lines the temp file holds (it is that file plus the edit), if it holds half or more and no other file holds
+# as large a share; else "unknown".
 edit_target() {
-  local dir=${2%/*} f n total best= top=0 tie=0
+  local dir=${2%/*} f n total pct best= top=0 tie=0
   [ "$dir" = "$2" ] && dir=
-  total=$(g cat-file blob "$1:$2" 2>/dev/null | grep -c .)
-  [ "$total" -gt 0 ] || { echo unknown; return; }
   while IFS= read -r -d '' f; do
     [[ $f =~ $PROPOSE ]] && [ "$f" != "$2" ] || continue
-    n=$(grep -cxFf <(g cat-file blob "$1:$f" 2>/dev/null | grep .) <(g cat-file blob "$1:$2" 2>/dev/null | grep .))
-    if [ "$n" -gt "$top" ]; then best=$f top=$n tie=0; elif [ "$n" = "$top" ]; then tie=1; fi
+    total=$(g cat-file blob "$1:$f" 2>/dev/null | grep -c .)
+    [ "$total" -gt 0 ] || continue
+    n=$(grep -cxFf <(g cat-file blob "$1:$2" 2>/dev/null | grep .) <(g cat-file blob "$1:$f" 2>/dev/null | grep .))
+    pct=$((n * 100 / total))
+    if [ "$pct" -gt "$top" ]; then best=$f top=$pct tie=0; elif [ "$pct" = "$top" ]; then tie=1; fi
   done < <(g ls-tree -z --name-only "$1" ${dir:+"$dir/"})
-  if [ "$tie" = 0 ] && [ "$top" -gt 0 ] && [ $((top * 2)) -ge "$total" ]; then echo "$best"; else echo unknown; fi
+  if [ "$tie" = 0 ] && [ "$top" -ge 50 ]; then echo "$best"; else echo unknown; fi
+}
+# A list of lines for Discord (2000 characters a post): the first $1 lines of stdin, each cut short, then a count.
+short() {
+  local all; all=$(cat)
+  { head -n "$1" <<<"$all" | cut -c1-100
+    [ "$(wc -l <<<"$all")" -le "$1" ] || printf 'and %d more\n' $(($(wc -l <<<"$all") - $1)); } | block
 }
 # One post for all the temp files $2... (in commit $1): what happened once, then each temp file with its target.
 failed_writes() {
   local c=$1 t; shift
   echo "A failed edit left a temp file (Hermes can't rename one over a read-only mount). The edit is lost: delete the temp file and make the change by hand."
-  { for t in "${@:1:5}"; do printf 'temp file: %s\nedit to:   %s\n' "$t" "$(edit_target "$c" "$t")"; done
-    [ $# -le 5 ] || printf 'and %d more\n' $(($# - 5)); } | block
+  { for t in "${@:1:3}"; do printf 'temp file: %s\nedit to:   %s\n' "$t" "$(edit_target "$c" "$t")"; done
+    [ $# -le 3 ] || printf 'and %d more\n' $(($# - 3)); } | cut -c1-100 | block
 }
 # Stops the run if a change from $1 to $2 is outside the pattern $3, adds a link or a gitlink, or touches a
 # .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy).
@@ -63,7 +71,7 @@ refuse_outside() {
     g diff --name-only --no-renames -z "$1" "$2" -- | python3 "$FILES" gitfiles || echo "(gitfiles check failed)")
   [ -z "$bad" ] && return
   echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
-  block <<<"$bad"
+  short 8 <<<"$bad"
   tmps=()
   while IFS= read -r -d '' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*$ ]] && ! [[ $t =~ $3 ]] && tmps+=("$t"); done \
     < <(g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" --)

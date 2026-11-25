@@ -1379,12 +1379,16 @@ single-file `:ro` mounts. A skill write fails differently: `skills/` is a read-o
 Done, with the owner's yes: the temp file deleted on the VPS (the only copy of that edit; the rule
 goes to a brain PR by hand, `feat/taste-no-semicolons`). Not changed: the refusal itself. The owner
 prefers sync-brain to keep refusing, with a clear message: `refuse_outside` now adds one paragraph
-and, per temp file (five at most, then "and N more"), "temp file: Y" and "edit to: X" in a code block.
-X is the rule file beside the temp file that holds the most of its lines, and only when it holds at
-least half of them and no other file holds as many; otherwise "unknown". A first version named the
-smallest rule file for an empty temp file (found by `/code-review` and the adversarial round). It
-still posts on each run until the file is gone, like every refusal. Ten tests (97 pass in the Ubuntu
-24.04 image). Not deployed yet.
+and, per temp file (three at most, then "and N more"), "temp file: Y" and "edit to: X" in a code block.
+X is the rule file beside the temp file of which the temp file holds the largest share of lines, and
+only when that share is half or more and no other file ties; otherwise "unknown". Hermes writes the
+whole file, so a temp file is the old file plus the edit, and the share of the rule file's lines is
+the measure (a first version scored the share of the temp file's lines, which named the smallest rule
+file for an empty temp file and "unknown" for a big addition: found by `/code-review` and the
+adversarial round). The list of refused paths above it shows eight lines of 100 characters at most,
+then "and N more", so a post stays under Discord's 2000 characters. It still posts on each run until
+the file is gone, like every refusal. Twelve new tests (100 pass in the Ubuntu 24.04 image). Not
+deployed yet.
 
 The adversarial round also found two older gaps, reproduced on `main`: a temp file under `notes/` is
 pushed to `main`, and one under `skills/` goes to `telma/proposals`, both silently, because those paths

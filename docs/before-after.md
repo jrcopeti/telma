@@ -53,7 +53,7 @@ so it does; the threat model says why both are accepted.
 | Python or Node network code | the command guard only matched `curl`, `wget`, `nc` | no network of its own: loopback only. Telma's `execute_code` can still call her web tools (T6), which the tripwire watches |
 | Gists | the token's gist scope | no GitHub token |
 | Email over SMTP | the app password could send mail | no mail credential |
-| Brain sync | pushed whatever was in the folder, every 15 minutes | pushes Telma's files from its own clone; refuses `skills/`, rule files and links, and alerts |
+| Brain sync | pushed whatever was in the folder, every 15 minutes | pushes Telma's files from its own clone; her changes to `skills/` and rule files go to a `telma/proposals` branch for the owner to merge, and her copy gets `main`'s version back; refuses links and other paths, and alerts |
 | Telma's web and browser tools in chats | open | open, on the host: the tripwire and the canary detect, nothing blocks. `web_extract` sends each URL to a third party (Exa) |
 | Discord link previews | open | open: any link Telma posts is fetched by Discord; the canary sees it |
 
@@ -68,7 +68,9 @@ Before, the sandbox could write that folder, so one injected run could:
 4. and have Claude Code, Codex or Cursor run it there with full permissions.
 
 After, `skills/` is read-only in Telma's sandbox, the bug loop runs on another Linux user that can't
-list the brain, and `sync-brain` refuses any change to `skills/`.
+list the brain, and a change to `skills/` made on the host (Hermes's own skill editing can write it)
+never reaches `main`: `sync-brain` puts it on a branch, `telma/proposals`, and her copy goes back to
+`main`'s version until the owner merges it.
 
 ## Persistence
 

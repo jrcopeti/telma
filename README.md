@@ -101,9 +101,13 @@ rebuilt around it:
   never sees them.
 - **No way out for unattended work.** Triage runs in a rootless Docker sandbox with no network, so
   a page in the inbox has nowhere to send notes.
-- **Her edits can't reach the owner's machine.** Skills and rule files are read-only to her, and
-  the brain is pushed by a host job from its own clone, allowed folders only. 61 tests in CI and
-  four adversarial review rounds back it.
+- **Her edits to the rules reach the owner's machine only after a review.** The skills and rule
+  files (`AGENTS.md`, `CLAUDE.md`, `taste.md`) are read-only in her sandbox, but Hermes's own skill
+  editing runs on the host and can write them. So the job that pushes the brain, from its own clone,
+  sends her notes straight to GitHub and puts any change to a rule file on one branch,
+  `telma/proposals`, for the owner to review and merge. Her copy gets the reviewed version back, so
+  she never runs a rule nobody has seen. Deleting the branch means no. 89 tests in CI, a smoke test
+  against a real repo and adversarial review rounds back it.
 - **Watched where blocking would cost her usefulness.** Chats keep web and browser tools. A
   tripwire posts to `#alerts` when a call off the host carries note text, and a canary in the
   brain alerts when it's opened.

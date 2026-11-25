@@ -1342,3 +1342,9 @@ read-only, clone the repo as her brain, set `BRAIN_DIR`, `BRAIN_REMOTE` (an HTTP
 `BRAIN_QUARANTINE` and a throwaway `HOME`, edit files in the clone and run `vps/sync-brain.sh`
 between steps. Delete the repo and the token's use afterwards.
 
+Docs updated for step 8 (the owner asked, ahead of step 12's sweep): the README bullet on her edits,
+the threat model (diagram, row 3, the signals table), the before/after table and its worst-path
+paragraph, ADR 6 and `host.md`/`kill-switch.md`. The schedule, `SOUL.md` and `taste.md` mount lines
+stay as they are until steps 9 to 12 change what runs. README, threat model and before/after are
+public prose: the owner reads them in this PR.
+

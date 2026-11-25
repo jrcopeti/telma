@@ -8,7 +8,7 @@ or a hand edit on the host) only shows when someone diffs by hand. The rename's 
 evening and still missed four files. The eval's stamp covers only `SOUL.md` and `config.yaml`
 hashes; the showcase plan called that too thin (owner, 2026-11-24).
 
-**Status:** closed 2026-11-25. Every step below is done and the done-when is met, bar one line: `capture/SKILL.md` reads host ahead until its open proposal is merged or its branch deleted.
+**Status:** closed 2026-11-25. Every step below is done and the done-when is met. `capture/SKILL.md` read host ahead until the repo copy caught up with brain PR #4 (see the devlog).
 
 **Done when:** `check-drift.py` reports every manifest line in sync and the hooks and Hermes lines
 `ok`, the `deployed` tag is set, `deploy.py` has deployed at least one change end to end, and each

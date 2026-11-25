@@ -219,3 +219,16 @@
   input at the last question exited 2 after the tags were pushed (now 1; `Quit` is not a stop).
 - Left, in the plan's Open: `in_sync` is the deploy's own re-check, not a fresh one. The test that
   shows it stays as an expected failure.
+
+## 2026-11-25: PR 2, the smoke test
+
+- `vps/smoke-deploy.py`: runs the real `remote/deploy_host.py` and `running_jobs.py` the way a deploy
+  does, against a scratch folder (`/var/tmp/deploy-smoke-<time>`) and a copy of her cron ledger
+  made as `agent` through `su` (the original opened read-only, the copy mode `0600`). Checks the
+  read, a copy (new bytes, owner `agent:agent`, mode, the old file backed up, no temp file left),
+  a running job refused with exit 5, a symlinked folder reported and the copy refused with exit 4,
+  and removes the folder. It reads no live file but the ledger, writes none, runs no job.
+  `--local` rehearses it on this machine. It covers what the fake host can't: the ssh and `su`
+  quoting, her login profile, the real owner change, `dir_fd` on the VPS's Linux.
+- Not covered, left to the first real deploy: a real file, the hooks' re-approval, a gateway
+  restart.

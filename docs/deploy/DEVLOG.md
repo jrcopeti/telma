@@ -248,3 +248,28 @@
   re-approval case). Kept from round 3: the forward-only rule; the stale-`in_sync` finding no longer
   exists, since the offer comes right after the check.
 - The smoke test is untouched: it covers the host side only.
+
+## 2026-11-25: PR 2, fourth adversarial review
+
+- A fourth fresh agent, on the cut and the new smoke test: 16 tests, kept as
+  `vps/test_deploy_adversarial3.py`, in CI (the earlier file of that name, for the pending files,
+  went with them). The suites now answer through a pseudo-terminal (`DeployFake.terminal`).
+- Proved and fixed: a piped stdin (an agent's shell, `yes |`) could create the tag and move
+  `deployed`, so the owner's yes at the keyboard wasn't enforced: `deploy.py` now stops before
+  anything unless stdin is a terminal; a refused tag push skipped the `deployed` offer, and the
+  by-hand list always repeated the tag commands: each step now has its own offer and its own
+  commands; a tag name taken on origin during the run left a stale local tag and dead commands: the
+  tag is numbered again just before the offer, and a refused push removes the local tag.
+- Reasoned, fixed: no tag is offered for a copy that may not have run (exit 3); the `deployed`
+  push leases origin's value (the raw ref, which for an annotated tag isn't the commit); `--deployed`
+  brings this clone's `deployed` to origin's when it is on the commit already (the check reads it);
+  `--deployed` exits 2 when the check couldn't run; abbreviations are off and `--deployed` with
+  `--eval-run` is refused.
+- The smoke test's host side: `setup` makes the scratch folder itself, so a name that exists is not
+  trusted (a link in a pre-made `/var/tmp/deploy-smoke-*` made root chmod outside it); `a.sh` is
+  made and chowned before its folder is handed to `agent`, with no ownership change through a
+  link; `cleanup` removes only a real `deploy-smoke-*` folder that its own user owns (the parent
+  compare checked nothing). A stale-`was` case was added to the smoke test: removing the
+  "changed since its diff" check stayed green before.
+- Left: the local smoke rehearsal can't tell a missing `fchown` (the local user owns everything);
+  the run on the VPS covers it.

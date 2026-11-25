@@ -2,6 +2,7 @@
 Run: python3 -m unittest vps/test_deploy.py"""
 import json
 import os
+import pty
 import shutil
 import sqlite3
 import subprocess
@@ -60,13 +61,31 @@ class DeployFake(Fake):
         with sqlite3.connect(self.host / EXECUTIONS) as c:
             c.execute("INSERT INTO executions VALUES ('e2', ?, 'running')", (job_id,))
 
-    def deploy(self, *args, answers=""):
-        env = {**os.environ, **GIT_ENV, "DRIFT_HOST_ROOT": str(self.host),
-               "PATH": f"{self.bin}:{os.environ['PATH']}"}
-        r = subprocess.run(["python3", str(self.repo / "vps/deploy.py"), *args], cwd=self.repo, env=env,
-                           input=answers, capture_output=True, text=True)
+    def env(self):
+        return {**os.environ, **GIT_ENV, "DRIFT_HOST_ROOT": str(self.host), "PATH": f"{self.bin}:{os.environ['PATH']}"}
+
+    def terminal(self, answers):
+        """A pseudo-terminal with the owner's answers typed ahead, then Ctrl-D for every prompt after
+        them: deploy.py only runs at a terminal. Returns (master, slave); the caller closes both."""
+        master, slave = pty.openpty()
+        os.write(master, answers.encode() + b"\x04" * 40)
+        return master, slave
+
+    def deploy(self, *args, answers="", tty=True):
+        master, slave = self.terminal(answers) if tty else (None, None)
+        try:
+            r = subprocess.run(["python3", str(self.repo / "vps/deploy.py"), *args], cwd=self.repo, env=self.env(),
+                               stdin=slave if tty else None, input=None if tty else answers,
+                               capture_output=True, text=True)
+        finally:
+            for fd in (master, slave):
+                if fd is not None:
+                    os.close(fd)
         self.code, self.out = r.returncode, r.stdout + r.stderr
         return self.code
+
+    def lg(self, *args):
+        return subprocess.run(["git", *args], cwd=self.repo, capture_output=True, text=True).stdout.strip()
 
     def head(self):
         return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.repo, capture_output=True,
@@ -294,7 +313,9 @@ class Deploy(unittest.TestCase):
         hook.write_text("#!/bin/sh\nexit 1\n")
         hook.chmod(0o755)
         self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\n"), 0, self.f.out)
-        self.assertIn(f"deploy/{TODAY}-1 is made here, not pushed: git push origin deploy/{TODAY}-1", self.f.out)
+        self.assertIn(f"deploy/{TODAY}-1 was not pushed", self.f.out)
+        self.assertIn(f"git push origin deploy/{TODAY}-1", self.f.out)
+        self.assertEqual(self.f.lg("tag", "-l", "deploy/*"), "")  # not left made here, so the commands run as printed
         self.assertNotIn("Traceback", self.f.out)
 
     def test_deployed_does_not_go_backwards(self):

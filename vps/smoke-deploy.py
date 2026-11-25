@@ -109,6 +109,11 @@ def main():
         check("copy: the old file kept in a backup, no temp file left",
               "smoke-1" in r.stdout and ".deploy-tmp" not in r.stdout, r.stdout)
 
+        stale = dict(copy, stamp="smoke-stale", files=[dict(copy["files"][0], was="0" * 64)])
+        r = host_script("deploy_host.py", stale, local)
+        check("a file changed since its diff: nothing copied, exit 4", r.returncode == 4 and "changed on the host" in r.stderr,
+              f"{r.returncode}: {r.stderr.strip()[-300:]}")
+
         copy["stamp"], copy["files"][0]["was"] = "smoke-2", after["sha"]
         r = host_script("smoke_host.py", request(action="mark_running", ledger=LEDGER), local)
         check("a running job marked in the scratch ledger", r.returncode == 0, r.stderr.strip()[-300:])

@@ -30,12 +30,10 @@ class Attack2(unittest.TestCase):
                               text=True).stdout.strip()
 
     def popen(self, *args, answers=""):
-        env = {**os.environ, **GIT_ENV, "DRIFT_HOST_ROOT": str(self.f.host),
-               "PATH": f"{self.f.bin}:{os.environ['PATH']}"}
-        p = subprocess.Popen(["python3", str(self.f.repo / "vps/deploy.py"), *args], cwd=self.f.repo, env=env,
-                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        p.stdin.write(answers)
-        p.stdin.close()
+        master, slave = self.f.terminal(answers)
+        p = subprocess.Popen(["python3", str(self.f.repo / "vps/deploy.py"), *args], cwd=self.f.repo,
+                             env=self.f.env(), stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.addCleanup(lambda: (os.close(master), os.close(slave)))
         return p
 
     def wait_for(self, marker, timeout=30):

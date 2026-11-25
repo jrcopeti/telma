@@ -13,11 +13,12 @@ each file still needs. Last it offers the deploy's tag, deploy/<day>-<n> (annota
 backup folder, the check's summary line), and, when the check was in sync, `deployed`, each after
 the owner's yes and only the owner's: no, q or end of input print the commands to run by hand. It
 never restarts, rebuilds or runs a job. `python3 vps/deploy.py --deployed` re-checks now and offers
-`deployed` alone (a hook awaiting re-approval leaves the first check not in sync). `deployed` only
-moves forward. Exit 0 after a copy the check finds in sync, 1 when it finds drift, 2 when nothing was
-copied (a stop, every answer no, nothing to copy), 3 when the copy may have run part way (an error or
-Ctrl-C during it), 4 when the copy ran but the check couldn't finish. DRIFT_HOST_ROOT=<folder> deploys
-to a fake host folder instead of the VPS (the tests).
+`deployed` alone (a hook awaiting re-approval leaves the first check not in sync; exit 1 when it
+stays, 2 when the check couldn't run). `deployed` only moves forward. It runs only at a terminal.
+Exit 0 after a copy the check finds in sync, 1 when it finds drift, 2 when nothing was copied (a stop,
+every answer no, nothing to copy), 3 when the copy may have run part way (an error or Ctrl-C during it;
+no tag is offered then), 4 when the copy ran but the check couldn't finish. DRIFT_HOST_ROOT=<folder>
+deploys to a fake host folder instead of the VPS (the tests, which answer through a pseudo-terminal).
 """
 import argparse
 import base64
@@ -225,7 +226,7 @@ def deploy(args):
         if Path(row["repo"]).name in EVAL_GATED:
             print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run)}")
     now = datetime.now(timezone.utc)  # UTC for the tag's date and the backup's name alike
-    tag = next_tag(f"{now:%Y-%m-%d}")
+    next_tag(f"{now:%Y-%m-%d}")  # stops before the copy if origin's tags can't be read; the tag is numbered again at the end
 
     values = drift.private_values() if any(r["mode"] == "redacted" for r in files) else {}
     repo = drift.Repo()
@@ -293,7 +294,8 @@ def deploy(args):
         why = "Ctrl-C" if r is None else f"{r.returncode}: {r.stderr.strip()[-500:]}"
         print(f"deploy: the copy may have run part way ({why}); over ssh it may still be running.\n"
               f"run check-drift.py; the old files are in {backup}/ on the host", file=sys.stderr)
-        finish(rows, deployed, head, tag, backup, "summary: the copy may have run part way", None)
+        print("no tag is offered for a copy that may not have run: when check-drift.py shows what landed, tag by hand",
+              file=sys.stderr)
         return 3
     print(f"\ncopied {len(deployed)} file(s); the old ones are in {backup}/ on the host\n")
     try:
@@ -305,7 +307,7 @@ def deploy(args):
     except KeyboardInterrupt:
         code, summary = None, "summary: the re-check was stopped (Ctrl-C)"
         print("\ndeploy: the re-check was stopped; run check-drift.py", file=sys.stderr)
-    finish(rows, deployed, head, tag, backup, summary, code)
+    finish(rows, deployed, head, backup, summary, code)
     return {0: 0, 1: 1}.get(code, 4)
 
 
@@ -317,30 +319,35 @@ def confirm(question):
         return False
 
 
-def origin_commit(ref):
-    """The commit origin's `ref` points at (an annotated tag's peeled one), or None."""
+def origin_ref(ref):
+    """(the object origin's `ref` is, the commit it points at), or (None, None). They differ for an
+    annotated tag, whose commit is the peeled one."""
     r = git("ls-remote", "origin", ref, f"{ref}^{{}}", check=False)
     if r.returncode:
         raise Stop(f"git ls-remote origin {ref} failed")
     shas = {line.split("\t")[1]: line.split("\t")[0] for line in r.stdout.decode().splitlines()}
-    return shas.get(f"{ref}^{{}}") or shas.get(ref)
+    return shas.get(ref), shas.get(f"{ref}^{{}}") or shas.get(ref)
 
 
 def move_deployed(commit):
-    """`deployed` to commit and pushed, never backwards: only onto a descendant of where origin has it."""
+    """`deployed` to commit and pushed, never backwards: only onto a descendant of where origin has it,
+    and the push leases that place, so a move made meanwhile isn't overwritten. This clone's tag is
+    brought to origin's first, since the check reads it."""
     ref = f"refs/tags/{drift.TAG}"
-    now = origin_commit(ref)
+    raw, now = origin_ref(ref)
+    if now:
+        git("fetch", "-q", "origin", f"+{ref}:{ref}", check=False)
     if now == commit:
         print(f"{drift.TAG} is on {commit[:7]} already")
         return
-    if now:
-        git("fetch", "-q", "origin", f"+{ref}:{ref}", check=False)  # so `now` is known here
-        if git("merge-base", "--is-ancestor", now, commit, check=False).returncode:
-            print(f"{drift.TAG} stays on {now[:7]}: {commit[:7]} isn't after it")
-            return
+    if now and git("merge-base", "--is-ancestor", now, commit, check=False).returncode:
+        print(f"{drift.TAG} stays on {now[:7]}: {commit[:7]} isn't after it")
+        return
     git("tag", "-f", drift.TAG, commit)
-    if git("push", "-q", "-f", "origin", ref, check=False).returncode:
-        raise Stop(f"{drift.TAG} is on {commit[:7]} here, not pushed: git push -f origin {drift.TAG}")
+    force = f"--force-with-lease={ref}:{raw}" if raw else "--no-force-with-lease"
+    if git("push", "-q", force, "origin", ref, check=False).returncode:
+        raise Stop(f"{drift.TAG} is on {commit[:7]} here, not pushed (origin's moved, or refused): "
+                   f"git push -f origin {drift.TAG}")
     print(f"{drift.TAG} on {commit[:7]}, pushed")
 
 
@@ -349,10 +356,10 @@ def tag_commands(tag, head, msg):
             f"git push origin {tag}"]
 
 
-def finish(rows, deployed, head, tag, backup, summary, code):
+def finish(rows, deployed, head, backup, summary, code):
     """What each file still needs, then the deploy's tag and `deployed`, each after the owner's yes.
-    Runs after every copy, so it never raises: whatever it can't or isn't allowed to do is printed as
-    commands to run by hand."""
+    Runs after every copy, so it never raises: what it can't or isn't allowed to do is printed as the
+    commands to run by hand, each step on its own, so one failing doesn't hide the other."""
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
     steps = []
@@ -365,21 +372,37 @@ def finish(rows, deployed, head, tag, backup, summary, code):
             steps.append(step)
     if steps:
         print("\nstill to do:\n  " + "\n  ".join(steps))
-    print(f"\ntag: {tag} on {head[:7]}\n  " + "\n  ".join(msg[1:]))
+    try:
+        tag = next_tag(f"{datetime.now(timezone.utc):%Y-%m-%d}")  # counted again here: the window since the start is long
+    except Exception as e:
+        tag = None
+        print(f"\ndeploy: no tag number ({e}); tag by hand")
+    if tag:
+        print(f"\ntag: {tag} on {head[:7]}\n  " + "\n  ".join(msg[1:]))
     print(f"{drift.TAG}: " + (f"moves to {head[:7]}" if code == 0 else "stays: once check-drift.py exits 0"
           + (" (after the steps above)" if steps else "") + ", run python3 vps/deploy.py --deployed"))
-    try:
-        if confirm(f"create and push {tag}?"):
-            git("tag", "-a", tag, head, *[a for m in msg for a in ("-m", m)])
-            if git("push", "-q", "origin", f"refs/tags/{tag}", check=False).returncode:
-                raise Stop(f"{tag} is made here, not pushed: git push origin {tag}")
-            print(f"{tag} pushed")
-        else:
-            print("by hand:\n  " + "\n  ".join(tag_commands(tag, head, msg)))
-        if code == 0 and confirm(f"move {drift.TAG} to {head[:7]}?"):
-            move_deployed(head)
-    except (Exception, KeyboardInterrupt) as e:
-        print(f"\ndeploy: {e or type(e).__name__}\nby hand, as needed:\n  " + "\n  ".join(tag_commands(tag, head, msg)), file=sys.stderr)
+
+    def step(question, do, by_hand):
+        try:
+            if confirm(question):
+                do()
+                return
+            print("by hand:\n  " + "\n  ".join(by_hand))
+        except (Exception, KeyboardInterrupt) as e:
+            print(f"\ndeploy: {e or type(e).__name__}\nby hand:\n  " + "\n  ".join(by_hand), file=sys.stderr)
+
+    def make_tag():
+        git("tag", "-a", tag, head, *[a for m in msg for a in ("-m", m)])
+        if git("push", "-q", "origin", f"refs/tags/{tag}", check=False).returncode:
+            git("tag", "-d", tag, check=False)  # so the commands below can run as printed
+            raise Stop(f"{tag} was not pushed (taken on origin meanwhile, or refused)")
+        print(f"{tag} pushed")
+
+    if tag:
+        step(f"create and push {tag}?", make_tag, tag_commands(tag, head, msg))
+    if code == 0:
+        step(f"move {drift.TAG} to {head[:7]}?", lambda: move_deployed(head),
+             [f"git tag -f {drift.TAG} {head[:7]} && git push -f origin {drift.TAG}"])
 
 
 def deployed_now():
@@ -389,7 +412,7 @@ def deployed_now():
     print(check.stdout + check.stderr, end="")
     if check.returncode:
         print(f"{drift.TAG} stays: check-drift.py exited {check.returncode}")
-        return 1
+        return 2 if check.returncode == 2 else 1
     if confirm(f"move {drift.TAG} to {head[:7]}?"):
         move_deployed(head)
         return 0
@@ -397,13 +420,17 @@ def deployed_now():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Deploy named files to Telma's host.")
+    parser = argparse.ArgumentParser(description="Deploy named files to Telma's host.", allow_abbrev=False)
     parser.add_argument("--eval-run", help="evals/results/<run>.jsonl, needed to deploy SOUL.md")
     parser.add_argument("--deployed", action="store_true", help="no deploy: re-check and move `deployed` to HEAD")
     parser.add_argument("paths", nargs="*", help="repo paths as deploy.manifest names them")
     args = parser.parse_args()
-    if bool(args.paths) == args.deployed:
+    if bool(args.paths) == args.deployed or (args.deployed and args.eval_run):
         parser.error("name the files to deploy, or --deployed alone")
+    if not sys.stdin.isatty():
+        print("deploy: needs a terminal: a deploy, its tag and `deployed` are moved only by the owner's own yes "
+              "at the keyboard", file=sys.stderr)
+        return 2
     try:
         return deployed_now() if args.deployed else deploy(args)
     except Stop as e:

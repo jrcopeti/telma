@@ -115,12 +115,15 @@ eval run writes the check's summary into its results.
   backup folder and the check's summary line after the copy. `git tag -l 'deploy/*' -n20` lists
   every deploy. It lives in the repo, where she can't write; a tag push isn't a merge, so no PR per
   deploy; it outlasts this plan. Only the owner moves tags (AGENTS.md rule, unchanged): the script
-  makes and pushes the tag only after the owner's own yes at the keyboard; no, q, end of input or a
-  refused push print the commands to run by hand, and nothing is stored between runs. The same for
+  runs only at a terminal (a pipe, `yes |` or an agent's shell stops it before anything), and makes
+  and pushes the tag only after the owner's own yes at the keyboard; no, q, end of input or a
+  refused push print the commands to run by hand, each step on its own, and nothing is stored
+  between runs. The tag is numbered again just before it is offered, since the deploy can take long. The same for
   `deployed`, offered only when that run's re-check was in sync, and only forward: onto a descendant
-  of where origin has it. Otherwise it stays, per the rule above, until `deploy.py --deployed`
-  re-checks and finds it in sync (after a hook's re-approval, say). A copy that ran part way offers
-  its tag too.
+  of where origin has it, and the push leases that place, so a move made meanwhile isn't overwritten.
+  Otherwise it stays, per the rule above, until `deploy.py --deployed` re-checks and finds it in
+  sync (after a hook's re-approval, say). A copy that may not have run (exit 3) is offered no tag:
+  the owner looks at the check and tags by hand if files landed.
 - **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
   in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
 

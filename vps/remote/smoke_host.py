@@ -6,13 +6,14 @@ setup: the scratch tree (an agent-owned folder holding a.sh, root's closed backu
 folder), and a copy of her cron ledger made as agent through su, so the real login path is exercised.
 mark_running: a `running` row in the scratch ledger.
 swap_for_link: the folder holding a.sh replaced by a symlink to another folder.
-cleanup: the scratch folder removed, only when its name is a deploy-smoke one under the given parent.
+cleanup: the scratch folder removed, only a real folder named deploy-smoke-* that this user owns.
 """
 import json
 import os
 import shlex
 import shutil
 import sqlite3
+import stat
 import subprocess
 import sys
 
@@ -21,23 +22,26 @@ R = req["root"]
 HOME = R + "/home/agent"
 
 
-def own(path, mode=None):
-    os.chown(path, req["uid"], req["gid"])
-    if mode is not None:
-        os.chmod(path, mode)
+def own(path, mode):
+    """Mode first, while the folder is still root's alone, then the owner, never through a link."""
+    os.chmod(path, mode)
+    os.chown(path, req["uid"], req["gid"], follow_symlinks=False)
 
 
 def setup():
+    os.mkdir(R, 0o755)  # new, or setup stops: a name that exists already isn't trusted
     os.makedirs(R + "/home/agent/.hermes/deploy-backups", mode=0o700)
     os.makedirs(R + "/home/agent/.hermes/cron")
     os.makedirs(HOME + "/smoke")
-    for d in (R, R + "/home", HOME, HOME + "/.hermes"):
+    for d in (R + "/home", HOME, HOME + "/.hermes"):
         os.chmod(d, 0o755)
+    fd = os.open(HOME + "/smoke/a.sh", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o755)
+    with os.fdopen(fd, "w") as f:  # made while the folder is still root's, so agent can't plant a link first
+        f.write("old\n")
+        os.fchown(f.fileno(), req["uid"], req["gid"])
+        os.fchmod(f.fileno(), 0o755)
     own(HOME + "/smoke", 0o755)
     own(HOME + "/.hermes/cron", 0o755)
-    with open(HOME + "/smoke/a.sh", "w") as f:
-        f.write("old\n")
-    own(HOME + "/smoke/a.sh", 0o755)
     ledger = R + req["ledger"]
     r = subprocess.run(req["as_agent"] + ["python3 -I - " + shlex.quote(req["ledger_src"]) + " " + shlex.quote(ledger)],
                        input=req["ledger_copy_code"], capture_output=True, text=True)
@@ -59,9 +63,10 @@ def swap_for_link():
 
 
 def cleanup():
-    parent, name = os.path.split(R.rstrip("/"))
-    if parent != req["parent"] or not name.startswith("deploy-smoke-"):
-        print("refusing to remove %s" % R, file=sys.stderr)
+    name = os.path.basename(R.rstrip("/"))
+    s = os.lstat(R)
+    if not name.startswith("deploy-smoke-") or not stat.S_ISDIR(s.st_mode) or s.st_uid != os.geteuid():
+        print("refusing to remove %s: not a deploy-smoke folder made by this user" % R, file=sys.stderr)
         sys.exit(2)
     shutil.rmtree(R)
 

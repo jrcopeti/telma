@@ -144,22 +144,27 @@ Hermes skips a job's AI call when its pre-script prints nothing (or `{"wakeAgent
   proposals. Not done: turning the review off (`auxiliary.background_review.enabled: false`) would stop
   her learning in chats and still leave `skill_manage` able to patch a brain skill; making
   `~/brain/skills` unwritable for `agent` needs another user to apply GitHub's skill changes.
-- **Her edits never stay live.** Each run, sync-brain copies her rule-file changes to the proposal
+- **Her edits never stay live** (an edit that lands between sync-brain's read and its write-back is
+  overwritten, as for every file today: accepted, no locking). Each run, sync-brain copies her rule-file changes to the proposal
   branch and writes `main`'s version back into her copy, so she always runs reviewed rules. A second
   edit before the owner decides is added to the open proposal, not lost.
 - **Deleting the branch means no.** The owner closes the PR and deletes `telma/proposals`; sync-brain
   drops what it holds and posts once. GitHub may delete the branch after a merge too: a branch gone
-  whose changes are on `main` is a merge, not a rejection. When `main` changes a file an open proposal
+  whose changes are on `main` is a merge, not a rejection (compared file by file, mode and content,
+  against `main`: a file `main` holds as the proposal did is merged; a file it holds differently, or
+  lacks, was dropped). When `main` changes a file an open proposal
   also changes, `main` wins: the proposal is dropped and sync-brain posts once.
-- **`taste.md` is a proposal like the rest, and writable in her sandbox.** Its `:ro` mounts go, so
+- **`taste.md` is a proposal like the rest, and writable in her sandbox.** Its two single-file mounts
+  go (not just `:ro`: a single-file mount can't be replaced, which is the `Device or resource busy`
+  above), so `taste.md` is an ordinary file in her writable brain folder, and
   capture's taste line lands in her copy and sync-brain proposes it. `skills/`, `AGENTS.md`,
   `CLAUDE.md` and the other rule files stay `:ro` in the sandbox. Every agent reads `taste.md` before
   it judges anything (the brain's AGENTS.md), so unreviewed lines would reach the local machine.
 - **Triage runs hourly, gated.** `0 0,8-23 * * *` (Berlin), 17 checks a day. A host pre-script wakes
   the agent only when `inbox/` holds anything besides `README.md`. It prints a fixed line
   (`inbox: N items`), never file names, since its output goes into the prompt. It wakes once per
-  inbox state (a hash of names and modification times): a run that left items isn't retried until
-  the inbox changes, except at 09:00, which always runs. memory-diff stays at 09:30 and 21:30: cron
+  inbox state (a hash of names and sizes: a run that touches files without filing them mustn't count as
+  a change; step 11 settles it): a run that left items isn't retried until the inbox changes, except at 09:00, which always runs. memory-diff stays at 09:30 and 21:30: cron
   runs skip the background review.
 
 ### Steps
@@ -174,11 +179,12 @@ change the VPS need the owner's yes first.
 | 9 | **taste.md writable.** Drop the two `taste.md` `:ro` volumes from `config.overrides.yaml`. Capture's taste section stays as written: the line lands in her copy and step 8 proposes it. Needs step 8 live first, or the old refusal comes back. | A taste correction in a chat shows as a proposal, and `taste.md` on `main` is unchanged until the owner merges | todo |
 | 10 | **Watch brain skills.** memory-diff also snapshots `~/brain/skills`. sync-brain alerts when a skill in `~/.hermes/skills/` has the name of a brain skill: Hermes ranks local skills above `external_dirs`, so a review blocked from patching `capture` could write a local `capture` that hides the reviewed one. | A planted `~/.hermes/skills/capture/` posts once; a brain-skill edit shows in the next memory-diff | todo |
 | 11 | **Hourly gated triage.** A `triage-gate.sh` pre-script in `~/.hermes/scripts/`, with tests; `brain-triage` gets it and `0 0,8-23 * * *` in `jobs.overrides.yaml`. Find out first what Hermes does when a pre-script exits non-zero (skip, or run without it). | An hour with an empty inbox logs "skipping AI call" and posts nothing; a capture is filed within the hour; a run that left items isn't retried until the inbox changes or 09:00 | todo |
-| 12 | **Docs sweep.** Every doc below matches what runs, public prose approved by the owner in its PR. `AGENTS.md`'s "Finished work" line says hardening is reopened for 7 to 12, and closed again when 12 is done. | A grep for "twice a day", "09:00 and 21:00", "refuses" and "read-only" in the docs finds nothing stale | todo |
+| 12 | **Docs sweep.** Every doc below matches what runs, public prose approved by the owner in its PR. `AGENTS.md`'s "Finished work" line says hardening is reopened for 7 to 12, and closed again when 12 is done. | A grep for "twice a day" and "09:00 and 21:00" finds nothing stale, and every "read-only" and "refuse" in the docs is checked by hand: the sandbox mounts of `skills/`, `AGENTS.md` and `CLAUDE.md` and the refusal of links, gitlinks and `.git*` files stay true; "she can't change a rule file" and "a rule-file change is refused" do not | todo |
 
-**Evals.** Changing `SOUL.md` (step 12) and merging a skill proposal (steps 7, 8) need the eval with
-the owner's yes. The mount (9) and the schedule (11) aren't on AGENTS.md's list; the owner decides
-whether to run it for them.
+**Evals.** Changing `SOUL.md` (step 12) needs the eval with the owner's yes, and so does the owner
+merging a skill change into the brain: a proposal from step 8 on, or the capture-skill PR of step 7
+(AGENTS.md's rule, tied to the merge, not to a step). The mount (9) and the schedule (11) aren't on
+AGENTS.md's list; the owner decides whether to run it for them.
 
 ### Docs to update
 

@@ -1257,11 +1257,10 @@ self-improvement review and its curator patch brain skills through `skill_manage
 Hermes process on the host, outside the sandbox's `:ro` mounts. A refusal also holds back her inbox
 pushes. The capture skill's taste section asks for a write the sandbox forbids.
 
-Decided, in order: rule files (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) become a proposal on
-`telma/proposals`, built by sync-brain (Q1); the review and curator stay on (Q2); `taste.md` first
-went straight to `main` with a Discord diff, then the owner moved it in with the other rule files
-(Q3, Q7); deleting the branch means no, `main` wins on overlap (Q4); triage hourly 08:00 to 00:00,
-gated by a pre-script (Q5), once per inbox state, 09:00 always (Q6); her edits are pulled out of her
-copy, never live before review (Q8). Plan: steps 7 to 12 in PLAN.md.
+Decided: rule files (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) become a proposal on
+`telma/proposals`, built by sync-brain; the review and curator stay on; `taste.md` first went straight
+to `main` with a Discord diff, then the owner moved it in with the other rule files; deleting the
+branch means no, and `main` wins on overlap; triage hourly 08:00 to 00:00, gated by a pre-script,
+once per inbox state, 09:00 always; her edits are pulled out of her copy, never live before review. Plan: steps 7 to 12 in PLAN.md.
 
 Nothing changed on the VPS yet: the refusal still stands until step 7.

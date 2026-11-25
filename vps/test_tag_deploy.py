@@ -72,9 +72,10 @@ class TagDeploy(unittest.TestCase):
     def test_a_tag_that_already_exists_is_left_pending(self):
         self.f.change({"vps/a.sh": "echo a2\n"})
         self.f.deploy("vps/a.sh", answers="y\n")
-        self.f.git("tag", f"deploy/{TODAY}-1")  # made by hand meanwhile
+        self.f.git("tag", f"deploy/{TODAY}-1", "deployed")  # made by hand meanwhile, on another commit
         self.assertEqual(self.tag(answers="y\n"), 1, self.f.out)
-        self.assertIn("already exists: left pending", self.f.out)
+        self.assertIn("exists here at", self.f.out)
+        self.assertIn("left pending, look at it by hand", self.f.out)
 
 
 if __name__ == "__main__":

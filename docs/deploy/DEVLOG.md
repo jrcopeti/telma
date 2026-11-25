@@ -203,3 +203,19 @@
   exits 0, for a hook moved in sync by its re-approval. "Only the owner moves tags" holds: the
   owner runs it and answers each yes.
 - Tests: `vps/test_tag_deploy.py`, 5, against the bare origin; 71 across the six suites, in CI.
+
+## 2026-11-25: PR 2, third adversarial review (`tag-deploy.py`)
+
+- A third fresh agent: 17 tests, kept as `vps/test_deploy_adversarial3.py`, in CI. Proved and
+  fixed: `deployed` could move backwards (an older pending deploy tagged after `--deployed` had
+  moved it forward; now only onto a descendant of origin's); a corrupt pending file crashed
+  `tag-deploy.py` with exit 1 and blocked `deploy.py` unnamed (now a stop naming the file, exit 2);
+  a pending tag outside `deploy/<day>-<n>`, or an option-shaped one, was created and pushed (the
+  name, the 40-digit commit and the message are validated when read).
+- Reasoned, fixed: a tag made here but not pushed was stuck "already exists" forever (now pushed
+  on the next run; one already on origin at that commit clears its pending file); a pending commit
+  not on `origin/main` was tagged (now left pending, named); two deploys at once could overwrite a
+  pending file (`write_pending` creates it exclusively and takes the next number); q or end of
+  input at the last question exited 2 after the tags were pushed (now 1; `Quit` is not a stop).
+- Left, in the plan's Open: `in_sync` is the deploy's own re-check, not a fresh one. The test that
+  shows it stays as an expected failure.

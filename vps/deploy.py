@@ -70,12 +70,40 @@ def pending_dir():
     return (REPO / common if not common.is_absolute() else common) / "deploy-pending"
 
 
+TAG_NAME = re.compile(r"deploy/\d{4}-\d{2}-\d{2}-\d+")
+
+
 def pending():
-    """The tags deploys left and tag-deploy.py hasn't made yet, oldest first."""
+    """The tags deploys left and tag-deploy.py hasn't made yet, oldest first. A file that isn't one of
+    ours (a name outside deploy/, a commit that isn't a hash, a broken JSON) stops the run, named."""
     found = []
     for f in pending_dir().glob("*.json"):
-        found.append(json.loads(f.read_text()) | {"file": f})
+        try:
+            p = json.loads(f.read_text())
+            ok = (isinstance(p, dict) and TAG_NAME.fullmatch(str(p.get("tag"))) and re.fullmatch(r"[0-9a-f]{40}", str(p.get("commit")))
+                  and isinstance(p.get("message"), list) and p["message"] and all(isinstance(m, str) for m in p["message"])
+                  and isinstance(p.get("in_sync"), bool))
+        except (OSError, ValueError):
+            ok = False
+        if not ok:
+            raise Stop(f"{f} isn't a pending deploy tag (a tag deploy/<day>-<n>, a 40-digit commit, its message): "
+                       "look at it, fix or remove it")
+        found.append(p | {"file": f})
     return sorted(found, key=lambda p: [int(x) if x.isdigit() else x for x in re.split(r"(\d+)", p["tag"])])
+
+
+def write_pending(tag, commit, msg, in_sync):
+    """The pending file, made exclusively: a deploy racing this one takes the next number. Returns the tag."""
+    pending_dir().mkdir(exist_ok=True)
+    day, n = tag.rsplit("-", 1)
+    while True:
+        try:
+            with open(pending_dir() / (tag.replace("/", "_") + ".json"), "x") as f:
+                f.write(json.dumps({"tag": tag, "commit": commit, "message": msg, "in_sync": in_sync}))
+            return tag
+        except FileExistsError:
+            n = int(n) + 1
+            tag = f"{day}-{n}"
 
 
 def next_tag(day):
@@ -336,9 +364,7 @@ def finish(rows, deployed, head, tag, backup, summary, code):
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
     try:
-        pending_dir().mkdir(exist_ok=True)
-        (pending_dir() / (tag.replace("/", "_") + ".json")).write_text(json.dumps(
-            {"tag": tag, "commit": head, "message": msg, "in_sync": code == 0}))
+        tag = write_pending(tag, head, msg, code == 0)
     except Exception as e:
         print(f"\ndeploy: couldn't leave the tag pending ({e}); its commands:")
         print(f"  git tag -a {tag} {head[:7]} " + " ".join(f"-m {shlex.quote(m)}" for m in msg))

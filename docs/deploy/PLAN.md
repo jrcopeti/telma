@@ -117,8 +117,12 @@ eval run writes the check's summary into its results.
   can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. `deploy.py`
   never writes a tag: it leaves the tag pending in the common git dir (`deploy-pending/`, counted
   when it numbers the next one, so two deploys before tagging get two names), and the owner runs
-  `vps/tag-deploy.py`, which makes and pushes each pending tag after a yes, oldest first. It moves
-  `deployed` with the newest only when that deploy's re-check was in sync and none was skipped;
+  `vps/tag-deploy.py`, which makes and pushes each pending tag after a yes, oldest first. It only
+  tags commits on `origin/main`, and only names of the form `deploy/<day>-<n>`; a tag made but not
+  pushed (an interrupted run) is pushed next time, and one already on origin at that commit is
+  cleared; a tag that exists at another commit stays pending, named. It moves
+  `deployed` with the newest only when that deploy's re-check was in sync, none was skipped and
+  `deployed` doesn't go backwards (only onto a descendant of where origin has it);
   otherwise `deployed` stays, per the rule above, until `tag-deploy.py --deployed` runs the check
   and finds it in sync (after a hook's re-approval, say). A copy that ran part way leaves its tag
   pending too (owner, 2026-11-24).
@@ -159,6 +163,10 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 
 ## Open
 
+- `tag-deploy.py` trusts a pending deploy's `in_sync`, the re-check as it was when `deploy.py`
+  ran, not a fresh one: if the host drifts before the owner answers, `deployed` can still move
+  (the plan says "that deploy's re-check"; the owner's yes is asked each time, and `--deployed`
+  re-checks). A fresh check would cost a `test-session` alert per tag run.
 - How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
   from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
   `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the

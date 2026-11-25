@@ -32,6 +32,19 @@ helper() {
   else say "brain-files.py $1 failed (exit $rc), nothing pushed:"; block <<<"$out"; fi
   return "$rc"
 }
+# Hermes writes a file as a temp file next to it, then renames it over the target; the rename can't replace a
+# read-only mount, and the temp file stays. Says which rule file beside $1 (in commit $2) it is closest to.
+failed_write() {
+  local dir=${1%/*} f n best= low=999999
+  [ "$dir" = "$1" ] && dir=
+  while IFS= read -r f; do
+    [[ $f =~ $PROPOSE ]] || continue
+    n=$(diff <(g cat-file blob "$2:$f" 2>/dev/null) <(g cat-file blob "$2:$1" 2>/dev/null) | wc -l)
+    [ "$n" -lt "$low" ] && best=$f low=$n
+  done < <(g ls-tree --name-only "$2" ${dir:+"$dir/"})
+  echo "A failed edit left a temp file (Hermes can't rename one over a read-only mount). The edit is lost: delete the temp file and make the change by hand."
+  printf 'edit to: %s\ntemp file: %s\n' "${best:-a file beside it}" "$1" | block
+}
 # Stops the run if a change from $1 to $2 is outside the pattern $3, adds a link or a gitlink, or touches a
 # .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy).
 refuse_outside() {
@@ -42,6 +55,7 @@ refuse_outside() {
   [ -z "$bad" ] && return
   echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
   block <<<"$bad"
+  while IFS= read -r tmp; do [ -z "$tmp" ] || failed_write "$tmp" "$2"; done < <(grep -E '(^|/)\.hermes-tmp\.[^/]*$' <<<"$bad")
   echo "Nothing was pushed, and nothing will be until they are gone."
   exit 0
 }

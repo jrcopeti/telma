@@ -98,6 +98,12 @@ check "a new root file is refused" refused README.md
 setup; touch "$B/HEAD"
 check "a root file named HEAD is refused" refused HEAD
 
+setup; printf 'AGENTS.md\na new rule\n' > "$B/.hermes-tmp.AbC123"; echo ok > "$B/notes/n.md"
+check "a temp file left by a failed rule-file edit is refused, naming the file it was meant for" eval \
+  'refused .hermes-tmp.AbC123 && says "edit to: AGENTS.md" && ! remote_has notes/n.md'
+rm "$B/.hermes-tmp.AbC123"; sync
+check "once the temp file is deleted, the held-back note goes out" eval 'silent && remote_has notes/n.md'
+
 setup; in_b mv skills/triage/SKILL.md notes/s.md; sync
 check "moving a skill into notes/: the copy goes to main, the skill's removal is only proposed" eval \
   'remote_has notes/s.md && remote_has skills/triage/SKILL.md && ! prop_has skills/triage/SKILL.md && [ -e "$B/skills/triage/SKILL.md" ]'

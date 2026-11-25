@@ -254,6 +254,13 @@ class Deploy(unittest.TestCase):
         self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
         self.assertIn("more than one setup", self.f.out)
 
+    def test_a_corrupt_row_is_named_as_such(self):
+        self.f.change({"vps/SOUL.md": SOUL_TEXT})
+        run = "evals/results/2026-11-25T1000-x.jsonl"
+        self.f.change({run: run_line(self.f.head()) + '{"task": "t", "sta\n'})
+        self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
+        self.assertIn("a row isn't JSON", self.f.out)
+
     def test_the_run_must_have_used_this_owner_name(self):
         # the same repo text filled with another name hashes differently, so it can't unlock this one
         self.f.change({"vps/SOUL.md": SOUL_TEXT})

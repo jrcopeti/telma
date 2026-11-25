@@ -115,8 +115,8 @@ def previous(path, full):
             continue
         ref = s["setup"].get("brain_ref")
         candidate = s["setup"].get("soul_source") == "repo"  # tested a SOUL.md she may not have
-        if not s["partial"] and "-baseline" in p.stem or (
-                not s["partial"] and not candidate and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref))):
+        named = "-baseline" in p.stem  # the owner's say-so, for a branch or a repo-SOUL run alike
+        if not s["partial"] and (named or (not candidate and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref)))):
             return p, s
     return None, None
 

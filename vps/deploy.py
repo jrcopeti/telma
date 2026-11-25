@@ -110,12 +110,16 @@ def check_eval_run(path, results, soul=None):
     committed = git("show", f"HEAD:evals/results/{rel}", check=False)  # never the working tree's copy
     if p.suffix != ".jsonl" or committed.returncode:
         raise Stop(f"--eval-run {results}: not a committed results .jsonl")
+    rows = committed.stdout.decode().splitlines()
     try:
-        lines = [json.loads(l) for l in committed.stdout.decode().splitlines() if l.strip()]
-        stamp = lines[0]["setup"]
+        stamp = json.loads(rows[0])["setup"]
         ran_on = stamp["telma_commit"]
     except (IndexError, ValueError, KeyError, TypeError):
         raise Stop(f"--eval-run {results}: no setup stamp in its first line")
+    try:
+        lines = [json.loads(l) for l in rows if l.strip()]
+    except ValueError:
+        raise Stop(f"--eval-run {results}: a row isn't JSON (a truncated or corrupt results file)")
     if soul is not None and any(l.get("setup") != stamp for l in lines if isinstance(l, dict)):
         raise Stop(f"--eval-run {results} holds rows of more than one setup (two runs in one file)")
     if not re.fullmatch(r"[0-9a-f]{7,40}", str(ran_on)):

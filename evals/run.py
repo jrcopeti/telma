@@ -94,7 +94,7 @@ def main(argv=None):
     ap.add_argument("--only", nargs="*")
     ap.add_argument("-k", type=int, default=5)
     ap.add_argument("--brain-ref", help="a brain branch or commit to take skills and rules from instead of ~/brain's HEAD")
-    ap.add_argument("--repo-soul", action="store_true", help="copy this repo's vps/SOUL.md into the eval profile, not her live one")
+    ap.add_argument("--repo-soul", action="store_true", help="copy this repo's vps/hermes/SOUL.md into the eval profile, not her live one")
     ap.add_argument("--check", action="store_true", help="stop after the local checks, before the VPS")
     a = ap.parse_args(argv)
     if not a.check:

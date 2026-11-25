@@ -6,7 +6,8 @@
 |---|---|---|
 | `docs/deploy-plan` | 1 | merged (#67) |
 | `refactor/vps-flatten` | 2 | merged (#68) |
-| `feat/drift-check` | 3 | in review |
+| `feat/drift-check` | 3 | merged (#70) |
+| `docs/deploy-step3-done` | 3 | in review |
 
 ## 2026-11-24: design
 
@@ -96,3 +97,15 @@
   link is reported, not skipped; an empty `DRIFT_HOST_ROOT` stops the check instead of using ssh.
   The empty-root test's assertion changed from "the first call isn't ssh" to "no call is ssh",
   since the check now stops before any call. Live run after: 17 of 17 in sync.
+
+## 2026-11-24: step 3 done
+
+- The owner re-approved `guard-network.sh` and `exfil-tripwire.py` (`hermes hooks revoke`, then
+  `hermes chat --accept-hooks`, gateway restarted): their allowlist entries predated the
+  2026-11-19 redeploy, though the files matched the repo.
+- Clean run on main at `dcee608` (18:26 Berlin): `summary: 17 of 17 in sync, hermes ok, hooks ok,
+  deployed none`. The owner tagged `dcee608` as `deployed` and pushed it.
+- The hooks stay owned by `agent` (owner): her file and terminal tools run in the sandbox and
+  can't reach them, and root-owned hooks would close little while `config.yaml`, which declares
+  them, is hers. The gap that leaves (a hook or config change shows only when the check runs) is
+  in the plan's Decisions.

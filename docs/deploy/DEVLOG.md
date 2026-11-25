@@ -367,3 +367,13 @@ over her copy (the owner said yes), and the restore put back text that never ran
   (`deploy/2026-11-25-1`), and each eval run writes `<run>.drift.txt`.
 - The design is written up in `docs/adr/0007-deploys-are-checked-against-the-repo.md`, and the README
   has a Deploy section.
+
+## 2026-11-25: second deploy, and the capture copy
+
+- `deploy.py` shipped `vps/sync-brain.sh` (the failed-write fix from #82): backup
+  `20261125T221341832Z`, tag `deploy/2026-11-25-2`. The check read 16 of 17, so `deployed` stayed on `c827547`.
+- The 17th line was `capture/SKILL.md` reading host ahead. The host and the brain's `main` agreed
+  (`37679bb0bc8f`); the repo copy was stale since brain PR #4 merged. The plan's rule (copy `vps/brain-skills/`
+  after a skill change merges) had not been followed. A PR copied the brain's file over it. No eval: it
+  changes what the repo records, not what runs.
+- The jobs line's "1 other job(s), not checked" is by design: jobs outside the four named ones are counted, never named.

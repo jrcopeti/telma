@@ -70,17 +70,25 @@ subset() {
   elif [ "$tree" = "$(g rev-parse "$3^{tree}")" ]; then echo "$3"
   else g commit-tree "$tree" -p "$1" -m "brain: sync $(date -u +%FT%H:%MZ)"; fi
 }
+# "mode object" of path $2 in commit $1, empty if it isn't there.
+ent() {
+  local row mode sha
+  row=$(g ls-tree -z "$1" -- "$2" | tr -d '\0') || return 0
+  [[ $row == *$'\t'"$2" ]] || return 0
+  read -r mode _ sha <<<"${row%%$'\t'*}"
+  echo "$mode $sha"
+}
 # The open proposal $1 against main: all = what it changes, kept = what main hasn't touched, dropped = what
 # main changed too. What main now holds as the proposal does (the owner merged it) is in none of them.
 read_proposal() {
-  local mb path nm ns b m
+  local mb path nm ns b m mode sha
   kept=() dropped=() all=()
   [ -n "$1" ] || return 0
   mb=$(g merge-base "$base" "$1" 2>/dev/null) || mb=$(g hash-object -t tree -w --stdin </dev/null)
   while IFS= read -r -d '' path && IFS= read -r -d '' nm && IFS= read -r -d '' ns; do
     all[$path]="$nm $ns"
-    [ "$nm" = 0 ] && ns=
-    b=$(g rev-parse -q --verify "$base:$path"); m=$(g rev-parse -q --verify "$mb:$path")
+    b=$(ent "$base" "$path"); m=$(ent "$mb" "$path")
+    [ "$nm" = 0 ] && ns= || ns="$nm $ns"
     [ "$b" = "$ns" ] && continue
     if [ "$b" = "$m" ]; then kept[$path]=${all[$path]}; else dropped[$path]=1; fi
   done < <(changes "$mb" "$1")
@@ -93,10 +101,9 @@ merge3() {
 }
 # final[path]="mode object" unless main already has it that way.
 put() {
-  local nm ns
-  read -r nm ns <<<"$2"
-  [ "$nm" = 0 ] && ns=
-  [ "$(g rev-parse -q --verify "$base:$1")" = "$ns" ] || final[$1]=$2
+  local mode sha
+  [ "${2%% *}" = 0 ] && sha= || sha=$2
+  [ "$(ent "$base" "$1")" = "$sha" ] || final[$1]=$2
 }
 # Adds her rule-file changes (hers against given) to the open proposal $cur, or starts one, on top of main.
 # Nothing is pushed or deleted unless the proposal changes, so a run that fails halfway repeats safely.
@@ -110,7 +117,8 @@ propose() {
     if [ "$nm" != 0 ]; then
       o=$(g rev-parse -q --verify "$base:$path"); go=$(g rev-parse -q --verify "$given:$path")
       [ -z "${kept[$path]+x}" ] || { read -r om o <<<"${kept[$path]}"; [ "$om" = 0 ] && o=; }
-      if [ -n "$o" ] && [ -n "$go" ] && [ "$o" != "$go" ] && [ "$o" != "$ns" ]; then merged=$(merge3 "$o" "$go" "$ns") && ns=$merged; fi
+      [ -n "$go" ] || go=$(g hash-object -t blob -w --stdin </dev/null)
+      if [ -n "$o" ] && [ "$o" != "$go" ] && [ "$o" != "$ns" ]; then merged=$(merge3 "$o" "$go" "$ns") && ns=$merged; fi
     fi
     put "$path" "$nm $ns"
   done < <(changes "$given" "$hers")
@@ -123,9 +131,10 @@ propose() {
     g update-ref -d refs/sync/proposals; g update-ref -d refs/sync/proposed
   else
     rm -f "$idx"
-    GIT_INDEX_FILE=$idx g read-tree "$base" || return 1
-    for path in "${!final[@]}"; do printf '%s\t%s\0' "${final[$path]}" "$path"; done | GIT_INDEX_FILE=$idx g update-index -z --index-info || return 1
-    tree=$(GIT_INDEX_FILE=$idx g write-tree) && pn=$(g commit-tree "$tree" -p "$base" -m "brain: Telma proposes changes to rule files") || return 1
+    { GIT_INDEX_FILE=$idx g read-tree "$base" &&
+      for path in "${!final[@]}"; do printf '%s\t%s\0' "${final[$path]}" "$path"; done | GIT_INDEX_FILE=$idx g update-index -z --index-info &&
+      tree=$(GIT_INDEX_FILE=$idx g write-tree) && pn=$(g commit-tree "$tree" -p "$base" -m "brain: Telma proposes changes to rule files"); } ||
+      { say "git failed building the proposal in $P"; return 1; }
     out=$(g push -q --force-with-lease="refs/heads/$PBR:$cur" "$REMOTE" "$pn:refs/heads/$PBR" 2>&1) || { say "push of $PBR failed:"; block <<<"$out"; return 1; }
     g update-ref refs/sync/proposals "$pn"; g update-ref refs/sync/proposed "$pn"
     if [ -z "$cur" ]; then
@@ -221,7 +230,9 @@ if [ "$base" != "$given" ]; then
     exit 0
   fi
 fi
-propose || exit 0
+# A proposal that can't be saved doesn't hold back main, but her rule-file edits then stay in her copy
+# (and get proposed again next run) instead of being reverted over.
+propose; proposed=$?
 if [ "$new" != "$base" ]; then
   out=$(g push -q "$REMOTE" "$new:refs/heads/main" 2>&1) || { say "push failed:"; block <<<"$out"; exit 0; }
   g update-ref refs/sync/github "$new"
@@ -230,8 +241,11 @@ fi
 # Her copy held $hers; it gets what GitHub changed. Pending until it all landed: a failure is finished
 # next run, replaying only GitHub's changes, never her own.
 g update-ref refs/sync/given "$hers"
-[ "$new" = "$hers" ] && exit 0
-g update-ref refs/sync/pending "$new"
-g checkout -q -f --detach "$new" || { say "checkout failed in $P"; exit 0; }
-g diff --name-status --no-renames -z "$hers" "$new" -- | helper apply "$P" "$B" || exit 0
+target=$new
+[ "$proposed" = 0 ] || target=$(subset "$new" "$given" "$hers" "$PROPOSE") || { say "git failed in $P"; exit 0; }
+if [ "$target" != "$hers" ]; then
+  g update-ref refs/sync/pending "$target"
+  g checkout -q -f --detach "$target" || { say "checkout failed in $P"; exit 0; }
+  g diff --name-status --no-renames -z "$hers" "$target" -- | helper apply "$P" "$B" || exit 0
+fi
 g update-ref refs/sync/given "$new" && g update-ref -d refs/sync/pending

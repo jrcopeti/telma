@@ -431,5 +431,26 @@ check "a new root file is refused behind her own self-ignoring root .gitignore" 
 setup; printf '/.gitignore\n/notes/\n' > "$B/.gitignore"; echo n > "$B/notes/hidden.md"
 check "her note behind her own root .gitignore is not dropped silently" refused .gitignore
 
+# --- found by the adversarial round on step 8
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"
+printf '#!/bin/sh\nwhile read o n r; do case $r in refs/heads/telma/*) exit 1;; esac; done\n' > "$W/remote.git/hooks/pre-receive"; chmod +x "$W/remote.git/hooks/pre-receive"; sync
+check "a proposal push that fails is said, and does not hold back main; her edit stays for the next run" eval \
+  'says "push of telma/proposals failed" && remote_has notes/n.md && grep -q evil "$B/skills/triage/SKILL.md"'
+rm "$W/remote.git/hooks/pre-receive"; sync
+check "and once the push works the edit is proposed and her copy reverted" eval 'prop_show skills/triage/SKILL.md | grep -q evil && ! grep -q evil "$B/skills/triage/SKILL.md"'
+
+setup; chmod +x "$B/skills/triage/SKILL.md"; sync
+check "an exec-bit change to a skill is proposed" eval 'git -C "$W/remote.git" ls-tree telma/proposals skills/triage/SKILL.md | grep -q "^100755" && [ ! -x "$B/skills/triage/SKILL.md" ]'
+
+setup; mkdir -p "$B/skills/new" && echo v1 > "$B/skills/new/SKILL.md"; sync
+mac status -s >/dev/null; git -C "$W/mac" fetch -q origin telma/proposals; git -C "$W/mac" checkout -q -B prop FETCH_HEAD; echo "owner line" >> "$W/mac/skills/new/SKILL.md"
+git -C "$W/mac" commit -qam owner; git -C "$W/mac" push -q origin prop:telma/proposals; git -C "$W/mac" checkout -q main
+mkdir -p "$B/skills/new" && echo v2 > "$B/skills/new/SKILL.md"; sync
+check "creating the same new file twice merges with the proposal and keeps the owner's line" eval \
+  'prop_show skills/new/SKILL.md | grep -q v1 && prop_show skills/new/SKILL.md | grep -q v2 && prop_show skills/new/SKILL.md | grep -q "owner line"'
+
+setup; mkdir -p "$B/skills/zz/sub" && echo x > "$B/skills/zz/sub/f"; sync
+check "a proposed new skill folder leaves no empty folders in her copy" eval '[ ! -e "$B/skills/zz" ] && [ -d "$B/skills" ]'
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

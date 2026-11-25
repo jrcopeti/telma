@@ -1291,8 +1291,24 @@ Choices made while building it:
 - A failed proposal push stops the run before anything is pushed, as a conflict does, so her copy is
   never reverted over an edit that isn't saved anywhere.
 
-Tests: `test-sync-brain.sh` is at 83 (was 61). The four refusals of skill edits became proposal
+Tests: `test-sync-brain.sh` is at 88 (was 61). The four refusals of skill edits became proposal
 tests; links, `.gitignore` and root files are still refused.
 
 Not deployed. Step 9 needs this live first.
+
+Adversarial round 1 (a fresh Sonnet agent, 5 proved defects and 3 reasoned), fixed:
+
+- A proposal push that fails (a ruleset on `telma/*`) held back every `main` push. Now it is said, `main`
+  still goes, and her rule-file edits stay in her copy and are proposed again next run.
+- An exec-bit-only change was dropped, and a mode-only commit by the owner looked merged. The proposal
+  is now compared by mode and object, not object alone.
+- Re-creating a new rule file overwrote the open proposal and the owner's commit on it. A file with no
+  base version is merged against an empty base, so both sides' lines stay.
+- A deleted skill left empty folders in her copy: `apply` removes folders a deleted file empties (never
+  one at the brain's top level).
+
+Left as is: a conflict on an `ALLOWED` path stops the run before the proposal, so her rule edit stays
+in her copy until the conflict is cleared (the alert repeats every run); a run killed between the
+proposal push and writing `refs/sync/proposed` loses that proposal's Discord post; a binary rule file
+edited twice before review keeps only the later version.
 

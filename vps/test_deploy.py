@@ -27,7 +27,6 @@ class DeployFake(Fake):
     def __init__(self, tmp):
         super().__init__(tmp)
         shutil.copy(SCRIPT, self.repo / "vps/deploy.py")
-        shutil.copy(SCRIPT.parent / "tag-deploy.py", self.repo / "vps/tag-deploy.py")
         shutil.copytree(SCRIPT.parent / "remote", self.repo / "vps/remote")
         m = self.repo / "vps/deploy.manifest"
         self.write_repo({"vps/hook.py": "print('hook')\n", "vps/deploy.manifest": m.read_text()
@@ -61,10 +60,10 @@ class DeployFake(Fake):
         with sqlite3.connect(self.host / EXECUTIONS) as c:
             c.execute("INSERT INTO executions VALUES ('e2', ?, 'running')", (job_id,))
 
-    def deploy(self, *args, answers="", script="vps/deploy.py"):
+    def deploy(self, *args, answers=""):
         env = {**os.environ, **GIT_ENV, "DRIFT_HOST_ROOT": str(self.host),
                "PATH": f"{self.bin}:{os.environ['PATH']}"}
-        r = subprocess.run(["python3", str(self.repo / script), *args], cwd=self.repo, env=env,
+        r = subprocess.run(["python3", str(self.repo / "vps/deploy.py"), *args], cwd=self.repo, env=env,
                            input=answers, capture_output=True, text=True)
         self.code, self.out = r.returncode, r.stdout + r.stderr
         return self.code
@@ -260,6 +259,79 @@ class Deploy(unittest.TestCase):
         self.f.change({"vps/a.sh": "echo a2\n"})
         self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
         self.assertIn(f"tag: deploy/{TODAY}-2 ", self.f.out)
+
+    def origin(self, *args):
+        return subprocess.run(["git", *args], cwd=self.f.origin, capture_output=True, text=True).stdout.strip()
+
+    def test_a_yes_makes_and_pushes_the_tag_and_moves_deployed(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\ny\n"), 0, self.f.out)
+        head = self.f.head()
+        self.assertEqual(self.origin("rev-parse", "--short", f"deploy/{TODAY}-1^{{commit}}"), head)
+        note = self.origin("tag", "-l", "-n20", f"deploy/{TODAY}-1")
+        self.assertIn("files: vps/a.sh", note)
+        self.assertIn("after the copy: summary: 6 of 6 in sync", note)
+        self.assertEqual(self.origin("rev-parse", "--short", "deployed^{commit}"), head)
+
+    def test_a_no_to_the_tag_makes_nothing_and_prints_the_commands(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        before = self.origin("rev-parse", "deployed^{commit}")
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\nn\nn\n"), 0, self.f.out)
+        self.assertEqual(self.origin("tag", "-l", "deploy/*"), "")
+        self.assertEqual(self.origin("rev-parse", "deployed^{commit}"), before)
+        self.assertIn(f"git tag -a deploy/{TODAY}-1 ", self.f.out)
+        self.assertIn(f"git push origin deploy/{TODAY}-1", self.f.out)
+
+    def test_end_of_input_is_a_no(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.origin("tag", "-l", "deploy/*"), "")
+        self.assertNotIn("Traceback", self.f.out)
+
+    def test_a_refused_push_prints_what_to_run_and_exits_as_the_check_did(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        hook = self.f.origin / "hooks/pre-receive"
+        hook.write_text("#!/bin/sh\nexit 1\n")
+        hook.chmod(0o755)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\n"), 0, self.f.out)
+        self.assertIn(f"deploy/{TODAY}-1 is made here, not pushed: git push origin deploy/{TODAY}-1", self.f.out)
+        self.assertNotIn("Traceback", self.f.out)
+
+    def test_deployed_does_not_go_backwards(self):
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        old = self.f.head()
+        self.f.change({"vps/a.sh": "echo a3\n"})
+        self.f.git("tag", "-f", "deployed")  # on the newer commit
+        self.f.git("push", "-q", "-f", "origin", "deployed")
+        self.f.git("checkout", "-q", "-B", "main", old)  # main rewound, as after a revert of a revert
+        self.f.git("push", "-q", "-f", "origin", "main")
+        self.f.write_host("/h/a.sh", "echo a\n", 0o755)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\ny\n"), 0, self.f.out)
+        self.assertIn("stays on", self.f.out)
+        self.assertNotEqual(self.origin("rev-parse", "--short", "deployed^{commit}"), old)
+
+    def test_a_hook_awaiting_reapproval_leaves_deployed_until_deployed_alone_runs(self):
+        self.f.change({"vps/hook.py": "print('hook 2')\n"})
+        before = self.origin("rev-parse", "deployed^{commit}")
+        self.f.doctor("1 issue(s) found.  Fix before relying on these hooks.")
+        self.assertEqual(self.f.deploy("vps/hook.py", answers="y\ny\n"), 1, self.f.out)
+        self.assertEqual(self.origin("rev-parse", "deployed^{commit}"), before)
+        self.assertIn("run python3 vps/deploy.py --deployed", self.f.out)
+        self.assertEqual(self.f.deploy("--deployed", answers="y\n"), 1, self.f.out)  # not re-approved yet
+        self.assertIn("deployed stays: check-drift.py exited 1", self.f.out)
+        self.f.doctor("All shell hooks look healthy.")
+        self.assertEqual(self.f.deploy("--deployed", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.origin("rev-parse", "--short", "deployed^{commit}"), self.f.head())
+
+    def test_deployed_alone_needs_main_as_pushed(self):
+        self.f.write_repo({"vps/a.sh": "echo a2\n"})
+        self.f.commit()  # not pushed
+        self.assertEqual(self.f.deploy("--deployed", answers="y\n"), 2, self.f.out)
+        self.assertIn("deploy main as pushed", self.f.out)
+
+    def test_paths_or_deployed_not_both_not_neither(self):
+        self.assertEqual(self.f.deploy("--deployed", "vps/a.sh"), 2, self.f.out)
+        self.assertEqual(self.f.deploy(), 2, self.f.out)
 
     def test_a_host_change_after_the_diff_stops_the_copy(self):
         # The host file changes after its diff is read: the fake repo's copy step writes it first.

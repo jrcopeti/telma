@@ -232,3 +232,19 @@
   quoting, her login profile, the real owner change, `dir_fd` on the VPS's Linux.
 - Not covered, left to the first real deploy: a real file, the hooks' re-approval, a gateway
   restart.
+
+## 2026-11-25: PR 2, the tag script cut
+
+- The owner asked whether `tag-deploy.py` was overhead (they'd expected the two commands behind a
+  script). It was: the pending files in `.git/`, their validation, the resume logic and the
+  numbering that counted them were a design of mine, and the third adversarial round's findings
+  were nearly all about them. Cut: `tag-deploy.py`, the pending store and `test_tag_deploy.py` and
+  `test_deploy_adversarial3.py` are gone.
+- Now `deploy.py` ends by asking, each with the owner's own yes at the keyboard: create and push
+  `deploy/<day>-<n>`; move `deployed` (only when this run's re-check was in sync, and only forward,
+  one `merge-base` check against origin's). No, q, end of input or a failure print the commands.
+  Nothing is stored between runs, so a tag the owner declined is just offered again next time at
+  the same number. `deploy.py --deployed` re-checks and offers `deployed` alone (the hook
+  re-approval case). Kept from round 3: the forward-only rule; the stale-`in_sync` finding no longer
+  exists, since the offer comes right after the check.
+- The smoke test is untouched: it covers the host side only.

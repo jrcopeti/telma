@@ -109,23 +109,18 @@ eval run writes the check's summary into its results.
   there could read in sync and move `deployed` to a commit the host doesn't match.
 - **Each deploy gets a permanent tag** (owner, 2026-11-24, step 4). `deployed` moves, so it keeps no
   history; the devlog records each move only while this plan is open; the backups on the host don't
-  name a commit. So `deploy.py` ends by printing an
-  annotated tag, `deploy/<date>-<n>` (the UTC date, as in the backup folder's name; `n` one past the
-  highest on that day, here or on origin, and no copy when origin's tags can't be read), on
-  the deployed commit, whose message holds the files, the backup folder and the check's summary line
-  after the copy. `git tag -l 'deploy/*' -n20` lists every deploy. It lives in the repo, where she
-  can't write; a tag push isn't a merge, so no PR per deploy; it outlasts this plan. `deploy.py`
-  never writes a tag: it leaves the tag pending in the common git dir (`deploy-pending/`, counted
-  when it numbers the next one, so two deploys before tagging get two names), and the owner runs
-  `vps/tag-deploy.py`, which makes and pushes each pending tag after a yes, oldest first. It only
-  tags commits on `origin/main`, and only names of the form `deploy/<day>-<n>`; a tag made but not
-  pushed (an interrupted run) is pushed next time, and one already on origin at that commit is
-  cleared; a tag that exists at another commit stays pending, named. It moves
-  `deployed` with the newest only when that deploy's re-check was in sync, none was skipped and
-  `deployed` doesn't go backwards (only onto a descendant of where origin has it);
-  otherwise `deployed` stays, per the rule above, until `tag-deploy.py --deployed` runs the check
-  and finds it in sync (after a hook's re-approval, say). A copy that ran part way leaves its tag
-  pending too (owner, 2026-11-24).
+  name a commit. So `deploy.py` ends by offering an annotated tag, `deploy/<date>-<n>` (the UTC date,
+  as in the backup folder's name; `n` one past the highest on that day, here or on origin, and no
+  copy when origin's tags can't be read), on the deployed commit, whose message holds the files, the
+  backup folder and the check's summary line after the copy. `git tag -l 'deploy/*' -n20` lists
+  every deploy. It lives in the repo, where she can't write; a tag push isn't a merge, so no PR per
+  deploy; it outlasts this plan. Only the owner moves tags (AGENTS.md rule, unchanged): the script
+  makes and pushes the tag only after the owner's own yes at the keyboard; no, q, end of input or a
+  refused push print the commands to run by hand, and nothing is stored between runs. The same for
+  `deployed`, offered only when that run's re-check was in sync, and only forward: onto a descendant
+  of where origin has it. Otherwise it stays, per the rule above, until `deploy.py --deployed`
+  re-checks and finds it in sync (after a hook's re-approval, say). A copy that ran part way offers
+  its tag too.
 - **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
   in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
 
@@ -157,16 +152,12 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 | 1 | **This plan.** | The owner merges it | done (#67) |
 | 2 | **PR 0: move `vps/telma/` to `vps/`.** `git mv`; fix CI, `evals/grade.py`, the test scripts' "Run:" lines and the live docs. In the frozen docs fix only the 6 broken links, prose left as history; `AGENTS.md` names this second exception. Then a PR in ticket-bay-bot for its two links to `kill-switch.md` (`vps/host.md` and its own `kill-switch.md`), merged right after this one, and the brain's `projects/telma.md`. Nothing deployed changes. | CI green; no `vps/telma` left outside history prose (devlogs, finished plans and rows) | done (#68) |
 | 3 | **PR 1: the check.** `{{OWNER_NAME}}` in `SOUL.md` (and `host.md`); `jobs.overrides.yaml`; `deploy.manifest` with owners and modes read from the VPS; `check-drift.py` with the five modes, the statuses and the host-state lines; tests against a fake host folder (`DRIFT_HOST_ROOT`) covering the status table. First run against the VPS, the `deployed` tag set by the owner. | Every line in sync, hooks and Hermes `ok`, the tag on main | done (#70), after the owner re-approved two hooks; `deployed` on `dcee608` |
-| 4 | **PR 2: `deploy.py` and `tag-deploy.py`.** As decided above, with the `deploy/<date>-<n>` tag. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; its `deploy/` tag pushed and `deployed` moved by `tag-deploy.py` | in progress |
+| 4 | **PR 2: `deploy.py`.** As decided above, with the `deploy/<date>-<n>` tag. First real use: whatever the check shows repo ahead. | A deploy whose re-check comes back in sync; its `deploy/` tag pushed and `deployed` moved by `deploy.py` | in progress |
 | 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results folder has `drift.txt` | |
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | | |
 
 ## Open
 
-- `tag-deploy.py` trusts a pending deploy's `in_sync`, the re-check as it was when `deploy.py`
-  ran, not a fresh one: if the host drifts before the owner answers, `deployed` can still move
-  (the plan says "that deploy's re-check"; the owner's yes is asked each time, and `--deployed`
-  re-checks). A fresh check would cost a `test-session` alert per tag run.
 - How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
   from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
   `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the

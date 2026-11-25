@@ -143,20 +143,15 @@ class Attack2(unittest.TestCase):
         self.assertEqual(p.returncode, 4, out)
         self.assertIn(f"tag: deploy/{TODAY}-1 ", out)
 
-    # PLAN: "Each deploy gets a permanent tag ... n one past the highest on that day, here or on
-    # origin". The tag is only printed, so two deploys before the owner runs the first's commands
-    # get the same name; the second `git tag -a` fails and one deploy has no tag. REASONED: the plan
-    # doesn't decide this case.
-    # Fixed (owner): deploy.py leaves its tag pending for tag-deploy.py and counts pending tags.
+    # Two deploys on one day: the first one's tag, made with the owner's yes, is counted by the second.
     def test_two_deploys_the_same_day_get_two_tag_names(self):
         self.f.change({"vps/a.sh": "echo a2\n"})
-        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\ny\n"), 0, self.f.out)
         first = self.f.out
         self.f.change({"vps/a.sh": "echo a3\n"})
-        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\n"), 0, self.f.out)
+        self.assertEqual(self.f.deploy("vps/a.sh", answers="y\ny\ny\n"), 0, self.f.out)
         self.assertIn(f"tag: deploy/{TODAY}-1 ", first)
-        self.assertNotIn(f"tag: deploy/{TODAY}-1 ", self.f.out)
-
+        self.assertIn(f"tag: deploy/{TODAY}-2 ", self.f.out)
 
 if __name__ == "__main__":
     unittest.main()

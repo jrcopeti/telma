@@ -350,3 +350,12 @@ over her copy (the owner said yes), and the restore put back text that never ran
 - Smoke run (owner's yes, `--only T1 -k 1`, $0.004): `<run>.drift.txt` written, the report line read
   "Drift when it started: 16 of 17 in sync, hermes ok, hooks ok, deployed c827547 (exit 1)", the one
   drift being `capture/SKILL.md` host ahead (the open proposal). The smoke run's results aren't committed.
+
+## 2026-11-25: step 6, the bot's intent in the brain
+
+- The brain's intent for ticket-bay-bot's sync now
+  records what this repo built, for the bot's repo to copy: the `jobs` and `tree` modes, `check-drift.py`
+  and `deploy.py` (the intent's own step 5, built here as step 4), the `deployed` tag's direction table and the owner
+  placeholder. Its project note and the index line say the same. Written through the brain's own sync, no code.
+- The showcase plan's Open item for the deployment check is struck through and links the deploy plan.
+- Left for after this merges: mark the plan closed.

@@ -377,3 +377,11 @@ over her copy (the owner said yes), and the restore put back text that never ran
   after a skill change merges) had not been followed. A PR copied the brain's file over it. No eval: it
   changes what the repo records, not what runs.
 - The jobs line's "1 other job(s), not checked" is by design: jobs outside the four named ones are counted, never named.
+
+## 2026-11-25: `deployed` moved to `8188d34`
+
+With the repo copy of `capture/SKILL.md` merged (#85), the check read 17 of 17 in sync, hermes and hooks `ok`.
+`python3 vps/deploy.py --deployed` offered the move and the owner said yes; `deployed` is now on `8188d34`.
+It was run from a separate terminal: the `!` prefix in an agent session isn't a terminal, so `deploy.py` refuses
+it there. No `deploy/` tag came with it, since nothing was copied. `vps/README.md` explains the steps and the two tags, and now also holds what `vps/host.md` said (the users, where each file goes,
+her settings, skills and jobs, the host rules); `host.md` is deleted and its links point at the README. The bot's repo still links to `vps/host.md` here.

@@ -173,6 +173,6 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
   read-only script, instead of root. It guards against a stolen local-machine key, which today
   gives root through `agents-vps` anyway.
 - Which of `config.yaml` and `.env` Hermes reads when their `terminal:` values differ (from
-  `host.md`). The check catches them differing; it doesn't say which one wins. Hermes's code at
+  `host.md`, now `vps/README.md`). The check catches them differing; it doesn't say which one wins. Hermes's code at
   `ae2a81c` (`apply_terminal_config_to_env`) says `config.yaml` wins for the keys set in its
   `terminal:` section; untested.

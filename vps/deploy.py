@@ -275,7 +275,7 @@ def deploy(args):
         print("nothing deployed")
         return 2
 
-    stamp = f"{now:%Y%m%dT%H%M%SZ}"
+    stamp = f"{now:%Y%m%dT%H%M%S}{now.microsecond // 1000:03d}Z"  # to the millisecond: two deploys can share a second
     backup = f"{BACKUPS}/{stamp}"
     files_req = []
     for row, new, have in chosen:

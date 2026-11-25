@@ -286,3 +286,5 @@
   gitignore hid it from `git status`. `deploy.py` no longer writes bytecode, the repo ignores
   `__pycache__/` and `*.pyc`, and a test runs the deploy with bytecode in-tree (it fails without
   the fix). A real deploy on a machine without such a global ignore would have hit it too.
+- The second CI run found the backup folder's name, to the second, collided when two deploys of the
+  test ran within one second. It now goes to the millisecond (the copy still stops if the folder exists).

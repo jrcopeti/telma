@@ -20,7 +20,7 @@ IP = "203.0.113.77"
 
 class LeakTest(unittest.TestCase):
     def test_a_failed_ssh_does_not_put_the_hosts_ip_in_the_public_drift_file(self):
-        """check-drift.py:266 prints ssh's stderr tail; ssh names the resolved address."""
+        """check-drift.py's reading failure prints ssh's stderr tail; ssh names the resolved address."""
         with tempfile.TemporaryDirectory() as d:
             ssh = Path(d, "ssh")
             ssh.write_text(f"#!/bin/sh\necho 'ssh: connect to host {IP} port 22: Operation timed out' >&2\nexit 255\n")
@@ -43,6 +43,13 @@ class LeakTest(unittest.TestCase):
 
 
 class RobustTest(unittest.TestCase):
+    def test_a_file_line_that_starts_with_hermes_or_hooks_is_not_rewritten(self):
+        out = ("hermes/SOUL.md".ljust(44) + " repo ahead agent:agent 644 abc123\n"
+               + "hermes".ljust(44) + " ok\n" + "hooks".ljust(44) + " 3 not approved\n")
+        with unittest.mock.patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 1, stdout=out.encode(), stderr=b"")):
+            text = eval_profile.drift_report()
+        self.assertEqual(text, out.splitlines()[0] + "\nhermes ok\nhooks not ok\nexit 1\n")
+
     def test_non_utf8_output_does_not_crash_the_run(self):
         with unittest.mock.patch.object(subprocess, "run", return_value=subprocess.CompletedProcess([], 1, stdout=b"\xff\nsummary: x\n", stderr=b"")):
             text = eval_profile.drift_report()  # run.py calls it bare, before sync_profile

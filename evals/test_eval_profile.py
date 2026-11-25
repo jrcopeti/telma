@@ -99,8 +99,8 @@ class DriftReportTest(unittest.TestCase):
                + " hook failed at /home/x\nsummary: 1 of 1 in sync, hermes differs, hooks not ok, deployed abc\n")
         text, _ = self.run_report(return_value=finished(out, code=1))
         self.assertEqual(text, "a  in sync\nhermes differs\nhooks not ok\nsummary: 1 of 1 in sync, hermes differs, hooks not ok, deployed abc\nexit 1\n")
-        ok, _ = self.run_report(return_value=finished("hermes".ljust(44) + " ok abc\nhooks".ljust(44) + " ok\n"))
-        self.assertIn("hermes ok\n", ok)
+        ok, _ = self.run_report(return_value=finished("hermes".ljust(44) + " ok abc\n" + "hooks".ljust(44) + " ok\n"))
+        self.assertEqual(ok, "hermes ok\nhooks ok\nexit 0\n")
 
     def test_drift_is_recorded_not_raised(self):
         text, _ = self.run_report(return_value=finished("SOUL.md  repo ahead\nsummary: 0 of 1 in sync\n", code=1))

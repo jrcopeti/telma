@@ -84,10 +84,10 @@ def drift_report():
         return f"check did not run: {type(e).__name__}\nexit none\n"
     lines = []
     for line in r.stdout.decode(errors="replace").splitlines():
-        words = line.split()
-        if words[:1] == ["hermes"]:
-            line = f"hermes {'ok' if words[1:2] == ['ok'] else 'differs'}"
-        elif words[:1] == ["hooks"]:
-            line = f"hooks {'ok' if words[1:] == ['ok'] else 'not ok'}"
+        label, words = line[:44].rstrip(), line[44:].split()  # check-drift.py pads each label to 44 columns
+        if label == "hermes":
+            line = f"hermes {'ok' if words[:1] == ['ok'] else 'differs'}"
+        elif label == "hooks":
+            line = f"hooks {'ok' if words == ['ok'] else 'not ok'}"
         lines.append(line + "\n")
     return "".join(lines) + f"exit {r.returncode}\n"

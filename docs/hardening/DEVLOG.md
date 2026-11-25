@@ -1403,9 +1403,15 @@ Proof still to see: the first run after the deletion, then a skill edit as one c
 
 ## 2026-11-25: memory-diff after each triage (the owner)
 
-Her 21:30 memory-diff post carried the curator's two 13:03 patches to `capture`, eight hours late: it
-runs at 09:30 and 21:30. The owner asked for it to follow triage. Triage becomes hourly (step 11), so
-memory-diff goes to `10 0,8-23 * * *`: a no-agent script that posts only when something was saved.
-Nothing is changed on the VPS yet; the schedule change ships with step 11 (`jobs.overrides.yaml`,
-`host.md`), so the drift check sees one change. One cost: an edit made overnight (the curator ran at
-03:04 and 03:49 on 2026-11-25) is posted at 08:10, as triage's would be.
+Her 21:30 memory-diff post carried the curator's two 13:03 patches to `capture`, about eight hours
+late: it runs at 09:30 and 21:30. The owner asked for it to follow triage. Triage becomes hourly (step
+11), so memory-diff goes to `10 0,8-23 * * *`: a no-agent script that posts only when something was
+saved. A patch like that one is then posted within the hour. The overnight slots are skipped, so an
+edit from the curator's 03:04 and 03:49 runs is posted at 08:10 instead of 09:30, 80 minutes earlier
+than before; running it every hour all night would close that gap, and the owner chose triage's hours.
+
+Read `memory-diff.sh` first: it keeps no state besides its snapshot repo and diffs against the last
+commit, with no lock, timeout or rate assumption, so hourly runs give smaller, more frequent posts and
+lose nothing. Only its header comment says "twice a day". Nothing is changed on the VPS yet; the
+schedule ships with step 11 (`jobs.overrides.yaml`, `host.md`, that comment), so the drift check sees
+one change.

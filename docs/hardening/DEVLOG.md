@@ -1358,3 +1358,45 @@ to a brain PR by hand, the skill one after an eval.
 Step 8 went out with `deploy.py` (`deploy/2026-11-25-1`, details in `docs/deploy/DEVLOG.md`). Her
 curator edit was then written back, so the next sync-brain run should push the inbox files to `main`,
 put the skill on `telma/proposals` and post one compare link. Not yet seen; the result goes in a follow-up entry, and step 7 and 8's status rows follow it.
+
+## 2026-11-25: the proof for steps 7 and 8 blocked by a temp file
+
+Read-only look at the VPS after the deploy (nothing triggered). Every sync-brain run from 18:06 to 20:14
+(Berlin) refused to push, on one path: `.hermes-tmp.CZQXhe` at the root of her brain. The
+`skills/capture/SKILL.md` refusal was gone, so step 8's split reached the skill file, but the refusal
+for the temp file stopped the run before any proposal, so `telma/proposals` never existed and her
+later syncs stayed in sync-brain's own clone.
+
+Cause. At 13:02 her `patch` tool added a semicolon rule to `taste.md`. Hermes writes a temp file next
+to the target and renames it over; `taste.md` is a single-file `:ro` mount, so the `mv` failed with
+`Device or resource busy` (`agent.log`, 13:02:11) and the edit never landed. Hermes's own cleanup should
+have removed the temp file, but its `trap 'rm -f \"$tmp\"' EXIT` leaves the quote marks in the shell
+text, so `rm` looks for a name with quotes and finds nothing. Reproduced with that trap text in a local
+shell (not by running Hermes). So every failed atomic write leaves a `.hermes-tmp.*` file, and the
+files that fail are the ones mounted on their own: `taste.md`, `AGENTS.md`, `CLAUDE.md` and the other
+single-file `:ro` mounts. A skill write fails differently: `skills/` is a read-only directory mount.
+
+Done, with the owner's yes: the temp file deleted on the VPS (the only copy of that edit; the rule
+goes to a brain PR by hand, `feat/taste-no-semicolons`). Not changed: the refusal itself. The owner
+prefers sync-brain to keep refusing, with a clear message: `refuse_outside` now adds one paragraph
+and, per temp file (three at most, then "and N more"), "temp file: Y" and "edit to: X" in a code block.
+X is the rule file beside the temp file of which the temp file holds the largest share of lines, and
+only when that share is half or more and no other file ties; otherwise "unknown". Hermes writes the
+whole file, so a temp file is the old file plus the edit, and the share of the rule file's lines is
+the measure (a first version scored the share of the temp file's lines, which named the smallest rule
+file for an empty temp file and "unknown" for a big addition: found by `/code-review` and the
+adversarial round). The list of refused paths above it shows eight lines of 100 characters at most,
+then "and N more", so a post stays under Discord's 2000 characters. It still posts on each run until
+the file is gone, like every refusal. Twelve new tests (100 pass in the Ubuntu 24.04 image). Not
+deployed yet.
+
+The adversarial round also found two older gaps, reproduced on `main`: a temp file under `notes/` is
+pushed to `main`, and one under `skills/` goes to `telma/proposals`, both silently, because those paths
+pass the allowlist. Step 13 takes them. A test pins the `skills/` case as it is today.
+
+Step 9 is the real fix for `taste.md` (no single-file mount, so the write succeeds and becomes a
+proposal). It was already planned, but it ran behind step 8's proof; this is why it should follow
+soon. The other mounted rule files can still fail the same way, and the new message names them.
+
+Proof still to see: the first run after the deletion, then a skill edit as one commit on
+`telma/proposals` and one post. Status rows for steps 7 and 8 say so.

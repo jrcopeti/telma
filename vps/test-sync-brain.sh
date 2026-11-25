@@ -98,6 +98,40 @@ check "a new root file is refused" refused README.md
 setup; touch "$B/HEAD"
 check "a root file named HEAD is refused" refused HEAD
 
+# A failed Hermes write of a read-only file leaves .hermes-tmp.*: still refused, and the post says which file.
+setup; printf 'AGENTS.md\na new rule\n' > "$B/.hermes-tmp.AbC123"; echo ok > "$B/notes/n.md"
+check "a temp file left by a failed rule-file edit is refused, naming the file it was meant for" eval \
+  'refused .hermes-tmp.AbC123 && says "edit to:   AGENTS.md" && ! remote_has notes/n.md'
+rm "$B/.hermes-tmp.AbC123"; sync
+check "once the temp file is deleted, the held-back note goes out" eval 'silent && remote_has notes/n.md'
+
+setup; : > "$B/.hermes-tmp.Empty1"
+check "an empty temp file is refused without naming a file" eval 'refused .hermes-tmp.Empty1 && says "edit to:   unknown"'
+setup; printf 'zzz\nyyy\n' > "$B/.hermes-tmp.Other1"
+check "a temp file like no rule file names none" eval 'refused .hermes-tmp.Other1 && says "edit to:   unknown"'
+setup; printf 'AGENTS.md\nCLAUDE.md\n' > "$B/.hermes-tmp.Tie123"
+check "a temp file as close to two rule files names none" eval 'refused .hermes-tmp.Tie123 && says "edit to:   unknown"'
+setup; printf 'AGENTS.md\nx\ny\nz\nw\n' > "$B/.hermes-tmp.Big111"
+check "a temp file that is a rule file plus a long new section names the rule file" eval 'refused .hermes-tmp.Big111 && says "edit to:   AGENTS.md"'
+setup; printf 'a\nb\nc\nd\n' > "$W/seed/AGENTS.md"; git -C "$W/seed" commit -qam longer && git -C "$W/seed" push -q "$W/remote.git" main; sync
+printf 'a\nzzz\n' > "$B/.hermes-tmp.Part11"
+check "a temp file holding a quarter of a rule file names none" eval 'refused .hermes-tmp.Part11 && says "edit to:   unknown"'
+printf 'a\nb\nc\nnew\n' > "$B/.hermes-tmp.Part22"; sync
+check "a temp file holding three quarters of a rule file names it" eval 'says "temp file: .hermes-tmp.Part22" && says "edit to:   AGENTS.md"'
+setup; printf 'AGENTS.md\nmore\n' > "$B/.hermes-tmp.One111"; printf 'CLAUDE.md\nmore\n' > "$B/.hermes-tmp.Two222"; sync
+check "two temp files get one post, each with its own file" eval \
+  '[ "$(grep -c "A failed edit" <<<"$out")" = 1 ] && grep -A1 "Two222" <<<"$out" | grep -qF "edit to:   CLAUDE.md" && grep -A1 "One111" <<<"$out" | grep -qF "edit to:   AGENTS.md"'
+setup; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do printf 'AGENTS.md\nx\n' > "$B/.hermes-tmp.long-name-for-a-temp-file-number-$i-aaaaaaaaaaaaaaaaaaaaaaaa"; done; sync
+check "twelve temp files stay under Discord's 2000 characters, each list saying how many more" eval \
+  '[ "${#out}" -lt 2000 ] && says "and 9 more" && says "and 4 more" && says "Nothing was pushed"'
+setup; for i in $(seq 1 30); do echo x > "$B/notes-not-allowed-$(printf 'q%.0s' $(seq 1 120))-$i.md"; done; sync
+check "thirty refused paths with long names stay under 2000 characters" eval '[ "${#out}" -lt 2000 ] && says "and 22 more" && says "Nothing was pushed"'
+setup; n=$'.hermes-tmp.a\n@everyone "q" é'; printf 'AGENTS.md\nx\n' > "$B/$n"; sync
+check "a temp file whose name git would quote still gets the post, its name only inside the code block" eval \
+  'says "A failed edit" && says "edit to:   AGENTS.md" && ! awk "/^\`\`\`/ { f = !f; next } !f" <<<"$out" | grep -q "@everyone"'
+setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; sync
+check "a temp file under skills/ is proposed like any rule-file change, not alerted (known gap, see the devlog)" eval 'says "💡"'
+
 setup; in_b mv skills/triage/SKILL.md notes/s.md; sync
 check "moving a skill into notes/: the copy goes to main, the skill's removal is only proposed" eval \
   'remote_has notes/s.md && remote_has skills/triage/SKILL.md && ! prop_has skills/triage/SKILL.md && [ -e "$B/skills/triage/SKILL.md" ]'

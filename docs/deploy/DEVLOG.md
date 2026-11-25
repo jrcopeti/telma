@@ -347,4 +347,6 @@ over her copy (the owner said yes), and the restore put back text that never ran
   `hermes` and `hooks` lines (only ok or not); the stamp's two hashes are read by name, so a missing file no
   longer shifts one into the other; the drift write can't stop a run; the report parses `exit N` and no longer
   doubles "summary:"; the check's timeout is 120 s.
-- Not done: the smoke run.
+- Smoke run (owner's yes, `--only T1 -k 1`, $0.004): `<run>.drift.txt` written, the report line read
+  "Drift when it started: 16 of 17 in sync, hermes ok, hooks ok, deployed c827547 (exit 1)", the one
+  drift being `capture/SKILL.md` host ahead (the open proposal). The smoke run's results aren't committed.

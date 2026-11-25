@@ -145,7 +145,7 @@ def changes(cur, prev):
         "cost_usd": (prev["cost_usd"], cur["cost_usd"]),
         "cost_per_trial": (per_trial(prev, "cost_usd"), per_trial(cur, "cost_usd")),
         "seconds_per_trial": (per_trial(prev, "seconds"), per_trial(cur, "seconds")),
-        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS) - {"task_sha"})),
+        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS) - {"task_sha", "config_sha", "eval_config_sha"})),
         "commits": moved(COMMITS),
     }
 
@@ -192,9 +192,9 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
                 + ".", ""]
     drift = Path(path).with_suffix(".drift.txt")
     if drift.is_file():
-        lines = drift.read_text().splitlines()
-        summary = next((l for l in lines if l.startswith("summary:")), lines[0] if lines else "empty")
-        out += [f"Drift when it started: {summary} ({lines[-1] if lines else 'no exit'}), {drift.name}.", ""]
+        lines = drift.read_text(errors="replace").splitlines()
+        summary = next((l for l in lines if l.startswith("summary:")), "the check gave no summary")
+        out += [f"Drift when it started: {summary} ({lines[-1] if lines else 'empty file'}), {drift.name}.", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "
             f"{cur['tokens_in']:,} tokens in, {cur['tokens_out']:,} out.", "",
             "## Tasks", "",

@@ -76,7 +76,7 @@ class StampTest(unittest.TestCase):
 
 
 def finished(stdout="", stderr="", code=0):
-    return subprocess.CompletedProcess([], code, stdout=stdout, stderr=stderr)
+    return subprocess.CompletedProcess([], code, stdout=stdout.encode(), stderr=stderr.encode())
 
 
 class DriftReportTest(unittest.TestCase):
@@ -93,16 +93,14 @@ class DriftReportTest(unittest.TestCase):
         text, _ = self.run_report(return_value=finished("SOUL.md  repo ahead\nsummary: 0 of 1 in sync\n", code=1))
         self.assertTrue(text.endswith("exit 1\n"))
 
-    def test_a_check_that_could_not_run_says_why(self):
-        text, _ = self.run_report(return_value=finished(stderr="check-drift: ssh failed\n", code=2))
-        self.assertIn("check-drift: ssh failed", text)
-        self.assertTrue(text.endswith("exit 2\n"))
+    def test_a_check_that_could_not_run_keeps_its_stderr_out_of_the_public_file(self):
+        text, _ = self.run_report(return_value=finished(stderr="check-drift: connect to host 203.0.113.7\n", code=2))
+        self.assertEqual(text, "exit 2\n")
 
     def test_a_check_that_hangs_or_is_missing_never_stops_the_run(self):
-        for err, word in ((subprocess.TimeoutExpired("x", 1), "timed out"), (OSError("no python"), "no python")):
+        for err in (subprocess.TimeoutExpired("x", 1), OSError("no python")):
             with self.subTest(err=err):
                 text, _ = self.run_report(side_effect=err)
-                self.assertIn(word, text)
                 self.assertIn("check did not run", text)
 
 

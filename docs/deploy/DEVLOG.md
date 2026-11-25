@@ -337,4 +337,10 @@ over her copy (the owner said yes), and the restore put back text that never ran
 - The SOUL.md mismatch rule is one rule: the eval copy must equal what the run meant to test, hers or, with
   `--repo-soul`, the repo's. It moved to `run.py` (`soul_copy_problem`), so a bad copy stops before any
   paid trial for both sources; the report still flags older runs' stamps by the same rule.
+- Adversarial round (6 proved, 4 reasoned): the file is public, and a failed check's stderr names the host's
+  address or a local path, so only stdout is kept (`exit 2` alone when the check can't run). Non-UTF8 output
+  and a non-UTF8 file no longer stop the run or its report; an empty file isn't quoted as a summary; the
+  dropped config hashes don't show as a "Setup changed" against older runs. Tests: `test_drift_regressions.py`.
+  Accepted: two runs in the same minute and commit share a name, so the second's drift file replaces the
+  first's (the results file already has that limit); the owner takes the `<run>.drift.txt` name over `drift.txt`.
 - Not done: the smoke run, which needs the owner's yes.

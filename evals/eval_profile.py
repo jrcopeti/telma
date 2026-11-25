@@ -73,9 +73,11 @@ def soul_copy_problem(stamp):
 
 def drift_report():
     """What vps/check-drift.py says about her deployed files right now, and its exit code, as the text
-    for <run>.drift.txt. Never stops the run: a run may be meant to test an undeployed change."""
+    for <run>.drift.txt. Never stops the run: a run may be meant to test an undeployed change.
+    Only its stdout (file names, statuses, short hashes) is kept: the file is public, and its stderr
+    can name the host's address or a local path."""
     try:
-        r = subprocess.run([sys.executable, str(REPO / "vps/check-drift.py")], cwd=REPO, capture_output=True, text=True, timeout=300)
+        r = subprocess.run([sys.executable, str(REPO / "vps/check-drift.py")], cwd=REPO, capture_output=True, timeout=300)
     except (subprocess.TimeoutExpired, OSError) as e:
-        return f"check did not run: {type(e).__name__}: {e}\n"
-    return r.stdout + r.stderr + f"exit {r.returncode}\n"
+        return f"check did not run: {type(e).__name__}\n"
+    return r.stdout.decode(errors="replace") + f"exit {r.returncode}\n"

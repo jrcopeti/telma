@@ -118,7 +118,7 @@ The cases T1 to T7 are in [injection-suite.md](hardening/injection-suite.md), th
 
 Any of these leads to [the kill switch](../vps/kill-switch.md): stop the gateway, cut her
 credentials, look, then turn her back on. A compromised host means both agents' kill switches and a
-rebuild ([host.md](../vps/host.md)).
+rebuild ([vps/README.md](../vps/README.md)).
 
 ## Out of scope
 

@@ -167,7 +167,8 @@ A git tag called `deployed` marks the last commit known to match the server, whi
 tells "repo ahead" from "host ahead". Every deploy also leaves a `deploy/<date>-<n>` tag that
 records what went out. `git tag -l 'deploy/*' -n20` lists them.
 
-To deploy a change:
+To deploy a change (the full walk-through, with the statuses and the tags, is in
+[`vps/README.md`](vps/README.md)):
 
 1. Merge it to `main` and pull. The script deploys `main` as pushed, with nothing uncommitted under `vps/`.
 2. See what is ahead: `python3 vps/check-drift.py`. It needs an ssh alias `agents-vps` with root
@@ -212,10 +213,9 @@ result says what setup it was run against. The reasoning is in the
 
 | Path | What |
 |---|---|
-| [`vps/`](vps/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests; the deploy manifest, the drift check and the deploy script |
+| [`vps/`](vps/) | her server files: sandbox, network guard, sync-brain, memory-diff, the exfil tripwire and their tests; the deploy manifest, the drift check and the deploy script. [`vps/README.md`](vps/README.md) describes the host from her side and the deploy in full |
 | [`vps/hermes/`](vps/hermes/) | her live setup: `SOUL.md`, the config settings chosen for her, her four jobs, the triage job's prompt |
 | [`vps/brain-skills/`](vps/brain-skills/) | the four skills she runs on the brain: capture, triage, lint, ask-brain |
-| [`vps/host.md`](vps/host.md) | the host from her side, and what runs where |
 | [`evals/`](evals/) | the eval: its tasks, grader, harness and every run's report |
 | [`docs/`](docs/) | threat model, before/after, decisions, and the plans and devlogs of each piece of work |
 

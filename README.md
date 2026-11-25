@@ -9,6 +9,8 @@ An always-on agent that keeps the owner's second brain: she saves what the owner
 questions from the notes and sorts the inbox twice a day. She runs on
 [Hermes Agent](https://hermes-agent.nousresearch.com) on a VPS and talks to the owner in Discord.
 
+Telma keeps a second brain like [jrcopeti/brain-template](https://github.com/jrcopeti/brain-template).
+
 Formerly Tania.
 
 ## What she does
@@ -175,8 +177,8 @@ The tests run in CI, and gitleaks scans the full history on every push.
 Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
 Her brain skills started as the ones in Daniel Moka's [brain template](https://github.com/dmoka/brain-template) (MIT).
 
-A personal project: issues are welcome, pull requests aren't expected. To report a security
-problem, see [SECURITY.md](SECURITY.md).
+This is open source, and pull requests are welcome :) To report a security problem, see
+[SECURITY.md](SECURITY.md).
 
 ## License
 

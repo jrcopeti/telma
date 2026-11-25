@@ -145,7 +145,7 @@ def changes(cur, prev):
         "cost_usd": (prev["cost_usd"], cur["cost_usd"]),
         "cost_per_trial": (per_trial(prev, "cost_usd"), per_trial(cur, "cost_usd")),
         "seconds_per_trial": (per_trial(prev, "seconds"), per_trial(cur, "seconds")),
-        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS) - {"task_sha"})),
+        "setup": moved(sorted((set(prev["setup"]) | set(cur["setup"])) - set(COMMITS) - {"task_sha", "config_sha", "eval_config_sha"})),
         "commits": moved(COMMITS),
     }
 
@@ -173,9 +173,8 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
     if cur["broken"]:
         out += [f"Broken: {c['error'] + c['discarded']} of {cur['ran']} trials errored or were discarded "
                 f"(over {BROKEN_SHARE:.0%}). Rerun before trusting it.", ""]
-    # Only SOUL.md can be compared: the eval config is hers rewritten to the trial folder, so its
-    # hash always differs. run.py copies both fresh at the start of every run. With --repo-soul the
-    # eval's SOUL.md is meant to differ from hers: it must match the repo's file the run says it used.
+    # The eval's SOUL.md must be the file the run meant to test: hers, or with --repo-soul the repo's.
+    # run.py checks that before any trial now; this keeps older runs' mismatch visible.
     repo_soul = s.get("soul_source") == "repo"
     if "eval_soul_sha" in s and (not s["eval_soul_sha"] or s["eval_soul_sha"] != s.get("repo_soul_sha" if repo_soul else "soul_sha")):
         out += ["The eval profile's `SOUL.md` didn't match the repo's file it was meant to test: this run didn't test it."
@@ -188,8 +187,13 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
                 + (f", notes `{s['notes_commit']}`" if s.get("notes_commit") else "")
                 + (f", the repo's `SOUL.md` `{s.get('repo_soul_sha')}` (hers `{s.get('soul_sha')}`)" if repo_soul
                    else f", `SOUL.md` `{s.get('soul_sha')}`")
-                + f", config `{s.get('config_sha')}` "
-                f"(eval copy `{s.get('eval_config_sha')}`).", ""]
+                + ".", ""]
+    drift = Path(path).with_suffix(".drift.txt")
+    if drift.is_file():
+        lines = drift.read_text(errors="replace").splitlines()
+        summary = next((l.removeprefix("summary: ") for l in lines if l.startswith("summary:")), "the check gave no summary")
+        code = next((l for l in reversed(lines) if re.fullmatch(r"exit (\d+|none)", l)), "no exit line")
+        out += [f"Drift when it started: {summary} ({code}), {drift.name}.", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "
             f"{cur['tokens_in']:,} tokens in, {cur['tokens_out']:,} out.", "",
             "## Tasks", "",

@@ -195,7 +195,12 @@ made-up brain with the script that generates it.
   trial. `--check` runs only the local checks before a run. One JSONL line per
   trial in `results/`, with no report text, and no grader details for tasks on the real brain; full
   rows go only to `results/private/` (git ignores it), and each failed trial's diff of the copy to
-  `results/private/<run>/`. Every run needs the owner's yes.
+  `results/private/<run>/`. Every run starts by saving `vps/check-drift.py`'s output as
+  `<run>.drift.txt` beside its results (the report quotes its summary line): which of her files
+  matched this repo when the run began. It never stops a run, since a run is sometimes meant to test
+  an undeployed change; it also posts cron-alert's one `test-session` alert, as any check does. Before
+  any trial the run stops if the eval profile's `SOUL.md` isn't the one it meant to test (hers, or the
+  repo's with `--repo-soul`). Every run needs the owner's yes.
   `python3 evals/run.py --only T1 skip-1 -k 1` runs a few.
   `run.py` is the run loop: `trial.py` runs and grades one trial, `brain_copy.py` pins the brain and
   builds each copy, `eval_profile.py` sets up the profile, `vps.py` reaches the VPS, and `remote/`

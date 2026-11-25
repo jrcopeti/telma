@@ -324,3 +324,29 @@ over her copy (the owner said yes), and the restore put back text that never ran
 - Afterwards her edit was put back from the root copy, to give step 8 a real proposal to open. Until
   that PR is merged or its branch deleted, the check reads `capture/SKILL.md` as host ahead; that is
   the check working, not drift to fix.
+
+## 2026-11-25: step 5, the eval writes `drift.txt`
+
+- `run.py` runs `vps/check-drift.py` at the start (`eval_profile.drift_report()`) and saves its output
+  and exit code as `<run>.drift.txt` beside the `.jsonl` and `.md`, in `results/` and `results/private/`.
+  The results are flat files, not a folder per run, so the plan's "results folder has `drift.txt`" became a file
+  named for the run. A check that fails, hangs or can't start is written down, never a stop. Like any
+  check it posts one `test-session` alert from cron-alert.
+- `report.py` quotes the summary line and exit code, and the `.drift.txt` name. The Setup line and the
+  stamp lose the config hashes (the eval's config is hers rewritten, so they never matched).
+- The SOUL.md mismatch rule is one rule: the eval copy must equal what the run meant to test, hers or, with
+  `--repo-soul`, the repo's. It moved to `run.py` (`soul_copy_problem`), so a bad copy stops before any
+  paid trial for both sources; the report still flags older runs' stamps by the same rule.
+- Adversarial round (6 proved, 4 reasoned): the file is public, and a failed check's stderr names the host's
+  address or a local path, so only stdout is kept (`exit 2` alone when the check can't run). Non-UTF8 output
+  and a non-UTF8 file no longer stop the run or its report; an empty file isn't quoted as a summary; the
+  dropped config hashes don't show as a "Setup changed" against older runs. Tests: `test_drift_regressions.py`.
+  Accepted: two runs in the same minute and commit share a name, so the second's drift file replaces the
+  first's (the results file already has that limit); the owner takes the `<run>.drift.txt` name over `drift.txt`.
+- Code review (7 findings, all fixed with the owner's yes): the file also drops the host's own text on the
+  `hermes` and `hooks` lines (only ok or not); the stamp's two hashes are read by name, so a missing file no
+  longer shifts one into the other; the drift write can't stop a run; the report parses `exit N` and no longer
+  doubles "summary:"; the check's timeout is 120 s.
+- Smoke run (owner's yes, `--only T1 -k 1`, $0.004): `<run>.drift.txt` written, the report line read
+  "Drift when it started: 16 of 17 in sync, hermes ok, hooks ok, deployed c827547 (exit 1)", the one
+  drift being `capture/SKILL.md` host ahead (the open proposal). The smoke run's results aren't committed.

@@ -343,4 +343,8 @@ over her copy (the owner said yes), and the restore put back text that never ran
   dropped config hashes don't show as a "Setup changed" against older runs. Tests: `test_drift_regressions.py`.
   Accepted: two runs in the same minute and commit share a name, so the second's drift file replaces the
   first's (the results file already has that limit); the owner takes the `<run>.drift.txt` name over `drift.txt`.
-- Not done: the smoke run, which needs the owner's yes.
+- Code review (7 findings, all fixed with the owner's yes): the file also drops the host's own text on the
+  `hermes` and `hooks` lines (only ok or not); the stamp's two hashes are read by name, so a missing file no
+  longer shifts one into the other; the drift write can't stop a run; the report parses `exit N` and no longer
+  doubles "summary:"; the check's timeout is 120 s.
+- Not done: the smoke run.

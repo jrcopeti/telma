@@ -54,10 +54,12 @@ def setup_stamp(brain_commit, soul_sha=None):
     unless the run used the repo's (`soul_source` "repo", `repo_soul_sha` its hash), when the eval's
     copy should match that one instead (soul_copy_problem). Whether her files match the repo is drift_report's."""
     telma = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True).stdout.strip()
-    out = vps(f"hermes --version | head -1; for f in {HERS}/SOUL.md {PROFILE}/SOUL.md; "
-              "do sha256sum $f | cut -c1-12; done").stdout.split("\n")
+    # Named, not by position: a missing file prints nothing and would shift the lines after it.
+    out = vps(f"hermes --version | head -1; echo soul=$(sha256sum {HERS}/SOUL.md 2>/dev/null | cut -c1-12); "
+              f"echo eval=$(sha256sum {PROFILE}/SOUL.md 2>/dev/null | cut -c1-12)").stdout.split("\n")
+    named = {l.partition("=")[0]: l.partition("=")[2] for l in out[1:] if "=" in l}
     return {"telma_commit": telma, "brain_commit": brain_commit, "hermes": out[0], "model": MODEL,
-            "soul_sha": out[1], "eval_soul_sha": out[2],
+            "soul_sha": named.get("soul", ""), "eval_soul_sha": named.get("eval", ""),
             "soul_source": "host" if soul_sha is None else "repo", **({} if soul_sha is None else {"repo_soul_sha": soul_sha})}
 
 
@@ -74,10 +76,18 @@ def soul_copy_problem(stamp):
 def drift_report():
     """What vps/check-drift.py says about her deployed files right now, and its exit code, as the text
     for <run>.drift.txt. Never stops the run: a run may be meant to test an undeployed change.
-    Only its stdout (file names, statuses, short hashes) is kept: the file is public, and its stderr
-    can name the host's address or a local path."""
+    The file is public: stderr is dropped (it can name the host's address or a local path), and so is
+    the host's own text on the hermes and hooks lines, which keep only whether they are ok."""
     try:
-        r = subprocess.run([sys.executable, str(REPO / "vps/check-drift.py")], cwd=REPO, capture_output=True, timeout=300)
+        r = subprocess.run([sys.executable, str(REPO / "vps/check-drift.py")], cwd=REPO, capture_output=True, timeout=120)
     except (subprocess.TimeoutExpired, OSError) as e:
-        return f"check did not run: {type(e).__name__}\n"
-    return r.stdout.decode(errors="replace") + f"exit {r.returncode}\n"
+        return f"check did not run: {type(e).__name__}\nexit none\n"
+    lines = []
+    for line in r.stdout.decode(errors="replace").splitlines():
+        words = line.split()
+        if words[:1] == ["hermes"]:
+            line = f"hermes {'ok' if words[1:2] == ['ok'] else 'differs'}"
+        elif words[:1] == ["hooks"]:
+            line = f"hooks {'ok' if words[1:] == ['ok'] else 'not ok'}"
+        lines.append(line + "\n")
+    return "".join(lines) + f"exit {r.returncode}\n"

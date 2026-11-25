@@ -272,7 +272,7 @@ class FilesTest(unittest.TestCase):
         self.assertNotIn("Drift", text)
         path.with_suffix(".drift.txt").write_text("a  repo ahead\nsummary: 0 of 1 in sync, hermes ok\nexit 1\n")
         text = report.report(path, full={"a"})[1]
-        self.assertIn("Drift when it started: summary: 0 of 1 in sync, hermes ok (exit 1), 2026-11-02T1000-bbb.drift.txt", text)
+        self.assertIn("Drift when it started: 0 of 1 in sync, hermes ok (exit 1), 2026-11-02T1000-bbb.drift.txt", text)
 
     def test_the_setup_line_no_longer_carries_config_hashes(self):
         rows = [{**r, "setup": {**SETUP, "config_sha": "c1", "eval_config_sha": "ec"}} for r in run({"a": ["pass"]}, k=1)]

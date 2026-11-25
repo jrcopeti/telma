@@ -42,7 +42,7 @@ class RepoSoulTest(unittest.TestCase):
         self.assertIn("EOF_SOUL", sent.scripts[0])
 
     def test_the_stamp_says_which_soul_it_tested(self):
-        reply = "Hermes 1\nhost\neval\n"
+        reply = "Hermes 1\nsoul=host\neval=eval\n"
         with unittest.mock.patch.object(eval_profile, "vps", Sent(reply)):
             host = eval_profile.setup_stamp("b")
             repo = eval_profile.setup_stamp("b", "abc123abc123")
@@ -59,10 +59,15 @@ class RepoSoulTest(unittest.TestCase):
 
 class StampTest(unittest.TestCase):
     def test_the_stamp_carries_the_two_soul_hashes_and_no_config_hashes(self):
-        with unittest.mock.patch.object(eval_profile, "vps", Sent("Hermes 1\nhost\neval\n")):
+        with unittest.mock.patch.object(eval_profile, "vps", Sent("Hermes 1\nsoul=host\neval=eval\n")):
             stamp = eval_profile.setup_stamp("b")
         self.assertEqual((stamp["soul_sha"], stamp["eval_soul_sha"]), ("host", "eval"))
         self.assertFalse({"config_sha", "eval_config_sha"} & stamp.keys())
+
+    def test_a_missing_file_does_not_shift_the_other_hash(self):
+        with unittest.mock.patch.object(eval_profile, "vps", Sent("Hermes 1\nsoul=\neval=eval\n")):
+            stamp = eval_profile.setup_stamp("b")
+        self.assertEqual((stamp["soul_sha"], stamp["eval_soul_sha"]), ("", "eval"))
 
     def test_a_copy_that_is_not_what_the_run_meant_to_test_is_named(self):
         host = {"soul_source": "host", "soul_sha": "h1", "eval_soul_sha": "h1"}
@@ -88,6 +93,14 @@ class DriftReportTest(unittest.TestCase):
         text, run = self.run_report(return_value=finished("a  in sync\nsummary: 1 of 1 in sync\n", code=0))
         self.assertEqual(text, "a  in sync\nsummary: 1 of 1 in sync\nexit 0\n")
         self.assertEqual(run.call_args.args[0][1:], [str(eval_profile.REPO / "vps/check-drift.py")])
+
+    def test_the_hosts_own_text_on_the_hermes_and_hooks_lines_is_dropped(self):
+        out = ("a  in sync\n" + "hermes".ljust(44) + " differs: agent 203.0.113.7abc\n" + "hooks".ljust(44)
+               + " hook failed at /home/x\nsummary: 1 of 1 in sync, hermes differs, hooks not ok, deployed abc\n")
+        text, _ = self.run_report(return_value=finished(out, code=1))
+        self.assertEqual(text, "a  in sync\nhermes differs\nhooks not ok\nsummary: 1 of 1 in sync, hermes differs, hooks not ok, deployed abc\nexit 1\n")
+        ok, _ = self.run_report(return_value=finished("hermes".ljust(44) + " ok abc\nhooks".ljust(44) + " ok\n"))
+        self.assertIn("hermes ok\n", ok)
 
     def test_drift_is_recorded_not_raised(self):
         text, _ = self.run_report(return_value=finished("SOUL.md  repo ahead\nsummary: 0 of 1 in sync\n", code=1))

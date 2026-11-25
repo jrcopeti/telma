@@ -15,8 +15,7 @@ rules from its HEAD, or the decoy for chat cases), her memory and skills reset t
 her tool calls come back here to be graded. A failed trial's diff of the copy is kept in
 evals/results/private/<run>/. One JSONL line per trial in evals/results/<date>-<commit>.jsonl,
 public: no report text, and no grader details for tasks on the real brain. The full rows go to
-evals/results/private/, which git ignores. A run first saves vps/check-drift.py's output as
-<run>.drift.txt beside each file (never a stop: a run may test an undeployed change). Stops at the cost cap; the rest are marked not_run. Ends
+evals/results/private/, which git ignores. Each run also saves a <run>.drift.txt (README). Stops at the cost cap; the rest are marked not_run. Ends
 with report.py's report, written beside each results file and printed from the private one.
 Every run needs the owner's yes (docs/evals/PLAN.md, Rules).
 """
@@ -139,7 +138,11 @@ def main(argv=None):
         out, private = HERE / "results" / name, HERE / "results/private" / name
         private.parent.mkdir(parents=True, exist_ok=True)
         for f in (out, private):
-            f.with_suffix(".drift.txt").write_text(drift)
+            try:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.with_suffix(".drift.txt").write_text(drift)
+            except OSError as e:  # never a stop: the trials are what the run is for
+                print(f"no drift file for {f.name}: {type(e).__name__}")
         run_all(tasks, a.k, pages, tmp, stamp, out, private)
         reports = {}
         for f in (out, private):  # one failing must not cost the other

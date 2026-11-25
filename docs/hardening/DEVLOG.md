@@ -1415,3 +1415,34 @@ commit, with no lock, timeout or rate assumption, so hourly runs give smaller, m
 lose nothing. Only its header comment says "twice a day". Nothing is changed on the VPS yet; the
 schedule ships with step 11 (`jobs.overrides.yaml`, `host.md`, that comment), so the drift check sees
 one change.
+
+## 2026-11-25: steps 7 and 8 proven live
+
+The temp file was deleted on the VPS between the 20:46 and 21:02 runs. The runs at 21:02, 21:18 and
+21:34 then stopped on a conflict: she had added six lines to `index.md` and the owner's machine had
+changed the line above the first of them, and git conflicts on adjacent changes. The run says "copy
+GitHub's version over hers, then redo her change", and pushes nothing meanwhile. Her notes, her inbox
+files and any proposal waited behind it. A first attempt to merge the two versions into her copy by hand
+did not help: a merged file still conflicts, because her change contains the owner's, not equals it, and
+git only merges changes that don't touch. What worked, on the owner's word, at 21:41: the merged
+`index.md` (the owner's version plus her six lines) was committed and pushed to `main` from the local
+machine (`152bd39`), so her copy and `main` held the same lines. Step 14 makes sync-brain merge
+`index.md` by line.
+
+Then, with the owner's yes to each manual run of sync-brain:
+- 21:42: her notes and files went to `main` (one commit, 18 files), and her curator edit of `capture`
+  became `telma/proposals`: one commit, one post with the compare link; her copy was `main`'s version.
+- 21:50: silent.
+- 21:54 the owner deleted the branch; the run at 21:56 posted "dropped" once, her copy stayed on
+  `main`'s version, and the 22:06 run was silent. The proposal is kept as a patch outside the repos.
+- 22:09 the same file was written into her copy again by hand, on the VPS, at the owner's request
+  (byte-identical to the curator's last patch: its hash is the last one in the curator ledger). The
+  22:22 run proposed it again and the owner merged it as brain PR #4 at 22:59 without the eval (the
+  owner's decision, to test the merge path). The 23:00 run was silent, her copy matched `main`, and
+  sync-brain had deleted the branch.
+
+What this shows and what it doesn't. All three of step 8's behaviours were seen on the real repo with the
+real deploy key: a proposal with one post, "dropped" once, and a silent merge. But the edit reached her
+copy by hand both times (the curator's own edit was put back at 18:01 and again at 22:09), so a fresh
+curator edit turning into a proposal on its own is not yet seen. The `capture` skill on `main` now
+carries the curator's bullets with no eval run on it: AGENTS.md's eval rule is still owed for that change.

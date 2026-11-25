@@ -1400,3 +1400,29 @@ soon. The other mounted rule files can still fail the same way, and the new mess
 
 Proof still to see: the first run after the deletion, then a skill edit as one commit on
 `telma/proposals` and one post. Status rows for steps 7 and 8 say so.
+
+## 2026-11-25: steps 7 and 8 proven live
+
+After the temp file was deleted (about 20:50), the first run that got past it, at 21:02, stopped on a
+conflict: she had added six lines to `index.md` and the owner's machine had changed the line above the
+first of them, and git conflicts on adjacent changes. The run says "copy GitHub's version over hers,
+then redo her change", and pushes nothing meanwhile. Her notes, her inbox files and any proposal waited
+behind it. A first attempt to merge the two versions into her copy by hand did not help: a merged file
+still conflicts, because her change contains the owner's, not equals it, and git only merges changes
+that don't touch. What worked: the merged `index.md` went to GitHub (`152bd39`, her six lines on top of
+the owner's version), so that her copy and `main` held the same lines. Step 14 makes sync-brain merge
+`index.md` by line.
+
+Then, with the owner's yes to each manual run of sync-brain:
+- 21:42: her notes and files went to `main` (one commit, 18 files), and her curator edit of `capture`
+  became `telma/proposals`: one commit, one post with the compare link; her copy was `main`'s version.
+- 21:50: silent.
+- 21:54 the owner deleted the branch; the run at 21:56 posted "dropped" once, her copy stayed on
+  `main`'s version, and the 22:06 run was silent. The proposal is kept as a patch outside the repos.
+- 22:09 the same file was written into her copy again (byte-identical to the curator's last patch: its
+  hash is the last one in the curator ledger), 22:22 the run proposed it again, and the owner merged it
+  as brain PR #4 at 22:59 without the eval (his call, for this test). The 23:00 run was silent, her copy
+  matched `main`, and sync-brain had deleted the branch.
+
+So all three of step 8's behaviours are seen live. The brain's `capture` skill now carries the curator's
+bullets, with no eval run on it: AGENTS.md's eval rule is open for that change.

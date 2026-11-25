@@ -102,8 +102,8 @@ rebuilt around it:
 - **No way out for unattended work.** Triage runs in a rootless Docker sandbox with no network, so
   a page in the inbox has nowhere to send notes.
 - **Her edits to the rules reach the owner's machine only after a review.** The skills and rule
-  files (`AGENTS.md`, `CLAUDE.md`, `taste.md`) are read-only in her sandbox, but Hermes's own skill
-  editing runs on the host and can write them. So the job that pushes the brain, from its own clone,
+  files (`AGENTS.md`, `CLAUDE.md`) are read-only in her sandbox, but Hermes's own skill
+  editing runs on the host and can write them. She can write `taste.md` from the sandbox, and that edit becomes a proposal like the others. So the job that pushes the brain, from its own clone,
   sends her notes straight to GitHub and puts any change to a rule file on one branch,
   `telma/proposals`, for the owner to review and merge. Her copy gets the reviewed version back, so
   she never runs a rule nobody has seen. Deleting the branch means no. 89 tests in CI, a smoke test

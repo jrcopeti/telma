@@ -14,7 +14,9 @@ fallback_providers:
     model: baidu/ernie-5.5-flash-preview:free
 
 # Every command runs in the sandbox, with no network. The brain is mounted read-write; its skills
-# and rules files read-only, at the sandbox path and at the host path both.
+# and rules files read-only, at the sandbox path and at the host path both. `taste.md` is the one
+# rule file left out: the capture skill tells her to append to it, a single-file mount can't be
+# replaced (`Device or resource busy`), and sync-brain proposes her edit instead.
 terminal:
   backend: "docker"
   cwd: "/home/agent/brain"
@@ -29,7 +31,6 @@ terminal:
     - /home/agent/brain/skills:/workspace/brain/skills:ro
     - /home/agent/brain/AGENTS.md:/workspace/brain/AGENTS.md:ro
     - /home/agent/brain/CLAUDE.md:/workspace/brain/CLAUDE.md:ro
-    - /home/agent/brain/taste.md:/workspace/brain/taste.md:ro
     - /home/agent/brain/README.md:/workspace/brain/README.md:ro
     - /home/agent/brain/sync.mjs:/workspace/brain/sync.mjs:ro
     - /home/agent/brain/install.mjs:/workspace/brain/install.mjs:ro
@@ -41,7 +42,6 @@ terminal:
     - /home/agent/brain/skills:/home/agent/brain/skills:ro
     - /home/agent/brain/AGENTS.md:/home/agent/brain/AGENTS.md:ro
     - /home/agent/brain/CLAUDE.md:/home/agent/brain/CLAUDE.md:ro
-    - /home/agent/brain/taste.md:/home/agent/brain/taste.md:ro
     - /home/agent/brain/README.md:/home/agent/brain/README.md:ro
     - /home/agent/brain/sync.mjs:/home/agent/brain/sync.mjs:ro
     - /home/agent/brain/install.mjs:/home/agent/brain/install.mjs:ro

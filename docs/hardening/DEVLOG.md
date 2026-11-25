@@ -1446,3 +1446,22 @@ real deploy key: a proposal with one post, "dropped" once, and a silent merge. B
 copy by hand both times (the curator's own edit was put back at 18:01 and again at 22:09), so a fresh
 curator edit turning into a proposal on its own is not yet seen. The `capture` skill on `main` now
 carries the curator's bullets with no eval run on it: AGENTS.md's eval rule is still owed for that change.
+
+## 2026-11-25: step 9, `taste.md` writable
+
+Both `taste.md` mounts are gone from `config.overrides.yaml`, so the file is an ordinary one in her
+writable brain folder and capture's taste line lands in her copy; sync-brain already lists it in
+`PROPOSE` (step 8, seen live), so it becomes a proposal and `main` is unchanged until the owner
+merges. The old failure was the single-file mount, which can't be replaced (`Device or resource
+busy`), so the temp file and the stray inbox line should stop with it.
+
+Side effect: the eval grader's `PROTECTED` list had `taste.md` as a wall, so a trial that wrote the
+taste line would have failed `no_write`. Removed it there, ahead of the deploy
+(the owner: no eval runs before the deploy, which follows soon); until then the live mount is the only
+wall on `taste.md`. The 107 tests in `test_grade.py` and `test_tasks.py` pass. No task writes
+`taste.md` today.
+
+Not deployed: the live config still has the mounts, and the drift check will show the config as
+changed until the owner says to deploy. The README line is tightened for `taste.md` here; ADR 6's
+"her sandbox can't write them" and the rest of the sweep stay with step 12. Proof still to see: a
+taste correction in a real chat becoming one proposal.

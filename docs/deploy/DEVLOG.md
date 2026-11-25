@@ -109,3 +109,182 @@
   can't reach them, and root-owned hooks would close little while `config.yaml`, which declares
   them, is hers. The gap that leaves (a hook or config change shows only when the check runs) is
   in the plan's Decisions.
+
+## 2026-11-24: PR 2, the deploy script
+
+- `deploy.py`, not `.sh`, as `check-drift.py` before it: it reuses the check's manifest reader,
+  placeholder filling and status table (imported, not copied), and its host side runs as Python on
+  the VPS and on a Mac. The plan's mentions renamed; the devlog's left as written. `install` and
+  `mv -f` became `os.open(O_EXCL|O_NOFOLLOW)`, `fchown`, `fchmod`, `fsync` and `os.replace`.
+- Two ssh calls as root: one reads each named file (stat, hash, bytes, for the diff; a symlink on
+  its path is reported, never read through), one copies. Between them the owner answers every
+  file. The copy re-checks each file's hash against the one diffed and stops if it changed, stages
+  all files and their backups, then asks her cron ledger as `agent` whether a job runs, and only
+  then swaps them all in. A stop before the swap removes what it staged.
+- A running job, from Hermes's code at `ae2a81c`: `~/.hermes/cron/executions.db`, rows `claimed`
+  or `running` (`cron/executions.py`). Read as `agent`, `mode=ro`. A read as root the first time
+  made SQLite create `-shm` and `-wal` beside it; they came out `agent:agent`, as SQLite gives a
+  root-made journal the database's owner, but `agent` is the safer reader. A wedged row (a crashed
+  worker) would block every deploy until Hermes recovers it; the message names the job.
+- Hooks and restarts, from the same code: a hook runs fresh each call, consent is per command, and
+  only the doctor compares the script's mtime with its approval. So the hooks' `after` became
+  `reapprove-hook` (plan's `after` bullet), and `deploy.py` prints the revoke, accept and restart.
+- Only main as pushed is deployed (`HEAD` equals `origin/main` after a fetch), and nothing
+  uncommitted in the manifest or the named paths.
+- `--eval-run` takes a committed `evals/results/*.jsonl` whose run was made on a commit that has
+  the file's last change. It can't prove more: the eval copies her live `SOUL.md`, so a run before
+  a deploy tests the old one. In the plan's Open.
+- The deploy history tag (owner, from the step's start): `deploy/<date>-<n>`, printed, never
+  written. The number counts tags here and on origin (`git ls-remote`), not with `fetch --tags`,
+  which fails on a local `deployed` that differs from origin's.
+- The rule in `host.md`, "Scripts are deployed by hand", stays word for word: the bot's `host.md`
+  has the same rule, and the owner still says yes to each file.
+- Tests: `vps/test_deploy.py`, 19 against the fake host, a bare origin and a fake ledger, in CI
+  beside the check's. One live `check-drift.py` run while wiring the tests, by mistake (meant to
+  skip it): read-only, its doctor posted the known `test-session` alert.
+
+## 2026-11-24: PR 2, adversarial review and the host code in files
+
+- Adversarial test (a fresh agent, Opus): 10 breaking tests, kept as
+  `vps/test_deploy_adversarial.py`, in CI. Fixed: the tag number filled a gap instead of going one
+  past the highest; a failed `git ls-remote` was ignored (now the tag is named before the copy, and
+  a failed read of origin's tags stops it); an uncommitted file under `vps/` that wasn't named made
+  the re-check read in sync and printed a `deployed` move to a commit the host didn't match (now
+  nothing uncommitted under `vps/`); "nothing copied" exited 0, not 2 as the docstring says.
+- Its reasoned findings, fixed: a re-check that couldn't run exits 4, not 1 (drift); the config line
+  prints its `restart-gateway`; a `.deploy-tmp` left by an interrupted deploy stops the copy and is
+  named, never removed by root in her folder; `--eval-run` wants a hex commit; the tag's date and
+  the backup's name are both UTC; the running-jobs read takes only its last line as JSON, so her
+  login profile printing something isn't read as a job.
+- Left open: the symlink race on a folder mid-copy (proved, kept as an expected failure, in the
+  plan's Open for the owner); `--eval-run` accepts a run whose tasks failed (the plan's Open item on
+  `SOUL.md` and the eval covers what it can prove).
+- The owner's preference (brain `taste.md`): scripts in code, not strings. The host side moved from
+  strings in `deploy.py` to `vps/remote/deploy_host.py` (read and copy, sharing the symlink and
+  stat helpers) and `vps/remote/running_jobs.py` (run as `agent`, its code on stdin, so no Python
+  quoted through `su`). `check-drift.py`'s `COLLECT` is still a string: merged code, its own PR.
+
+## 2026-11-24: PR 2, second adversarial review
+
+- A second fresh agent: 8 breaking tests, kept as `vps/test_deploy_adversarial2.py`, in CI. The
+  owner's calls: gate the model, fallback and skills lines too; close the symlink race.
+- Proved and fixed:
+  - The backup folders were handed to `agent` before root wrote into them, so a link she planted
+    there made root write anywhere. Now `deploy-backups/` must be root's and closed to others, and
+    each run's folder is made by root inside it, `0700`.
+  - The symlink race from the first round (a folder on the path swapped mid-copy), with the same
+    change: every path is opened one folder at a time with `O_NOFOLLOW`, and the read, the backup,
+    the temp file and the swap all work on the opened folder (`dir_fd`). The first round's
+    expected failure now passes.
+  - A folder at a host path read as `missing` and failed only at the swap, after other files were
+    swapped. A path that isn't a plain file is now reported and not deployed.
+  - An uncommitted edit to a committed eval run was read; the run is now read from `HEAD`.
+  - The config and skills lines weren't gated by `--eval-run` (see the plan's deploy bullet).
+  - A stop after the copy exited 2 and printed no tag; Ctrl-C during the copy or the re-check gave
+    a traceback. After any copy the tag commands are printed (`finish()` never raises); Ctrl-C
+    during the copy exits 3, during the re-check 4.
+- Reasoned and fixed: every file is hashed again right before the swap; the host script's
+  docstring names its real invocation.
+- Reasoned, in the plan's Open: a job starting between the running-jobs check and the swap; two
+  deploys in a day before the first tag exists (kept as an expected failure).
+
+## 2026-11-24: PR 2, `tag-deploy.py`
+
+- The owner's answers to the second round's open items: a script for the tag commands, and the job
+  window between the running-jobs check and the swap accepted (plan's deploy bullet).
+- `deploy.py` leaves each deploy's tag in `<common git dir>/deploy-pending/<tag>.json` instead of
+  printing commands to copy (it prints them only if it can't write the file). `next_tag` counts
+  these, so two deploys before tagging get `-1` and `-2`: the second round's expected failure
+  passes now.
+- `vps/tag-deploy.py`, run by the owner: each pending tag after a yes, oldest first, made and
+  pushed, its file removed. A tag that exists already is left pending, to look at by hand.
+  `deployed` moves with the newest only when its re-check was in sync and nothing was skipped;
+  `--deployed` runs check-drift now (its doctor alert included) and moves `deployed` to HEAD if it
+  exits 0, for a hook moved in sync by its re-approval. "Only the owner moves tags" holds: the
+  owner runs it and answers each yes.
+- Tests: `vps/test_tag_deploy.py`, 5, against the bare origin; 71 across the six suites, in CI.
+
+## 2026-11-25: PR 2, third adversarial review (`tag-deploy.py`)
+
+- A third fresh agent: 17 tests, kept as `vps/test_deploy_adversarial3.py`, in CI. Proved and
+  fixed: `deployed` could move backwards (an older pending deploy tagged after `--deployed` had
+  moved it forward; now only onto a descendant of origin's); a corrupt pending file crashed
+  `tag-deploy.py` with exit 1 and blocked `deploy.py` unnamed (now a stop naming the file, exit 2);
+  a pending tag outside `deploy/<day>-<n>`, or an option-shaped one, was created and pushed (the
+  name, the 40-digit commit and the message are validated when read).
+- Reasoned, fixed: a tag made here but not pushed was stuck "already exists" forever (now pushed
+  on the next run; one already on origin at that commit clears its pending file); a pending commit
+  not on `origin/main` was tagged (now left pending, named); two deploys at once could overwrite a
+  pending file (`write_pending` creates it exclusively and takes the next number); q or end of
+  input at the last question exited 2 after the tags were pushed (now 1; `Quit` is not a stop).
+- Left, in the plan's Open: `in_sync` is the deploy's own re-check, not a fresh one. The test that
+  shows it stays as an expected failure.
+
+## 2026-11-25: PR 2, the smoke test
+
+- `vps/smoke-deploy.py`: runs the real `remote/deploy_host.py` and `running_jobs.py` the way a deploy
+  does, against a scratch folder (`/var/tmp/deploy-smoke-<time>`) and a copy of her cron ledger
+  made as `agent` through `su` (the original opened read-only, the copy mode `0600`). Checks the
+  read, a copy (new bytes, owner `agent:agent`, mode, the old file backed up, no temp file left),
+  a running job refused with exit 5, a symlinked folder reported and the copy refused with exit 4,
+  and removes the folder. It reads no live file but the ledger, writes none, runs no job.
+  `--local` rehearses it on this machine. It covers what the fake host can't: the ssh and `su`
+  quoting, her login profile, the real owner change, `dir_fd` on the VPS's Linux.
+- Not covered, left to the first real deploy: a real file, the hooks' re-approval, a gateway
+  restart.
+
+## 2026-11-25: PR 2, the tag script cut
+
+- The owner asked whether `tag-deploy.py` was overhead (they'd expected the two commands behind a
+  script). It was: the pending files in `.git/`, their validation, the resume logic and the
+  numbering that counted them were a design of mine, and the third adversarial round's findings
+  were nearly all about them. Cut: `tag-deploy.py`, the pending store and `test_tag_deploy.py` and
+  `test_deploy_adversarial3.py` are gone.
+- Now `deploy.py` ends by asking, each with the owner's own yes at the keyboard: create and push
+  `deploy/<day>-<n>`; move `deployed` (only when this run's re-check was in sync, and only forward,
+  one `merge-base` check against origin's). No, q, end of input or a failure print the commands.
+  Nothing is stored between runs, so a tag the owner declined is just offered again next time at
+  the same number. `deploy.py --deployed` re-checks and offers `deployed` alone (the hook
+  re-approval case). Kept from round 3: the forward-only rule; the stale-`in_sync` finding no longer
+  exists, since the offer comes right after the check.
+- The smoke test is untouched: it covers the host side only.
+
+## 2026-11-25: PR 2, fourth adversarial review
+
+- A fourth fresh agent, on the cut and the new smoke test: 16 tests, kept as
+  `vps/test_deploy_adversarial3.py`, in CI (the earlier file of that name, for the pending files,
+  went with them). The suites now answer through a pseudo-terminal (`DeployFake.terminal`).
+- Proved and fixed: a piped stdin (an agent's shell, `yes |`) could create the tag and move
+  `deployed`, so the owner's yes at the keyboard wasn't enforced: `deploy.py` now stops before
+  anything unless stdin is a terminal; a refused tag push skipped the `deployed` offer, and the
+  by-hand list always repeated the tag commands: each step now has its own offer and its own
+  commands; a tag name taken on origin during the run left a stale local tag and dead commands: the
+  tag is numbered again just before the offer, and a refused push removes the local tag.
+- Reasoned, fixed: no tag is offered for a copy that may not have run (exit 3); the `deployed`
+  push leases origin's value (the raw ref, which for an annotated tag isn't the commit); `--deployed`
+  brings this clone's `deployed` to origin's when it is on the commit already (the check reads it);
+  `--deployed` exits 2 when the check couldn't run; abbreviations are off and `--deployed` with
+  `--eval-run` is refused.
+- The smoke test's host side: `setup` makes the scratch folder itself, so a name that exists is not
+  trusted (a link in a pre-made `/var/tmp/deploy-smoke-*` made root chmod outside it); `a.sh` is
+  made and chowned before its folder is handed to `agent`, with no ownership change through a
+  link; `cleanup` removes only a real `deploy-smoke-*` folder that its own user owns (the parent
+  compare checked nothing). A stale-`was` case was added to the smoke test: removing the
+  "changed since its diff" check stayed green before.
+- Left: the local smoke rehearsal can't tell a missing `fchown` (the local user owns everything);
+  the run on the VPS covers it.
+
+- First run of the smoke test on the VPS (2026-11-25): all checks passed, nothing left behind. It
+  pre-made the scratch backups folder, so the copy's own creation of it was unchecked; the owner
+  made the real `~/.hermes/deploy-backups` by hand (`root:root`, `700`) believing it was needed
+  (the copy creates it when missing). The smoke test now leaves it to the copy and checks it comes
+  out root's and closed; second run on the VPS passed, 12 checks.
+
+- CI caught what this machine hid: the Linux python writes `__pycache__` beside the source, so
+  importing `check-drift.py` left an untracked `vps/__pycache__` and the clean-tree rule refused
+  every deploy (40 failures). This machine's python keeps bytecode elsewhere, and a global
+  gitignore hid it from `git status`. `deploy.py` no longer writes bytecode, the repo ignores
+  `__pycache__/` and `*.pyc`, and a test runs the deploy with bytecode in-tree (it fails without
+  the fix). A real deploy on a machine without such a global ignore would have hit it too.
+- The second CI run found the backup folder's name, to the second, collided when two deploys of the
+  test ran within one second. It now goes to the millisecond (the copy still stops if the folder exists).

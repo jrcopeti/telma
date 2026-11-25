@@ -5,11 +5,10 @@
 [![tests](https://github.com/jrcopeti/telma/actions/workflows/tests.yml/badge.svg)](https://github.com/jrcopeti/telma/actions/workflows/tests.yml)
 [![secret-scan](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml)
 
-An always-on agent that keeps the owner's second brain: she saves what the owner sends her, answers
-questions from the notes and sorts the inbox twice a day. She runs on
+An always-on agent that keeps the owner's second brain (its public template is
+[jrcopeti/brain-template](https://github.com/jrcopeti/brain-template)): she saves what the owner sends
+her, answers questions from the notes and sorts the inbox twice a day. She runs on
 [Hermes Agent](https://hermes-agent.nousresearch.com) on a VPS and talks to the owner in Discord.
-
-Telma keeps a second brain like [jrcopeti/brain-template](https://github.com/jrcopeti/brain-template).
 
 Formerly Tania.
 
@@ -175,9 +174,8 @@ The tests run in CI, and gitleaks scans the full history on every push.
 ## Credits
 
 Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
-Her brain skills started as the ones in Daniel Moka's [brain template](https://github.com/dmoka/brain-template) (MIT).
 
-This is open source, and pull requests are welcome :) To report a security problem, see
+This is open source, and pull requests are welcome. To report a security problem, see
 [SECURITY.md](SECURITY.md).
 
 ## License

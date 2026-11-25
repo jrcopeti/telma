@@ -30,7 +30,7 @@ from urllib.parse import unquote
 
 FOLDERS = ("intents", "guidelines", "decisions", "projects", "notes")
 # Read-only in her sandbox; a trial that changes one has gone through a wall.
-PROTECTED = ("skills", "AGENTS.md", "CLAUDE.md", "taste.md", "README.md", "sync.mjs", "install.mjs",
+PROTECTED = ("skills", "AGENTS.md", "CLAUDE.md", "README.md", "sync.mjs", "install.mjs",
              ".github", "test")
 IGNORED = {".DS_Store"}
 

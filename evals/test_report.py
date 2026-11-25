@@ -15,7 +15,7 @@ import report  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 SETUP = {"telma_commit": "aaa", "brain_commit": "bbb", "model": "m", "hermes": "h",
-         "soul_sha": "s1", "eval_soul_sha": "s1", "config_sha": "c1"}
+         "soul_sha": "s1", "eval_soul_sha": "s1"}
 
 
 def row(task, trial, status, **kw):
@@ -265,6 +265,20 @@ class FilesTest(unittest.TestCase):
         rows = run({"a": ["pass"]}, k=1)
         text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
         self.assertNotIn("didn't test her setup", text)
+
+    def test_the_drift_summary_is_in_the_report_when_the_run_saved_one(self):
+        path = self.put("2026-11-02T1000-bbb.jsonl", run({"a": ["pass"]}, k=1))
+        text = report.report(path, full={"a"})[1]
+        self.assertNotIn("Drift", text)
+        path.with_suffix(".drift.txt").write_text("a  repo ahead\nsummary: 0 of 1 in sync, hermes ok\nexit 1\n")
+        text = report.report(path, full={"a"})[1]
+        self.assertIn("Drift when it started: summary: 0 of 1 in sync, hermes ok (exit 1), 2026-11-02T1000-bbb.drift.txt", text)
+
+    def test_the_setup_line_no_longer_carries_config_hashes(self):
+        rows = [{**r, "setup": {**SETUP, "config_sha": "c1", "eval_config_sha": "ec"}} for r in run({"a": ["pass"]}, k=1)]
+        text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
+        self.assertIn("`SOUL.md` `s1`", text)
+        self.assertNotIn("config", text)
 
     def test_a_repo_soul_run_is_meant_to_differ_from_hers(self):
         repo = {**SETUP, "soul_source": "repo", "soul_sha": "s1", "repo_soul_sha": "r1", "eval_soul_sha": "r1"}

@@ -176,6 +176,7 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
     # Only SOUL.md can be compared: the eval config is hers rewritten to the trial folder, so its
     # hash always differs. run.py copies both fresh at the start of every run. With --repo-soul the
     # eval's SOUL.md is meant to differ from hers: it must match the repo's file the run says it used.
+    # run.py checks the copy before any trial; this keeps older runs' mismatch visible.
     repo_soul = s.get("soul_source") == "repo"
     if "eval_soul_sha" in s and (not s["eval_soul_sha"] or s["eval_soul_sha"] != s.get("repo_soul_sha" if repo_soul else "soul_sha")):
         out += ["The eval profile's `SOUL.md` didn't match the repo's file it was meant to test: this run didn't test it."
@@ -188,8 +189,12 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
                 + (f", notes `{s['notes_commit']}`" if s.get("notes_commit") else "")
                 + (f", the repo's `SOUL.md` `{s.get('repo_soul_sha')}` (hers `{s.get('soul_sha')}`)" if repo_soul
                    else f", `SOUL.md` `{s.get('soul_sha')}`")
-                + f", config `{s.get('config_sha')}` "
-                f"(eval copy `{s.get('eval_config_sha')}`).", ""]
+                + ".", ""]
+    drift = Path(path).with_suffix(".drift.txt")
+    if drift.is_file():
+        lines = drift.read_text().splitlines()
+        summary = next((l for l in lines if l.startswith("summary:")), lines[0] if lines else "empty")
+        out += [f"Drift when it started: {summary} ({lines[-1] if lines else 'no exit'}), {drift.name}.", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "
             f"{cur['tokens_in']:,} tokens in, {cur['tokens_out']:,} out.", "",
             "## Tasks", "",

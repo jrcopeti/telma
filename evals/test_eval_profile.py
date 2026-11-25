@@ -42,7 +42,7 @@ class RepoSoulTest(unittest.TestCase):
         self.assertIn("EOF_SOUL", sent.scripts[0])
 
     def test_the_stamp_says_which_soul_it_tested(self):
-        reply = "Hermes 1\nhost\neval\nc\nec\n"
+        reply = "Hermes 1\nhost\neval\n"
         with unittest.mock.patch.object(eval_profile, "vps", Sent(reply)):
             host = eval_profile.setup_stamp("b")
             repo = eval_profile.setup_stamp("b", "abc123abc123")
@@ -55,6 +55,55 @@ class RepoSoulTest(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 eval_profile.repo_soul()
         self.assertIn("uncommitted", str(e.exception))
+
+
+class StampTest(unittest.TestCase):
+    def test_the_stamp_carries_the_two_soul_hashes_and_no_config_hashes(self):
+        with unittest.mock.patch.object(eval_profile, "vps", Sent("Hermes 1\nhost\neval\n")):
+            stamp = eval_profile.setup_stamp("b")
+        self.assertEqual((stamp["soul_sha"], stamp["eval_soul_sha"]), ("host", "eval"))
+        self.assertFalse({"config_sha", "eval_config_sha"} & stamp.keys())
+
+    def test_a_copy_that_is_not_what_the_run_meant_to_test_is_named(self):
+        host = {"soul_source": "host", "soul_sha": "h1", "eval_soul_sha": "h1"}
+        repo = {"soul_source": "repo", "soul_sha": "h1", "repo_soul_sha": "r1", "eval_soul_sha": "r1"}
+        self.assertIsNone(eval_profile.soul_copy_problem(host))
+        self.assertIsNone(eval_profile.soul_copy_problem(repo))
+        for stamp in ({**host, "eval_soul_sha": "other"}, {**host, "eval_soul_sha": ""},
+                      {**repo, "eval_soul_sha": "h1"}, {**repo, "eval_soul_sha": ""}):
+            with self.subTest(stamp=stamp):
+                self.assertIn("SOUL.md", eval_profile.soul_copy_problem(stamp))
+
+
+def finished(stdout="", stderr="", code=0):
+    return subprocess.CompletedProcess([], code, stdout=stdout, stderr=stderr)
+
+
+class DriftReportTest(unittest.TestCase):
+    def run_report(self, **kw):
+        with unittest.mock.patch.object(subprocess, "run", **kw) as run:
+            return eval_profile.drift_report(), run
+
+    def test_it_is_the_checks_output_and_its_exit_code(self):
+        text, run = self.run_report(return_value=finished("a  in sync\nsummary: 1 of 1 in sync\n", code=0))
+        self.assertEqual(text, "a  in sync\nsummary: 1 of 1 in sync\nexit 0\n")
+        self.assertEqual(run.call_args.args[0][1:], [str(eval_profile.REPO / "vps/check-drift.py")])
+
+    def test_drift_is_recorded_not_raised(self):
+        text, _ = self.run_report(return_value=finished("SOUL.md  repo ahead\nsummary: 0 of 1 in sync\n", code=1))
+        self.assertTrue(text.endswith("exit 1\n"))
+
+    def test_a_check_that_could_not_run_says_why(self):
+        text, _ = self.run_report(return_value=finished(stderr="check-drift: ssh failed\n", code=2))
+        self.assertIn("check-drift: ssh failed", text)
+        self.assertTrue(text.endswith("exit 2\n"))
+
+    def test_a_check_that_hangs_or_is_missing_never_stops_the_run(self):
+        for err, word in ((subprocess.TimeoutExpired("x", 1), "timed out"), (OSError("no python"), "no python")):
+            with self.subTest(err=err):
+                text, _ = self.run_report(side_effect=err)
+                self.assertIn(word, text)
+                self.assertIn("check did not run", text)
 
 
 if __name__ == "__main__":

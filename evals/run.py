@@ -15,7 +15,8 @@ rules from its HEAD, or the decoy for chat cases), her memory and skills reset t
 her tool calls come back here to be graded. A failed trial's diff of the copy is kept in
 evals/results/private/<run>/. One JSONL line per trial in evals/results/<date>-<commit>.jsonl,
 public: no report text, and no grader details for tasks on the real brain. The full rows go to
-evals/results/private/, which git ignores. Stops at the cost cap; the rest are marked not_run. Ends
+evals/results/private/, which git ignores. A run first saves vps/check-drift.py's output as
+<run>.drift.txt beside each file (never a stop: a run may test an undeployed change). Stops at the cost cap; the rest are marked not_run. Ends
 with report.py's report, written beside each results file and printed from the private one.
 Every run needs the owner's yes (docs/evals/PLAN.md, Rules).
 """
@@ -31,7 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from brain_copy import NOTES_REF, check_tasks, eval_leaks, item_path, pin_brain, strip_eval_notes, unhash  # noqa: E402
-from eval_profile import repo_soul, setup_stamp, sync_profile  # noqa: E402
+from eval_profile import drift_report, repo_soul, setup_stamp, soul_copy_problem, sync_profile  # noqa: E402
 from report import write as write_report  # noqa: E402
 from trial import trial  # noqa: E402
 from vps import PROFILE, WORK, remove_container, stop_gateway, vps  # noqa: E402
@@ -123,10 +124,11 @@ def main(argv=None):
         started = True
         pages_file = HERE / "tasks/pages.json"
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
+        drift = drift_report()  # her files against the repo, as the run starts
         sync_profile(soul[0])
         stamp = setup_stamp(brain_commit, soul[1])
-        if soul[1] and stamp["eval_soul_sha"] != soul[1]:  # before any paid trial
-            sys.exit(f"the eval profile's SOUL.md is {stamp['eval_soul_sha']!r}, not the repo's {soul[1]}: the copy failed")
+        if problem := soul_copy_problem(stamp):  # before any paid trial
+            sys.exit(problem)
         stamp["notes_commit"] = NOTES_REF[:7]  # the notes; brain_commit is only OVERLAY (skills and rules)
         stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on notes_commit less these
         stamp["cost_source"] = "openrouter key"  # earlier runs: Hermes' estimate, about 5× too low
@@ -136,6 +138,8 @@ def main(argv=None):
         name = f"{datetime.now(timezone.utc):%Y-%m-%dT%H%M}-{stamp['telma_commit']}.jsonl"
         out, private = HERE / "results" / name, HERE / "results/private" / name
         private.parent.mkdir(parents=True, exist_ok=True)
+        for f in (out, private):
+            f.with_suffix(".drift.txt").write_text(drift)
         run_all(tasks, a.k, pages, tmp, stamp, out, private)
         reports = {}
         for f in (out, private):  # one failing must not cost the other

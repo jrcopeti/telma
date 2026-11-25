@@ -324,3 +324,17 @@ over her copy (the owner said yes), and the restore put back text that never ran
 - Afterwards her edit was put back from the root copy, to give step 8 a real proposal to open. Until
   that PR is merged or its branch deleted, the check reads `capture/SKILL.md` as host ahead; that is
   the check working, not drift to fix.
+
+## 2026-11-25: step 5, the eval writes `drift.txt`
+
+- `run.py` runs `vps/check-drift.py` at the start (`eval_profile.drift_report()`) and saves its output
+  and exit code as `<run>.drift.txt` beside the `.jsonl` and `.md`, in `results/` and `results/private/`.
+  The results are flat files, not a folder per run, so the plan's "results folder has `drift.txt`" became a file
+  named for the run. A check that fails, hangs or can't start is written down, never a stop. Like any
+  check it posts one `test-session` alert from cron-alert.
+- `report.py` quotes the summary line and exit code, and the `.drift.txt` name. The Setup line and the
+  stamp lose the config hashes (the eval's config is hers rewritten, so they never matched).
+- The SOUL.md mismatch rule is one rule: the eval copy must equal what the run meant to test, hers or, with
+  `--repo-soul`, the repo's. It moved to `run.py` (`soul_copy_problem`), so a bad copy stops before any
+  paid trial for both sources; the report still flags older runs' stamps by the same rule.
+- Not done: the smoke run, which needs the owner's yes.

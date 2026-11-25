@@ -76,4 +76,4 @@ jobs:
           persist-credentials: false
 
       - name: Test the eval grader, report and VPS scripts
-        run: python3 -m unittest evals/test_grade.py evals/test_tasks.py evals/test_report.py evals/test_remote.py
+        run: python3 -m unittest evals/test_grade.py evals/test_tasks.py evals/test_report.py evals/test_remote.py evals/test_eval_profile.py

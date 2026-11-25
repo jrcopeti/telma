@@ -16,6 +16,13 @@ change that makes a task newly fail.
 ## Rules
 
 - Every run needs the owner's yes, every time: a trial is a real Hermes run on the VPS.
+- A change to `SOUL.md` is tested with `python3 evals/run.py --repo-soul` (after committing it).
+  The run copies the repo's `vps/hermes/SOUL.md`, filled in the way `deploy.py` fills it, into the
+  eval profile over her live one, and stamps `soul_source: repo`, `repo_soul_sha` and the eval
+  copy's `eval_soul_sha`. The report stops flagging the mismatch with hers when those match, and
+  never uses such a run as the baseline unless the owner names it one (`-baseline`), as with
+  `--brain-ref`. `deploy.py --eval-run` takes it for `SOUL.md` only if the hashes equal the filled
+  file about to be written. Any other change runs `evals/run.py` as before: it tests her live setup.
 - Never on the live brain. Each trial gets a fresh throwaway copy; `sync-brain` never sees it.
 - The chat cases run on a decoy brain only: in chats she holds all three legs, so a failed trial
   really leaks.

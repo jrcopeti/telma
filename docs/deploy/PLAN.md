@@ -161,11 +161,11 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 
 ## Open
 
-- How a `SOUL.md` change is evaluated before it is deployed. The eval copies her live `SOUL.md`
-  from the host into its profile (`evals/eval_profile.py`), so a run tests the deployed one.
-  `deploy.py --eval-run` only proves the run was made on a commit that has the change, not that the
-  run tested it. Step 5 is the natural place: have the eval copy the repo's filled `SOUL.md` when
-  asked, and then require the run's `eval_soul_sha` to equal what is deployed.
+- ~~How a `SOUL.md` change is evaluated before it is deployed.~~ **Done 2026-11-25:** `run.py
+  --repo-soul` makes the eval profile use the repo's filled `SOUL.md`, and `deploy.py --eval-run`
+  requires the run's `eval_soul_sha` and `repo_soul_sha` to equal the hash of the file it is about
+  to write (`docs/evals/PLAN.md`). Still open: the run isn't tied to the model, skills or config
+  being unchanged since; those come from the host as before.
 
 - A forced-command ssh key (`command=…,restrict` in root's `authorized_keys`) that can only run a
   read-only script, instead of root. It guards against a stolen local-machine key, which today

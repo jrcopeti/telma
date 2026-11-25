@@ -1285,3 +1285,7 @@ v1 runs ended"), which `evals/README.md` presents. Next: step 8 (cron alert hook
    run `--check` on it and fix what `stale_strips` names, then read its copy for prose about the eval, not just what `--check` flags (`EVAL_WORDS`
    only catches a few spellings): `projects/telma.md`, `index.md` and recent decisions first. Strip
    or reword what you find, then make the next full run the new baseline, and say so here.
+
+- `--repo-soul` (2026-11-25): tests the repo's `SOUL.md` instead of her live one. `report.py` compares
+  the eval copy with `repo_soul_sha` for such a run (hers would be the wrong yardstick), and skips it
+  as a baseline unless named `-baseline`. Needs the owner's yes per run like any other.

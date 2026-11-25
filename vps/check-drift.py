@@ -158,6 +158,15 @@ def private_values():
     return values
 
 
+def filled(data, path, values):
+    """A redacted repo file with each {{KEY}} replaced from info/private-values."""
+    text = data.decode()
+    for key in PLACEHOLDER.findall(text):
+        if key not in values:
+            raise Stop(f"{path} needs {key} in info/private-values")
+    return PLACEHOLDER.sub(lambda m: values[m.group(1)], text).encode()
+
+
 class Repo:
     """A repo file now (the checkout) or at the `deployed` tag; None when absent."""
 
@@ -269,13 +278,7 @@ def check():
     repo = Repo()
 
     def fill(data, path):
-        if data is None:
-            return None
-        text = data.decode()
-        for key in PLACEHOLDER.findall(text):
-            if key not in values:
-                raise Stop(f"{path} needs {key} in info/private-values")
-        return PLACEHOLDER.sub(lambda m: values[m.group(1)], text).encode()
+        return None if data is None else filled(data, path, values)
 
     def jobs_want(path, at_tag):
         """The overrides with each prompt file read at the same commit, as a hash."""

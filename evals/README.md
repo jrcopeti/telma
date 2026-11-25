@@ -190,7 +190,7 @@ made-up brain with the script that generates it.
   one fixed commit (`NOTES_REF` in `brain_copy.py`), with her skills and the rules they follow (`AGENTS.md`,
   `taste.md`, each folder's `README.md`, the other `OVERLAY` files) from `~/brain`'s current commit
   (it refuses uncommitted changes to them), or from
-  a branch with `--brain-ref` to test a skill change before it ships; no history. Fixed notes mean
+  a branch with `--brain-ref` to test a skill change before it ships, and `--repo-soul` to test the repo's `SOUL.md` before deploy.py ships it; no history. Fixed notes mean
   a run tests the change, not the last sync, and her later notes about the eval never reach a
   trial. `--check` runs only the local checks before a run. One JSONL line per
   trial in `results/`, with no report text, and no grader details for tasks on the real brain; full

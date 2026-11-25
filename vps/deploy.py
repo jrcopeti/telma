@@ -96,8 +96,10 @@ def preflight():
     return head
 
 
-def check_eval_run(path, results):
-    """A committed run, made on a commit that has the file's last change. Returns that commit."""
+def check_eval_run(path, results, soul=None):
+    """A committed run, made on a commit that has the file's last change. Returns that commit. For
+    SOUL.md, `soul` is the filled file about to be written: the run must have tested the repo's SOUL.md
+    (`run.py --repo-soul`) and its copy on the eval profile must hash the same as this."""
     if not results:
         raise Stop(f"{path} needs --eval-run evals/results/<run>.jsonl (AGENTS.md: the eval before the change)")
     p = Path(results).resolve()
@@ -108,15 +110,29 @@ def check_eval_run(path, results):
     committed = git("show", f"HEAD:evals/results/{rel}", check=False)  # never the working tree's copy
     if p.suffix != ".jsonl" or committed.returncode:
         raise Stop(f"--eval-run {results}: not a committed results .jsonl")
+    rows = committed.stdout.decode().splitlines()
     try:
-        ran_on = json.loads(committed.stdout.decode().splitlines()[0])["setup"]["telma_commit"]
+        stamp = json.loads(rows[0])["setup"]
+        ran_on = stamp["telma_commit"]
     except (IndexError, ValueError, KeyError, TypeError):
         raise Stop(f"--eval-run {results}: no setup stamp in its first line")
+    try:
+        lines = [json.loads(l) for l in rows if l.strip()]
+    except ValueError:
+        raise Stop(f"--eval-run {results}: a row isn't JSON (a truncated or corrupt results file)")
+    if soul is not None and any(l.get("setup") != stamp for l in lines if isinstance(l, dict)):
+        raise Stop(f"--eval-run {results} holds rows of more than one setup (two runs in one file)")
     if not re.fullmatch(r"[0-9a-f]{7,40}", str(ran_on)):
         raise Stop(f"--eval-run {results}: its telma_commit {ran_on!r} isn't a commit hash")
     changed = git("log", "-1", "--format=%H", "--", path).stdout.decode().strip()
     if git("merge-base", "--is-ancestor", changed, ran_on, check=False).returncode:
         raise Stop(f"--eval-run {results} ran on {ran_on}, without {path}'s last change {changed[:7]}")
+    if soul is not None:
+        tested = stamp.get("eval_soul_sha")
+        if stamp.get("soul_source") != "repo" or not tested or tested != stamp.get("repo_soul_sha"):
+            raise Stop(f"--eval-run {results} didn't test the repo's {path}: rerun with run.py --repo-soul")
+        if tested != sha(soul)[:12]:
+            raise Stop(f"--eval-run {results} tested {path} {tested}, not the file to deploy {sha(soul)[:12]}: rerun with run.py --repo-soul")
     return ran_on
 
 
@@ -223,9 +239,6 @@ def deploy(args):
             print(f"  then: {after_step(rows, row)}")
     if not files:
         return 2
-    for row in files:
-        if Path(row["repo"]).name in EVAL_GATED:
-            print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run)}")
     now = datetime.now(timezone.utc)  # UTC for the tag's date and the backup's name alike
     next_tag(f"{now:%Y-%m-%d}")  # stops before the copy if origin's tags can't be read; the tag is numbered again at the end
 
@@ -236,16 +249,15 @@ def deploy(args):
         data = repo.read(row["repo"], at_tag)
         if data is None or row["mode"] != "redacted":
             return data
-        text = data.decode()
-        for key in drift.PLACEHOLDER.findall(text):
-            if key not in values:
-                raise Stop(f"{row['repo']} needs {key} in info/private-values")
-        return drift.PLACEHOLDER.sub(lambda m: values[m.group(1)], text).encode()
+        return drift.filled(data, row["repo"], values)
 
     wants = {row["repo"]: want(row) for row in files}
     missing = [p for p, w in wants.items() if w is None]
     if missing:
         raise Stop(f"not in the checkout: {', '.join(missing)}")
+    for row in files:
+        if Path(row["repo"]).name in EVAL_GATED:
+            print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run, wants[row['repo']])}")
     r = remote({"action": "read", "files": [row["host"] for row in files]})
     if r.returncode:
         raise Stop(f"reading the host failed ({r.returncode}): {r.stderr.strip()[-500:]}")

@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_check_drift import GIT_ENV  # noqa: E402
-from test_deploy import HOOK, TODAY, DeployFake  # noqa: E402
+from test_deploy import HOOK, TODAY, DeployFake, run_line  # noqa: E402
 
 
 class Attack2(unittest.TestCase):
@@ -75,10 +75,10 @@ class Attack2(unittest.TestCase):
     def test_an_uncommitted_edit_to_a_committed_eval_run_is_refused(self):
         old = self.head()
         run = "evals/results/2026-11-25T1000-x.jsonl"
-        self.f.change({run: json.dumps({"setup": {"telma_commit": old}}) + "\n"})  # before SOUL's change
+        self.f.change({run: run_line(old)})  # before SOUL's change
         self.f.change({"vps/SOUL.md": "You keep {{OWNER_NAME}}'s brain well.\n"})
         self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)  # sanity
-        (self.f.repo / run).write_text(json.dumps({"setup": {"telma_commit": self.head()}}) + "\n")  # not committed
+        (self.f.repo / run).write_text(run_line(self.head()))  # not committed
         code = self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n")
         self.assertEqual(code, 2, self.f.out)
         self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain.\n")

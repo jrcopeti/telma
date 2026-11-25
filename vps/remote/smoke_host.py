@@ -30,7 +30,6 @@ def own(path, mode):
 
 def setup():
     os.mkdir(R, 0o755)  # new, or setup stops: a name that exists already isn't trusted
-    os.makedirs(R + "/home/agent/.hermes/deploy-backups", mode=0o700)
     os.makedirs(R + "/home/agent/.hermes/cron")
     os.makedirs(HOME + "/smoke")
     for d in (R + "/home", HOME, HOME + "/.hermes"):

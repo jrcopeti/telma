@@ -97,9 +97,20 @@ def main():
                        as_agent=as_agent, files=[{"host": path, "data": base64.b64encode(new).decode(), "user": user,
                                                   "group": group, "perm": "755", "was": was}])
 
+        sh = [*(["bash", "-c"] if local else [*drift.SSH, drift.HOST])]
+        backups = f"{root}/home/agent/.hermes/deploy-backups"
+        r = subprocess.run([*sh, f"test ! -e {shlex.quote(backups)} && echo absent"], capture_output=True, text=True)
+        check("the backups folder doesn't exist yet", r.stdout.strip() == "absent", r.stdout + r.stderr)
         r = host_script("deploy_host.py", copy, local)
         check("copy: exit 0, the swapped path printed", r.returncode == 0 and json.loads(r.stdout) == [path],
               f"{r.returncode}: {r.stderr.strip()[-300:]}")
+        if local:  # this machine's stat may not be GNU's
+            st = os.stat(backups)
+            got = f"{pwd.getpwuid(st.st_uid).pw_name}:{grp.getgrgid(st.st_gid).gr_name} {st.st_mode & 0o777:o}"
+        else:
+            got = subprocess.run([*sh, f"stat -c '%U:%G %a' {shlex.quote(backups)}"], capture_output=True, text=True).stdout.strip()
+        want = f"{names.split(':')[0]}:{grp.getgrgid(os.getgid()).gr_name} 700" if local else "root:root 700"
+        check("copy: it made the backups folder, closed to others", got == want, f"{got} != {want}")
         r = host_script("deploy_host.py", request(action="read", files=[path]), local)
         after = json.loads(r.stdout)[path]
         check("copy: new bytes, owner and mode as asked", base64.b64decode(after["data"]) == new and after["stat"] == f"{names} 755",

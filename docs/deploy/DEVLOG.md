@@ -273,3 +273,9 @@
   "changed since its diff" check stayed green before.
 - Left: the local smoke rehearsal can't tell a missing `fchown` (the local user owns everything);
   the run on the VPS covers it.
+
+- First run of the smoke test on the VPS (2026-11-25): all checks passed, nothing left behind. It
+  pre-made the scratch backups folder, so the copy's own creation of it was unchecked; the owner
+  made the real `~/.hermes/deploy-backups` by hand (`root:root`, `700`) believing it was needed
+  (the copy creates it when missing). The smoke test now leaves it to the copy and checks it comes
+  out root's and closed; second run on the VPS passed, 12 checks.

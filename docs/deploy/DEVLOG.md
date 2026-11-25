@@ -288,3 +288,11 @@
   the fix). A real deploy on a machine without such a global ignore would have hit it too.
 - The second CI run found the backup folder's name, to the second, collided when two deploys of the
   test ran within one second. It now goes to the millisecond (the copy still stops if the folder exists).
+
+- Closed the `SOUL.md` gap (2026-11-25). The eval copied her live `SOUL.md`, so a run never tested the
+  text about to ship, and `--eval-run` only checked the run's commit had the change. `run.py
+  --repo-soul` now copies the repo's file at `HEAD`, filled by `check-drift.py`'s new `filled()`
+  (shared with `deploy.py`), over hers in the eval profile; the stamp says `soul_source: repo` and
+  the hash. `deploy.py` takes the run for `SOUL.md` only if `soul_source` is repo and the eval
+  copy's hash equals the file to write, so a run of another text, of her live one, or of an old
+  stamp is refused. The gate now runs after the file is filled, which moved it after the origin tag read.

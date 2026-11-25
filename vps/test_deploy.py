@@ -1,5 +1,6 @@
 """Tests for deploy.py against a fake host folder (DRIFT_HOST_ROOT), a throwaway repo and its bare origin.
 Run: python3 -m unittest vps/test_deploy.py"""
+import hashlib
 import json
 import os
 import pty
@@ -19,7 +20,15 @@ SCRIPT = Path(__file__).resolve().parent / "deploy.py"
 EXECUTIONS = "home/agent/.hermes/cron/executions.db"
 BACKUPS = "home/agent/.hermes/deploy-backups"
 HOOK = "/home/agent/.hermes/agent-hooks/hook.py"
+SOUL_TEXT = "You keep {{OWNER_NAME}}'s brain well.\n"
+FILLED_SHA = hashlib.sha256(b"You keep Ana's brain well.\n").hexdigest()[:12]
 TODAY = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def run_line(commit, **soul):
+    """A results line: what run.py stamps. By default a --repo-soul run that tested the filled SOUL_TEXT."""
+    setup = {"telma_commit": commit, "soul_source": "repo", "repo_soul_sha": FILLED_SHA, "eval_soul_sha": FILLED_SHA}
+    return json.dumps({"setup": {**setup, **soul}}) + "\n"
 
 
 class DeployFake(Fake):
@@ -205,7 +214,7 @@ class Deploy(unittest.TestCase):
         self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
         head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.f.repo, capture_output=True,
                               text=True).stdout.strip()
-        self.f.change({run: json.dumps({"setup": {"telma_commit": head}}) + "\n"})
+        self.f.change({run: run_line(head)})
         self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 0, self.f.out)
         self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain well.\n")
         self.assertIn("takes effect in her next chat", self.f.out)
@@ -214,16 +223,43 @@ class Deploy(unittest.TestCase):
         run = "evals/results/2026-11-25T1000-x.jsonl"
         head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=self.f.repo, capture_output=True,
                               text=True).stdout.strip()
-        self.f.change({run: json.dumps({"setup": {"telma_commit": head}}) + "\n"})
+        self.f.change({run: run_line(head)})
         self.f.change({"vps/SOUL.md": "You keep {{OWNER_NAME}}'s brain well.\n"})
         self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
         self.assertIn("without vps/SOUL.md's last change", self.f.out)
+
+    def test_soul_needs_a_run_of_the_repo_soul_with_the_same_hash(self):
+        self.f.change({"vps/SOUL.md": SOUL_TEXT})
+        head = self.f.head()
+        run = "evals/results/2026-11-25T1000-x.jsonl"
+        cases = {
+            "a run of her live SOUL.md": (run_line(head, soul_source="host"), "didn't test the repo's"),
+            "an old stamp without the fields": (json.dumps({"setup": {"telma_commit": head}}) + "\n", "didn't test the repo's"),
+            "no eval copy hash": (run_line(head, eval_soul_sha=""), "didn't test the repo's"),
+            "the eval copy isn't the file the run says": (run_line(head, eval_soul_sha="0" * 12), "didn't test the repo's"),
+            "a different SOUL.md than the one to deploy": (run_line(head, repo_soul_sha="1" * 12, eval_soul_sha="1" * 12),
+                                                          "not the file to deploy"),
+        }
+        for name, (line, message) in cases.items():
+            with self.subTest(name):
+                self.f.change({run: line})
+                self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
+                self.assertIn(message, self.f.out)
+                self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain.\n")
+
+    def test_the_run_must_have_used_this_owner_name(self):
+        # the same repo text filled with another name hashes differently, so it can't unlock this one
+        self.f.change({"vps/SOUL.md": SOUL_TEXT})
+        other = hashlib.sha256(b"You keep Bo's brain well.\n").hexdigest()[:12]
+        run = "evals/results/2026-11-25T1000-x.jsonl"
+        self.f.change({run: run_line(self.f.head(), repo_soul_sha=other, eval_soul_sha=other)})
+        self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
 
     def test_an_uncommitted_eval_run_is_refused(self):
         self.f.change({"vps/SOUL.md": "You keep {{OWNER_NAME}}'s brain well.\n"})
         run = self.f.repo / "evals/results/local.jsonl"
         run.parent.mkdir(parents=True)
-        run.write_text(json.dumps({"setup": {"telma_commit": "HEAD"}}) + "\n")
+        run.write_text(run_line("HEAD"))
         self.assertEqual(self.f.deploy("--eval-run", str(run), "vps/SOUL.md", answers="y\n"), 2, self.f.out)
         self.assertIn("not a committed results .jsonl", self.f.out)
 

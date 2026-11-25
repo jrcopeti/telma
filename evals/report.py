@@ -105,7 +105,8 @@ def previous(path, full):
     against the tasks it had (tasks.json at its commit), so a task added since doesn't hide it. A run
     on a brain branch (`--brain-ref <branch>`) is skipped too: it tested a brain she doesn't have. A run
     pinned to a commit of her brain (`--brain-ref <hash>`) is a baseline and counts, and so is one the
-    owner named a baseline (`<run>-baseline-2.jsonl`), branch or not: the branch shipped since."""
+    owner named a baseline (`<run>-baseline-2.jsonl`), branch or not: the branch shipped since. A run
+    of the repo's SOUL.md (`--repo-soul`) is skipped the same way: it tested a file she may not have."""
     path = Path(path)
     for p in sorted((p for p in path.parent.glob("*.jsonl") if p.name < path.name), reverse=True):
         try:
@@ -113,7 +114,9 @@ def previous(path, full):
         except (OSError, ValueError, KeyError, TypeError):
             continue
         ref = s["setup"].get("brain_ref")
-        if not s["partial"] and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref) or "-baseline" in p.stem):
+        candidate = s["setup"].get("soul_source") == "repo"  # tested a SOUL.md she may not have
+        if not s["partial"] and "-baseline" in p.stem or (
+                not s["partial"] and not candidate and (not ref or re.fullmatch(r"[0-9a-f]{7,40}", ref))):
             return p, s
     return None, None
 
@@ -171,16 +174,21 @@ def render(path, cur, prev_path=None, prev=None, prev_problem=None):
         out += [f"Broken: {c['error'] + c['discarded']} of {cur['ran']} trials errored or were discarded "
                 f"(over {BROKEN_SHARE:.0%}). Rerun before trusting it.", ""]
     # Only SOUL.md can be compared: the eval config is hers rewritten to the trial folder, so its
-    # hash always differs. run.py copies both fresh at the start of every run.
-    if "eval_soul_sha" in s and (not s["eval_soul_sha"] or s["eval_soul_sha"] != s.get("soul_sha")):
-        out += ["The eval profile's `SOUL.md` didn't match hers: this run didn't test her setup.", ""]
+    # hash always differs. run.py copies both fresh at the start of every run. With --repo-soul the
+    # eval's SOUL.md is meant to differ from hers: it must match the repo's file the run says it used.
+    repo_soul = s.get("soul_source") == "repo"
+    if "eval_soul_sha" in s and (not s["eval_soul_sha"] or s["eval_soul_sha"] != s.get("repo_soul_sha" if repo_soul else "soul_sha")):
+        out += ["The eval profile's `SOUL.md` didn't match the repo's file it was meant to test: this run didn't test it."
+                if repo_soul else "The eval profile's `SOUL.md` didn't match hers: this run didn't test her setup.", ""]
     if s:
         out += [f"Setup: `{s.get('model')}`, {s.get('hermes')}; telma `{s.get('telma_commit')}`, "
                 # Since notes_commit, brain_commit is only her skills and rules; before it, the whole brain.
                 + (f"skills and rules `{s.get('brain_commit')}`" if s.get("notes_commit") else f"brain `{s.get('brain_commit')}`")
                 + (f" (branch `{s['brain_ref']}`)" if s.get("brain_ref") else "")
                 + (f", notes `{s['notes_commit']}`" if s.get("notes_commit") else "")
-                + f", `SOUL.md` `{s.get('soul_sha')}`, config `{s.get('config_sha')}` "
+                + (f", the repo's `SOUL.md` `{s.get('repo_soul_sha')}` (hers `{s.get('soul_sha')}`)" if repo_soul
+                   else f", `SOUL.md` `{s.get('soul_sha')}`")
+                + f", config `{s.get('config_sha')}` "
                 f"(eval copy `{s.get('eval_config_sha')}`).", ""]
     out += [f"Cost {money(cur['cost_usd'])}, {cur['seconds'] / 60:.1f} min, "
             f"{cur['tokens_in']:,} tokens in, {cur['tokens_out']:,} out.", "",

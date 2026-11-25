@@ -266,6 +266,38 @@ class FilesTest(unittest.TestCase):
         text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
         self.assertNotIn("didn't test her setup", text)
 
+    def test_a_repo_soul_run_is_meant_to_differ_from_hers(self):
+        repo = {**SETUP, "soul_source": "repo", "soul_sha": "s1", "repo_soul_sha": "r1", "eval_soul_sha": "r1"}
+        rows = [{**r, "setup": repo} for r in run({"a": ["pass"]}, k=1)]
+        text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
+        self.assertNotIn("didn't", text)
+        self.assertIn("the repo's `SOUL.md` `r1` (hers `s1`)", text)
+
+    def test_a_repo_soul_run_whose_copy_is_not_the_repos_is_called_out(self):
+        # the eval copy equal to hers is the old pass condition: it must not pass for a repo run
+        for value in ("s1", "", "other"):
+            with self.subTest(eval_soul_sha=value):
+                repo = {**SETUP, "soul_source": "repo", "soul_sha": "s1", "repo_soul_sha": "r1", "eval_soul_sha": value}
+                rows = [{**r, "setup": repo} for r in run({"a": ["pass"]}, k=1)]
+                text = report.report(self.put("2026-11-02T1000-bbb.jsonl", rows), full={"a"})[1]
+                self.assertIn("didn't match the repo's file", text)
+        repo = {**SETUP, "soul_source": "repo", "eval_soul_sha": "s1"}  # no repo hash stamped
+        rows = [{**r, "setup": repo} for r in run({"a": ["pass"]}, k=1)]
+        text = report.report(self.put("2026-11-03T1000-bbb.jsonl", rows), full={"a"})[1]
+        self.assertIn("didn't match the repo's file", text)
+
+    @k3
+    def test_a_repo_soul_run_is_never_the_baseline_unless_named_one(self):
+        repo = {**SETUP, "soul_source": "repo", "repo_soul_sha": "s1"}
+        candidate = [{**r, "setup": repo} for r in run({"a": ["pass"] * 3})]
+        self.put("2026-11-01T1000-aaa.jsonl", run({"a": ["pass"] * 3}))
+        self.put("2026-11-02T1000-bbb.jsonl", candidate)
+        text = report.report(self.put("2026-11-03T1000-ccc.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
+        self.assertIn("Compared with 2026-11-01T1000-aaa", text)
+        self.put("2026-11-02T1200-bbb-baseline.jsonl", candidate)  # the owner named it after the deploy
+        text = report.report(self.put("2026-11-02T1300-ddd.jsonl", run({"a": ["pass"] * 3})), full={"a"})[1]
+        self.assertIn("Compared with 2026-11-02T1200-bbb-baseline", text)
+
     def test_a_brain_branch_run_is_shown_and_never_the_baseline(self):
         branch = [{**r, "setup": {**SETUP, "brain_ref": "skill-x"}} for r in run({"a": ["pass"] * 3})]
         b = self.put("2026-11-02T1000-bbb.jsonl", branch)

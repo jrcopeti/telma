@@ -3,11 +3,13 @@
     python3 evals/run.py                      # all tasks, k=5
     python3 evals/run.py --only T1 skip-1 -k 1 # a few tasks, one trial each
     python3 evals/run.py --brain-ref skill-x   # the brain at a branch, to test a skill change first
+    python3 evals/run.py --repo-soul           # test this repo's SOUL.md instead of her live one, before deploying it
     python3 evals/run.py --check               # only the local checks before a run; no VPS, no cost
 
 Runs on the local machine and drives the VPS over SSH as user `agent`; nothing is deployed there.
 At the start it copies her current setup (SOUL.md, config, skills, memory) into the `eval` profile,
-pointed at the trial folder, so the run tests the setup she has now (eval_profile.py). Each trial
+pointed at the trial folder, so the run tests the setup she has now (eval_profile.py); with
+--repo-soul her SOUL.md is this repo's, filled in the way deploy.py fills it, and the stamp says so. Each trial
 (trial.py): a fresh brain copy (brain_copy.py: the real brain's notes at NOTES_REF with her skills and
 rules from its HEAD, or the decoy for chat cases), her memory and skills reset to that start, one Hermes run, then the copy, her report and
 her tool calls come back here to be graded. A failed trial's diff of the copy is kept in
@@ -29,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from brain_copy import NOTES_REF, check_tasks, eval_leaks, item_path, pin_brain, strip_eval_notes, unhash  # noqa: E402
-from eval_profile import setup_stamp, sync_profile  # noqa: E402
+from eval_profile import repo_soul, setup_stamp, sync_profile  # noqa: E402
 from report import write as write_report  # noqa: E402
 from trial import trial  # noqa: E402
 from vps import PROFILE, WORK, remove_container, stop_gateway, vps  # noqa: E402
@@ -92,10 +94,12 @@ def main(argv=None):
     ap.add_argument("--only", nargs="*")
     ap.add_argument("-k", type=int, default=5)
     ap.add_argument("--brain-ref", help="a brain branch or commit to take skills and rules from instead of ~/brain's HEAD")
+    ap.add_argument("--repo-soul", action="store_true", help="copy this repo's vps/SOUL.md into the eval profile, not her live one")
     ap.add_argument("--check", action="store_true", help="stop after the local checks, before the VPS")
     a = ap.parse_args(argv)
     if not a.check:
         check_clean()
+    soul = repo_soul() if a.repo_soul else (None, None)  # also on --check: fails before any VPS cost
     tmp, started = Path(tempfile.mkdtemp()), False
     try:
         brain_commit = pin_brain(tmp / "pinned", a.brain_ref)
@@ -119,8 +123,8 @@ def main(argv=None):
         started = True
         pages_file = HERE / "tasks/pages.json"
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
-        sync_profile()
-        stamp = setup_stamp(brain_commit)
+        sync_profile(soul[0])
+        stamp = setup_stamp(brain_commit, soul[1])
         stamp["notes_commit"] = NOTES_REF[:7]  # the notes; brain_commit is only OVERLAY (skills and rules)
         stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on notes_commit less these
         stamp["cost_source"] = "openrouter key"  # earlier runs: Hermes' estimate, about 5× too low

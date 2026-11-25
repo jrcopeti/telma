@@ -1249,3 +1249,18 @@ Her memory and skills unchanged after the chats; the gist deleted.
 
 **Step 6 done:** every case run or skipped by the owner (B7), the audit rerun is
 [audit-after.md](audit-after.md). The before/after table, ADRs and postmortem are the owner's.
+
+## 2026-11-25: reopened for steps 7 to 12 (the owner, grilled in a Claude Code session)
+
+sync-brain refused `skills/capture/SKILL.md` every 15 minutes. Cause: Hermes's background
+self-improvement review and its curator patch brain skills through `skill_manage`, which runs in her
+Hermes process on the host, outside the sandbox's `:ro` mounts. A refusal also holds back her inbox
+pushes. The capture skill's taste section asks for a write the sandbox forbids.
+
+Decided: rule files (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) become a proposal on
+`telma/proposals`, built by sync-brain; the review and curator stay on; `taste.md` first went straight
+to `main` with a Discord diff, then the owner moved it in with the other rule files; deleting the
+branch means no, and `main` wins on overlap; triage hourly 08:00 to 00:00, gated by a pre-script,
+once per inbox state, 09:00 always; her edits are pulled out of her copy, never live before review. Plan: steps 7 to 12 in PLAN.md.
+
+Nothing changed on the VPS yet: the refusal still stands until step 7.

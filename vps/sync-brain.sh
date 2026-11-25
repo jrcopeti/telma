@@ -33,29 +33,41 @@ helper() {
   return "$rc"
 }
 # Hermes writes a file as a temp file next to it, then renames it over the target; the rename can't replace a
-# read-only mount, and the temp file stays. Says which rule file beside $1 (in commit $2) it is closest to.
-failed_write() {
-  local dir=${1%/*} f n best= low=999999
-  [ "$dir" = "$1" ] && dir=
-  while IFS= read -r f; do
-    [[ $f =~ $PROPOSE ]] || continue
-    n=$(diff <(g cat-file blob "$2:$f" 2>/dev/null) <(g cat-file blob "$2:$1" 2>/dev/null) | wc -l)
-    [ "$n" -lt "$low" ] && best=$f low=$n
-  done < <(g ls-tree --name-only "$2" ${dir:+"$dir/"})
+# read-only mount, and the temp file stays. The rule file beside temp file $2 (in commit $1) that holds the
+# most of its lines, if it holds half of them and no other file holds as many; else "unknown".
+edit_target() {
+  local dir=${2%/*} f n total best= top=0 tie=0
+  [ "$dir" = "$2" ] && dir=
+  total=$(g cat-file blob "$1:$2" 2>/dev/null | grep -c .)
+  [ "$total" -gt 0 ] || { echo unknown; return; }
+  while IFS= read -r -d '' f; do
+    [[ $f =~ $PROPOSE ]] && [ "$f" != "$2" ] || continue
+    n=$(grep -cxFf <(g cat-file blob "$1:$f" 2>/dev/null | grep .) <(g cat-file blob "$1:$2" 2>/dev/null | grep .))
+    if [ "$n" -gt "$top" ]; then best=$f top=$n tie=0; elif [ "$n" = "$top" ]; then tie=1; fi
+  done < <(g ls-tree -z --name-only "$1" ${dir:+"$dir/"})
+  if [ "$tie" = 0 ] && [ "$top" -gt 0 ] && [ $((top * 2)) -ge "$total" ]; then echo "$best"; else echo unknown; fi
+}
+# One post for all the temp files $2... (in commit $1): what happened once, then each temp file with its target.
+failed_writes() {
+  local c=$1 t; shift
   echo "A failed edit left a temp file (Hermes can't rename one over a read-only mount). The edit is lost: delete the temp file and make the change by hand."
-  printf 'edit to: %s\ntemp file: %s\n' "${best:-a file beside it}" "$1" | block
+  { for t in "${@:1:5}"; do printf 'temp file: %s\nedit to:   %s\n' "$t" "$(edit_target "$c" "$t")"; done
+    [ $# -le 5 ] || printf 'and %d more\n' $(($# - 5)); } | block
 }
 # Stops the run if a change from $1 to $2 is outside the pattern $3, adds a link or a gitlink, or touches a
 # .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy).
 refuse_outside() {
-  local bad
+  local bad t tmps
   bad=$( (g diff --name-only --no-renames "$1" "$2" -- || echo "(git diff failed)") | grep -Ev "$3"
     g diff --raw --no-renames "$1" "$2" -- | awk '$2 ~ /^1[26]0000$/ { sub(/^[^\t]*\t/, ""); print }'
     g diff --name-only --no-renames -z "$1" "$2" -- | python3 "$FILES" gitfiles || echo "(gitfiles check failed)")
   [ -z "$bad" ] && return
   echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
   block <<<"$bad"
-  while IFS= read -r tmp; do [ -z "$tmp" ] || failed_write "$tmp" "$2"; done < <(grep -E '(^|/)\.hermes-tmp\.[^/]*$' <<<"$bad")
+  tmps=()
+  while IFS= read -r -d '' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*$ ]] && ! [[ $t =~ $3 ]] && tmps+=("$t"); done \
+    < <(g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" --)
+  [ ${#tmps[@]} = 0 ] || failed_writes "$2" "${tmps[@]}"
   echo "Nothing was pushed, and nothing will be until they are gone."
   exit 0
 }

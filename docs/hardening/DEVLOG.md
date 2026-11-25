@@ -1378,10 +1378,17 @@ single-file `:ro` mounts. A skill write fails differently: `skills/` is a read-o
 
 Done, with the owner's yes: the temp file deleted on the VPS (the only copy of that edit; the rule
 goes to a brain PR by hand, `feat/taste-no-semicolons`). Not changed: the refusal itself. The owner
-prefers sync-brain to keep refusing, with a clear message: `refuse_outside` now adds, per temp file,
-the lines "edit to: X" and "temp file: Y" in a code block, where X is the rule file beside it that
-the temp file differs from least. It still posts on each run until the file is gone, like every refusal. Two tests added
-(89 pass in the Ubuntu 24.04 image). Not deployed yet.
+prefers sync-brain to keep refusing, with a clear message: `refuse_outside` now adds one paragraph
+and, per temp file (five at most, then "and N more"), "temp file: Y" and "edit to: X" in a code block.
+X is the rule file beside the temp file that holds the most of its lines, and only when it holds at
+least half of them and no other file holds as many; otherwise "unknown". A first version named the
+smallest rule file for an empty temp file (found by `/code-review` and the adversarial round). It
+still posts on each run until the file is gone, like every refusal. Ten tests (97 pass in the Ubuntu
+24.04 image). Not deployed yet.
+
+The adversarial round also found two older gaps, reproduced on `main`: a temp file under `notes/` is
+pushed to `main`, and one under `skills/` goes to `telma/proposals`, both silently, because those paths
+pass the allowlist. Step 13 takes them. A test pins the `skills/` case as it is today.
 
 Step 9 is the real fix for `taste.md` (no single-file mount, so the write succeeds and becomes a
 proposal). It was already planned, but it ran behind step 8's proof; this is why it should follow

@@ -303,3 +303,24 @@
   runs in the same minute and commit share a file). Left as before: the gate doesn't read the run's
   verdict or whether it was partial (the owner reads the report), and the gate is by the repo file's
   name, not the host path.
+
+## 2026-11-25: first real deploy
+
+`deploy.py` shipped hardening step 8 (`vps/sync-brain.sh`, `vps/brain-files.py`), the first use outside
+the smoke test. No eval: neither file touches the model, `SOUL.md`, a skill, her toolsets or Hermes.
+The by-hand skill overwrite below needed no eval either: it only put GitHub's reviewed `capture/SKILL.md`
+over her copy (the owner said yes), and the restore put back text that never ran from `main`.
+
+- Before: `check-drift.py` showed 14 of 17 in sync, the two scripts repo ahead and `capture/SKILL.md`
+  host ahead (a curator edit sync-brain refuses). The skill went first, by hand and not through
+  `deploy.py`: her edit was copied to root's home, GitHub's version written over hers as `agent:agent`
+  `664`, and the check read 15 of 17.
+- The run: a diff and a yes per file, one copy, the backup in
+  `~/.hermes/deploy-backups/20261125T165748367Z/`, then the check at 17 of 17, hermes and hooks `ok`.
+  The owner answered yes to `deploy/2026-11-25-1` and to moving `deployed`; both are on origin, on
+  `c827547`, and a later check reads in sync against the moved tag.
+- Nothing needed fixing. It ran from the owner's terminal with `! python3 vps/deploy.py <paths>`; an
+  agent's shell is refused, as designed, so an agent can only prepare, check and verify afterwards.
+- Afterwards her edit was put back from the root copy, to give step 8 a real proposal to open. Until
+  that PR is merged or its branch deleted, the check reads `capture/SKILL.md` as host ahead; that is
+  the check working, not drift to fix.

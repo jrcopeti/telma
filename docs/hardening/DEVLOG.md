@@ -1348,3 +1348,13 @@ paragraph, ADR 6 and `host.md`/`kill-switch.md`. The schedule, `SOUL.md` and `ta
 stay as they are until steps 9 to 12 change what runs. README, threat model and before/after are
 public prose: the owner reads them in this PR.
 
+## 2026-11-25: step 7 and step 8 deployed
+
+Step 7: her `skills/capture/SKILL.md` was overwritten with GitHub's, so sync-brain had nothing to
+refuse. The curator's version (the "capture is triggered by the owner asking" bullet and the taste
+wording) was kept on the host and is the first proposal. The bullet and the inbox taste line still go
+to a brain PR by hand, the skill one after an eval.
+
+Step 8 went out with `deploy.py` (`deploy/2026-11-25-1`, details in `docs/deploy/DEVLOG.md`). Her
+curator edit was then written back, so the next sync-brain run should push the inbox files to `main`,
+put the skill on `telma/proposals` and post one compare link. Not yet seen; the result goes in a follow-up entry, and step 7 and 8's status rows follow it.

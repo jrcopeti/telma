@@ -33,6 +33,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.dont_write_bytecode = True  # importing check-drift.py must not leave a __pycache__ for the clean-tree check
 HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("check_drift", HERE / "check-drift.py")
 drift = importlib.util.module_from_spec(_spec)

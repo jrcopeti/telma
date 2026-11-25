@@ -279,3 +279,10 @@
   made the real `~/.hermes/deploy-backups` by hand (`root:root`, `700`) believing it was needed
   (the copy creates it when missing). The smoke test now leaves it to the copy and checks it comes
   out root's and closed; second run on the VPS passed, 12 checks.
+
+- CI caught what this machine hid: the Linux python writes `__pycache__` beside the source, so
+  importing `check-drift.py` left an untracked `vps/__pycache__` and the clean-tree rule refused
+  every deploy (40 failures). This machine's python keeps bytecode elsewhere, and a global
+  gitignore hid it from `git status`. `deploy.py` no longer writes bytecode, the repo ignores
+  `__pycache__/` and `*.pyc`, and a test runs the deploy with bytecode in-tree (it fails without
+  the fix). A real deploy on a machine without such a global ignore would have hit it too.

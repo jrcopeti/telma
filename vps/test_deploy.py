@@ -292,6 +292,20 @@ class Deploy(unittest.TestCase):
         self.assertIn("after the copy: summary: 6 of 6 in sync", note)
         self.assertEqual(self.origin("rev-parse", "--short", "deployed^{commit}"), head)
 
+    def test_importing_the_check_leaves_no_bytecode_for_the_clean_tree_rule(self):
+        # CI's Linux python writes __pycache__ beside the source; this machine's may not, so ask for it.
+        self.f.change({"vps/a.sh": "echo a2\n"})
+        master, slave = self.f.terminal("y\ny\ny\n")
+        try:
+            r = subprocess.run(["python3", "-X", "pycache_prefix=", "-u", str(self.f.repo / "vps/deploy.py"),
+                                "vps/a.sh"], cwd=self.f.repo, env=self.f.env(), stdin=slave, capture_output=True, text=True)
+        finally:
+            os.close(master)
+            os.close(slave)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(subprocess.run(["find", str(self.f.repo / "vps"), "-name", "*.pyc"], capture_output=True,
+                                        text=True).stdout, "")
+
     def test_a_no_to_the_tag_makes_nothing_and_prints_the_commands(self):
         self.f.change({"vps/a.sh": "echo a2\n"})
         before = self.origin("rev-parse", "deployed^{commit}")

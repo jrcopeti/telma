@@ -436,7 +436,9 @@ setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"
 printf '#!/bin/sh\nwhile read o n r; do case $r in refs/heads/telma/*) exit 1;; esac; done\n' > "$W/remote.git/hooks/pre-receive"; chmod +x "$W/remote.git/hooks/pre-receive"; sync
 check "a proposal push that fails is said, and does not hold back main; her edit stays for the next run" eval \
   'says "push of telma/proposals failed" && remote_has notes/n.md && grep -q evil "$B/skills/triage/SKILL.md"'
+mac status -s >/dev/null; echo "OWNER LINE" >> "$W/mac/skills/triage/SKILL.md"; mac_commit "owner edits the skill"; sync
 rm "$W/remote.git/hooks/pre-receive"; sync
+check "an owner edit to the same skill meanwhile is kept next to hers in the proposal" eval 'prop_show skills/triage/SKILL.md | grep -q "OWNER LINE" && prop_show skills/triage/SKILL.md | grep -q evil'
 check "and once the push works the edit is proposed and her copy reverted" eval 'prop_show skills/triage/SKILL.md | grep -q evil && ! grep -q evil "$B/skills/triage/SKILL.md"'
 
 setup; chmod +x "$B/skills/triage/SKILL.md"; sync

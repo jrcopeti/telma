@@ -230,8 +230,7 @@ if [ "$base" != "$given" ]; then
     exit 0
   fi
 fi
-# A proposal that can't be saved doesn't hold back main, but her rule-file edits then stay in her copy
-# (and get proposed again next run) instead of being reverted over.
+# A proposal that can't be saved doesn't hold back main (her notes still go out).
 propose; proposed=$?
 if [ "$new" != "$base" ]; then
   out=$(g push -q "$REMOTE" "$new:refs/heads/main" 2>&1) || { say "push failed:"; block <<<"$out"; exit 0; }
@@ -240,12 +239,12 @@ fi
 
 # Her copy held $hers; it gets what GitHub changed. Pending until it all landed: a failure is finished
 # next run, replaying only GitHub's changes, never her own.
+# A proposal that couldn't be saved stops here, after main: her copy and `given` stay as they were, so the
+# next run finds the same edits, merges them against the same base, and her copy isn't refreshed over them.
+[ "$proposed" = 0 ] || exit 0
 g update-ref refs/sync/given "$hers"
-target=$new
-[ "$proposed" = 0 ] || target=$(subset "$new" "$given" "$hers" "$PROPOSE") || { say "git failed in $P"; exit 0; }
-if [ "$target" != "$hers" ]; then
-  g update-ref refs/sync/pending "$target"
-  g checkout -q -f --detach "$target" || { say "checkout failed in $P"; exit 0; }
-  g diff --name-status --no-renames -z "$hers" "$target" -- | helper apply "$P" "$B" || exit 0
-fi
+[ "$new" = "$hers" ] && exit 0
+g update-ref refs/sync/pending "$new"
+g checkout -q -f --detach "$new" || { say "checkout failed in $P"; exit 0; }
+g diff --name-status --no-renames -z "$hers" "$new" -- | helper apply "$P" "$B" || exit 0
 g update-ref refs/sync/given "$new" && g update-ref -d refs/sync/pending

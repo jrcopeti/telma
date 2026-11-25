@@ -1291,15 +1291,18 @@ Choices made while building it:
 - A failed proposal push stops the run before anything is pushed, as a conflict does, so her copy is
   never reverted over an edit that isn't saved anywhere.
 
-Tests: `test-sync-brain.sh` is at 88 (was 61). The four refusals of skill edits became proposal
+Tests: `test-sync-brain.sh` is at 89 (was 61). The four refusals of skill edits became proposal
 tests; links, `.gitignore` and root files are still refused.
 
 Not deployed. Step 9 needs this live first.
 
-Adversarial round 1 (a fresh Sonnet agent, 5 proved defects and 3 reasoned), fixed:
+Adversarial rounds with a fresh Sonnet agent (round 1: 5 proved, 3 reasoned; round 2: 2 proved, both in round 1's fix), fixed:
 
-- A proposal push that fails (a ruleset on `telma/*`) held back every `main` push. Now it is said, `main`
-  still goes, and her rule-file edits stay in her copy and are proposed again next run.
+- A proposal push that fails (a ruleset on `telma/*`) held back every `main` push. Now it is said and
+  `main` still goes, but the run then stops: her copy and `given` stay as they were, so the next run
+  finds the same edits and merges them against the same base. (Round 2 caught the first version of
+  this fix, which refreshed her copy around her edits: a stalled refresh lost the edit, and a retry
+  merged against the owner's newer file and reverted the owner's line.)
 - An exec-bit-only change was dropped, and a mode-only commit by the owner looked merged. The proposal
   is now compared by mode and object, not object alone.
 - Re-creating a new rule file overwrote the open proposal and the owner's commit on it. A file with no

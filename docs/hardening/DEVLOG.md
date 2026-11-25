@@ -1315,3 +1315,30 @@ in her copy until the conflict is cleared (the alert repeats every run); a run k
 proposal push and writing `refs/sync/proposed` loses that proposal's Discord post; a binary rule file
 edited twice before review keeps only the later version.
 
+### Step 8 smoke test (2026-11-25)
+
+The real `sync-brain.sh` against a scratch private GitHub repo (seeded with a skill, `AGENTS.md`,
+`taste.md`, `notes/`, `inbox/`), run in the same Ubuntu 24.04 image as the tests. Her brain is a
+clone inside the container; "Telma" is a shell that edits files in it; the owner's steps (open,
+merge, delete, edit on `main`) are done with `gh`. HTTPS with a token stands in for the deploy key,
+so it proves the split, the branch handling and the Discord text, not the SSH setup. Nothing on the
+VPS was touched.
+
+| Step | Result |
+|---|---|
+| Nothing changed | Silent. |
+| She edits the skill and `taste.md`, files an inbox note | Note on `main`; the skill and taste edits on `telma/proposals` as one commit; one post with the compare link and the two file names; her copy back to `main`'s version. |
+| The owner opens a PR; she edits the skill again | Silent; the same PR, still one commit, with both edits. |
+| The owner squash-merges, branch left behind | Silent; sync-brain deletes the branch; her copy has the merged skill. |
+| New edit, then the branch deleted | One "dropped" post, her copy on `main`'s version, the next run silent. |
+| New edit to the skill and `AGENTS.md`, then the owner edits the skill on `main` | One post that `main` won for the skill; `AGENTS.md` stays in the proposal; her copy takes the owner's skill. |
+
+One thing it showed: a second edit next to the first (a changed last line plus a bullet below it)
+merges as one collided block, so the proposal shows both versions of the block. Nothing is lost,
+but the owner tidies it in review.
+
+To run it again: create a private repo with that seed, start the image with the repo mounted
+read-only, clone the repo as her brain, set `BRAIN_DIR`, `BRAIN_REMOTE` (an HTTPS URL with a token),
+`BRAIN_QUARANTINE` and a throwaway `HOME`, edit files in the clone and run `vps/sync-brain.sh`
+between steps. Delete the repo and the token's use afterwards.
+

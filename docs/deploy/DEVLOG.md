@@ -359,3 +359,11 @@ over her copy (the owner said yes), and the restore put back text that never ran
   placeholder. Its project note and the index line say the same. Written through the brain's own sync, no code.
 - The showcase plan's Open item for the deployment check is struck through and links the deploy plan.
 - Left for after this merges: mark the plan closed.
+
+## 2026-11-25: closed
+
+- #79 merged, so every step is done and the done-when holds: the check reports every line in sync
+  bar the open `capture/SKILL.md` proposal, `deployed` is set, `deploy.py` has deployed end to end
+  (`deploy/2026-11-25-1`), and each eval run writes `<run>.drift.txt`.
+- The design is written up in `docs/adr/0007-deploys-are-checked-against-the-repo.md`, and the README
+  has a Deploy section.

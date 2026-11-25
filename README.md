@@ -126,7 +126,7 @@ Read more:
   accepted.
 - [Before and after](docs/before-after.md): the two audits, side by side.
 - [Decisions](docs/adr/): why she exists, the two-agent split, one repo per agent, sync-brain's own
-  clone, the exfil tripwire.
+  clone, the exfil tripwire, proposals for rule files, and how deploys are checked.
 
 ## Evals
 
@@ -147,6 +147,52 @@ The first run passed 13 of 25 situations, with 29 failed trials. The last full r
 out of 150, and each of those three situations was rerun the next day. In the end just one trial
 failed: 29 of the 30 situations pass all five trials, the last one passes four of five, and no fake
 secret ever left the server. The [results](evals/README.md#results) explain each failure.
+
+## Deploy
+
+She runs from files on the server, and the copies in this repo are the source of truth. A change is
+reviewed and merged here first, and only then copied to the server by a script run from the owner's
+own machine. Nothing on the server pulls from the repo, and she can't run any of this.
+
+Two scripts and a list of files do the work:
+
+- `vps/deploy.manifest` lists every deployed file: where it is in the repo, where it goes on the
+  server, who owns it and what it needs afterwards.
+- `vps/check-drift.py` compares the server with the repo, one line per file: in sync, repo ahead
+  (merged but not deployed), host ahead (edited on the server), both changed, missing or differs. It only
+  reads, and it prints no file contents. It also checks the Hermes installs and her hooks.
+- `vps/deploy.py` copies the files you name, after showing each diff and asking.
+
+A git tag called `deployed` marks the last commit known to match the server, which is how the check
+tells "repo ahead" from "host ahead". Every deploy also leaves a `deploy/<date>-<n>` tag that
+records what went out. `git tag -l 'deploy/*' -n20` lists them.
+
+To deploy a change:
+
+1. Merge it to `main` and pull. The script deploys `main` as pushed, with nothing uncommitted under `vps/`.
+2. See what is ahead: `python3 vps/check-drift.py`. It needs an ssh alias `agents-vps` with root
+   access, and the owner's name in the repo's private values file (`OWNER_NAME=...`, never committed).
+3. Deploy the files that read "repo ahead": `python3 vps/deploy.py vps/cron-alert.py` (any paths from
+   the manifest). Answer yes or no for each diff. Nothing is copied until every file has an answer.
+   It must run at a terminal.
+4. Read the re-check it runs, and what each file still needs: a new chat, a gateway restart, a
+   sandbox rebuild, or approving a hook again. The script prints the commands and runs none of them.
+5. At the end it offers the two tags. Say yes only if the check came back in sync.
+
+Some changes take a different path:
+
+- **`SOUL.md`, the skills, her model and fallback order** are evaluated first. For `SOUL.md`, commit
+  it and run `python3 evals/run.py --repo-soul`, then pass the run to the deploy:
+  `python3 vps/deploy.py --eval-run evals/results/<run>.jsonl vps/hermes/SOUL.md`.
+- **Her settings and jobs** are never written by the script. It prints the `hermes config set`
+  commands, or the job change, for you to run.
+- **Her brain skills** go through a pull request on the brain and her own sync, then `vps/brain-skills/`
+  is updated to match.
+
+Each run of the eval also saves the check's output next to its results as `<run>.drift.txt`, so a
+result says what setup it was run against. The reasoning is in the
+[decision record](docs/adr/0007-deploys-are-checked-against-the-repo.md) and the
+[deploy plan](docs/deploy/PLAN.md).
 
 ## Lessons
 

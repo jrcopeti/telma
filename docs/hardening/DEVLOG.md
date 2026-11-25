@@ -1264,3 +1264,35 @@ branch means no, and `main` wins on overlap; triage hourly 08:00 to 00:00, gated
 once per inbox state, 09:00 always; her edits are pulled out of her copy, never live before review. Plan: steps 7 to 12 in PLAN.md.
 
 Nothing changed on the VPS yet: the refusal still stands until step 7.
+
+## 2026-11-25: step 8, proposals in sync-brain
+
+Branch `feat/sync-brain-proposals`. sync-brain splits her change set by path: `ALLOWED` goes to `main`
+as before, `PROPOSE` (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) goes to `telma/proposals`, and
+anything else is still refused. Her copy gets `main`'s files back through the same `apply`, because
+the commit pushed to `main` holds only the allowed changes.
+
+Choices made while building it:
+
+- The proposal is one commit on the current `main`, rebuilt only when its content changes, so the PR
+  isn't force-pushed every 15 minutes while her inbox moves `main`. Pushed with a lease on the tip
+  sync-brain fetched; a lost lease repeats next run.
+- What the proposal changes is read as its diff from the merge base with `main`, path by path. A
+  path whose blob `main` now matches is merged and forgotten (merge, squash, or the owner's own copy);
+  a path `main` changed another way is dropped and posted once; the rest is kept. An empty result
+  deletes the branch. Reading it this way needs no record of what was merged.
+- A deleted branch is noticed from `refs/sync/proposed` (the tip last pushed or seen): paths not on
+  `main` are posted once as dropped, then the ref is cleared.
+- A second edit is merged three ways (`git merge-file --union`, base = what her copy held): the
+  proposal's lines and hers both stay where they collide, so nothing she changed is lost. Adjacent
+  edits collide as one block and both versions of the block stay.
+- The proposal is pushed before `main`, so a failure in between repeats cleanly: the same edit merges
+  into itself and changes nothing.
+- A failed proposal push stops the run before anything is pushed, as a conflict does, so her copy is
+  never reverted over an edit that isn't saved anywhere.
+
+Tests: `test-sync-brain.sh` is at 83 (was 61). The four refusals of skill edits became proposal
+tests; links, `.gitignore` and root files are still refused.
+
+Not deployed. Step 9 needs this live first.
+

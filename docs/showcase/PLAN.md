@@ -34,10 +34,9 @@ Carried over from the frozen hardening plan:
 
 - Should Telma's triage file into `guidelines/` directly, or into a proposals folder the owner promotes?
   Her model once filed a capture as a guideline.
-- A deployment check, its own plan and PR (owner, 2026-11-24): what is deployed on the VPS and
-  whether this repo's copies match it, files, config and skills, not only the hashes each eval run
-  stamps. Like ticket-bay-bot's manifest and drift check. Step 5's first try (compare `SOUL.md` and
-  the config hash with the newest run's stamp) was too thin.
+- ~~A deployment check, its own plan and PR (owner, 2026-11-24): what is deployed on the VPS and
+  whether this repo's copies match it, files, config and skills.~~ **Done 2026-11-25:** see
+  [the deploy plan](../deploy/PLAN.md) (`vps/check-drift.py`, `vps/deploy.py`, the `deployed` tag).
 - Later detection, not planned: ship tool-call logs off the VPS, so the evidence survives root on the
   host.
 

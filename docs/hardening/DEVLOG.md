@@ -1264,3 +1264,87 @@ branch means no, and `main` wins on overlap; triage hourly 08:00 to 00:00, gated
 once per inbox state, 09:00 always; her edits are pulled out of her copy, never live before review. Plan: steps 7 to 12 in PLAN.md.
 
 Nothing changed on the VPS yet: the refusal still stands until step 7.
+
+## 2026-11-25: step 8, proposals in sync-brain
+
+Branch `feat/sync-brain-proposals`. sync-brain splits her change set by path: `ALLOWED` goes to `main`
+as before, `PROPOSE` (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) goes to `telma/proposals`, and
+anything else is still refused. Her copy gets `main`'s files back through the same `apply`, because
+the commit pushed to `main` holds only the allowed changes.
+
+Choices made while building it:
+
+- The proposal is one commit on the current `main`, rebuilt only when its content changes, so the PR
+  isn't force-pushed every 15 minutes while her inbox moves `main`. Pushed with a lease on the tip
+  sync-brain fetched; a lost lease repeats next run.
+- What the proposal changes is read as its diff from the merge base with `main`, path by path. A
+  path whose blob `main` now matches is merged and forgotten (merge, squash, or the owner's own copy);
+  a path `main` changed another way is dropped and posted once; the rest is kept. An empty result
+  deletes the branch. Reading it this way needs no record of what was merged.
+- A deleted branch is noticed from `refs/sync/proposed` (the tip last pushed or seen): paths not on
+  `main` are posted once as dropped, then the ref is cleared.
+- A second edit is merged three ways (`git merge-file --union`, base = what her copy held): the
+  proposal's lines and hers both stay where they collide, so nothing she changed is lost. Adjacent
+  edits collide as one block and both versions of the block stay.
+- The proposal is pushed before `main`, so a failure in between repeats cleanly: the same edit merges
+  into itself and changes nothing.
+- A failed proposal push stops the run before anything is pushed, as a conflict does, so her copy is
+  never reverted over an edit that isn't saved anywhere.
+
+Tests: `test-sync-brain.sh` is at 89 (was 61). The four refusals of skill edits became proposal
+tests; links, `.gitignore` and root files are still refused.
+
+Not deployed. Step 9 needs this live first.
+
+Adversarial rounds with a fresh Sonnet agent (round 1: 5 proved, 3 reasoned; round 2: 2 proved, both in round 1's fix), fixed:
+
+- A proposal push that fails (a ruleset on `telma/*`) held back every `main` push. Now it is said and
+  `main` still goes, but the run then stops: her copy and `given` stay as they were, so the next run
+  finds the same edits and merges them against the same base. (Round 2 caught the first version of
+  this fix, which refreshed her copy around her edits: a stalled refresh lost the edit, and a retry
+  merged against the owner's newer file and reverted the owner's line.)
+- An exec-bit-only change was dropped, and a mode-only commit by the owner looked merged. The proposal
+  is now compared by mode and object, not object alone.
+- Re-creating a new rule file overwrote the open proposal and the owner's commit on it. A file with no
+  base version is merged against an empty base, so both sides' lines stay.
+- A deleted skill left empty folders in her copy: `apply` removes folders a deleted file empties (never
+  one at the brain's top level).
+
+Left as is: a conflict on an `ALLOWED` path stops the run before the proposal, so her rule edit stays
+in her copy until the conflict is cleared (the alert repeats every run); a run killed between the
+proposal push and writing `refs/sync/proposed` loses that proposal's Discord post; a binary rule file
+edited twice before review keeps only the later version.
+
+### Step 8 smoke test (2026-11-25)
+
+The real `sync-brain.sh` against a scratch private GitHub repo (seeded with a skill, `AGENTS.md`,
+`taste.md`, `notes/`, `inbox/`), run in the same Ubuntu 24.04 image as the tests. Her brain is a
+clone inside the container; "Telma" is a shell that edits files in it; the owner's steps (open,
+merge, delete, edit on `main`) are done with `gh`. HTTPS with a token stands in for the deploy key,
+so it proves the split, the branch handling and the Discord text, not the SSH setup. Nothing on the
+VPS was touched.
+
+| Step | Result |
+|---|---|
+| Nothing changed | Silent. |
+| She edits the skill and `taste.md`, files an inbox note | Note on `main`; the skill and taste edits on `telma/proposals` as one commit; one post with the compare link and the two file names; her copy back to `main`'s version. |
+| The owner opens a PR; she edits the skill again | Silent; the same PR, still one commit, with both edits. |
+| The owner squash-merges, branch left behind | Silent; sync-brain deletes the branch; her copy has the merged skill. |
+| New edit, then the branch deleted | One "dropped" post, her copy on `main`'s version, the next run silent. |
+| New edit to the skill and `AGENTS.md`, then the owner edits the skill on `main` | One post that `main` won for the skill; `AGENTS.md` stays in the proposal; her copy takes the owner's skill. |
+
+One thing it showed: a second edit next to the first (a changed last line plus a bullet below it)
+merges as one collided block, so the proposal shows both versions of the block. Nothing is lost,
+but the owner tidies it in review.
+
+To run it again: create a private repo with that seed, start the image with the repo mounted
+read-only, clone the repo as her brain, set `BRAIN_DIR`, `BRAIN_REMOTE` (an HTTPS URL with a token),
+`BRAIN_QUARANTINE` and a throwaway `HOME`, edit files in the clone and run `vps/sync-brain.sh`
+between steps. Delete the repo and the token's use afterwards.
+
+Docs updated for step 8 (the owner asked, ahead of step 12's sweep): the README bullet on her edits,
+the threat model (diagram, row 3, the signals table), the before/after table and its worst-path
+paragraph, ADR 6 and `host.md`/`kill-switch.md`. The schedule, `SOUL.md` and `taste.md` mount lines
+stay as they are until steps 9 to 12 change what runs. README, threat model and before/after are
+public prose: the owner reads them in this PR.
+

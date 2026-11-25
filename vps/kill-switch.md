@@ -49,6 +49,12 @@ sudo -iu agent bash -c 'docker ps -aq --filter name=hermes- | xargs -r docker rm
 sudo -iu agent /home/agent/.hermes/scripts/memory-diff.sh             # memory and skills saved since the last check
 sudo -iu agent git -C /home/agent/brain log --stat origin/main..HEAD  # commits not pushed yet
 sudo -iu agent ls /home/agent/brain-quarantine                        # pushes sync-brain refused, if any
+```
+
+On GitHub, read the brain's `telma/proposals` branch if there is one: her changes to skills and rules
+wait there, not on `main`.
+
+```sh
 sudo grep -E 'tool_executor|Turn ended' /home/agent/.hermes/logs/agent.log | tail -50   # tool calls around the alert's time
 ```
 
@@ -60,6 +66,7 @@ you know.
 ## 4. Back on
 
 - Undo planted memory or skills with the restore line memory-diff prints.
+- Delete the brain's `telma/proposals` branch on GitHub if it carries something planted. sync-brain says once that it was dropped.
 - New deploy key in `/home/agent/.config/brain-deploy`, added on GitHub. New OpenRouter key in her `.env`.
 - The canary is burned: delete its file from the brain, its token on canarytokens.org and its short
   link, then make a new one under a new name.

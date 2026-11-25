@@ -35,6 +35,10 @@ in_b() { git -C "$B" "$@"; }
 remote_has() { git -C "$W/remote.git" cat-file -e "main:$1" 2>/dev/null; }
 remote_show() { git -C "$W/remote.git" show "main:$1" 2>/dev/null; }
 remote_head() { git -C "$W/remote.git" rev-parse main; }
+prop_has() { git -C "$W/remote.git" cat-file -e "telma/proposals:$1" 2>/dev/null; }
+prop_show() { git -C "$W/remote.git" show "telma/proposals:$1" 2>/dev/null; }
+prop_head() { git -C "$W/remote.git" rev-parse -q --verify refs/heads/telma/proposals; }
+prop_commits() { git -C "$W/remote.git" rev-list --count main..telma/proposals 2>/dev/null; }
 remote_leaks() { git -C "$W/remote.git" grep -q "host secret" main 2>/dev/null; }
 mac() { [ -d "$W/mac" ] || git clone -q "$W/remote.git" "$W/mac"; git -C "$W/mac" "$@"; }
 mac_commit() { mac add -A && mac commit -qm "$1" && mac push -q; }
@@ -74,8 +78,16 @@ setup; echo new > "$B/notes/new.md"; sync; head=$(remote_head); sync
 check "a second run with nothing new pushes nothing" eval 'silent && [ "$(remote_head)" = "$head" ]'
 
 # --- paths outside the allowlist are refused, uncommitted or already committed
-setup; echo evil >> "$B/skills/triage/SKILL.md"
-check "an edited skill is refused" refused skills/triage/SKILL.md
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"; sync
+check "an edited skill goes to telma/proposals with one post naming it, and the note goes to main" eval \
+  'says "💡" && says telma/proposals && says skills/triage/SKILL.md && remote_has notes/n.md &&
+   ! remote_show skills/triage/SKILL.md | grep -q evil && prop_show skills/triage/SKILL.md | grep -q evil && [ "$(prop_commits)" = 1 ]'
+check "her copy has main's skill again after the proposal" eval '! grep -q evil "$B/skills/triage/SKILL.md"'
+head=$(prop_head); sync
+check "the next run is silent and leaves the proposal alone" eval 'silent && [ "$(prop_head)" = "$head" ]'
+echo second >> "$B/skills/triage/SKILL.md"; sync
+check "a second edit joins the open proposal, silently" eval \
+  'silent && prop_show skills/triage/SKILL.md | grep -q evil && prop_show skills/triage/SKILL.md | grep -q second && [ "$(prop_commits)" = 1 ]'
 
 setup; mkdir -p "$B/.github/workflows" && echo evil > "$B/.github/workflows/x.yml"; sync
 check "a new workflow folder is moved out, not pushed" eval 'says "moved" && says .github && ! remote_has .github/workflows/x.yml'
@@ -86,14 +98,81 @@ check "a new root file is refused" refused README.md
 setup; touch "$B/HEAD"
 check "a root file named HEAD is refused" refused HEAD
 
-setup; in_b mv skills/triage/SKILL.md notes/s.md
-check "moving a skill into notes/ is refused" refused skills/triage/SKILL.md
+setup; in_b mv skills/triage/SKILL.md notes/s.md; sync
+check "moving a skill into notes/: the copy goes to main, the skill's removal is only proposed" eval \
+  'remote_has notes/s.md && remote_has skills/triage/SKILL.md && ! prop_has skills/triage/SKILL.md && [ -e "$B/skills/triage/SKILL.md" ]'
 
-setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"
-check "a refused change blocks the good one with it" eval 'refused skills/ && ! remote_has notes/n.md'
+setup; echo evil > "$B/README.md"; echo ok > "$B/notes/n.md"
+check "a refused change blocks the good one with it" eval 'refused README.md && ! remote_has notes/n.md'
 
-setup; echo evil >> "$B/skills/triage/SKILL.md"; sync
-check "a refusal repeats on the next run" refused skills/triage/SKILL.md
+setup; echo evil > "$B/README.md"; sync
+check "a refusal repeats on the next run" refused README.md
+
+# --- rule files are proposed, never pushed to main
+for rf in AGENTS.md CLAUDE.md; do
+  setup; echo "new rule" >> "$B/$rf"; sync
+  check "an edited $rf is proposed, not pushed" eval 'says "$rf" && prop_show "$rf" | grep -q "new rule" && ! remote_show "$rf" | grep -q "new rule" && ! grep -q "new rule" "$B/$rf"'
+done
+
+setup; echo "she prefers X" > "$B/taste.md"; sync
+check "a new taste.md is proposed" eval 'prop_show taste.md | grep -q prefers && ! remote_has taste.md && [ ! -e "$B/taste.md" ]'
+
+setup; mkdir -p "$B/skills/new" && echo "new skill" > "$B/skills/new/SKILL.md"; rm "$B/skills/triage/SKILL.md"; sync
+check "a new skill and a deleted skill are proposed; her copy gets main's back" eval \
+  'prop_has skills/new/SKILL.md && ! prop_has skills/triage/SKILL.md && remote_has skills/triage/SKILL.md && [ -e "$B/skills/triage/SKILL.md" ] && [ ! -e "$B/skills/new/SKILL.md" ]'
+
+setup; ln -s "$W/home/secret" "$B/skills/triage/key"
+check "a link in skills/ is still refused" eval 'refused skills/triage/key && ! remote_leaks'
+
+setup; echo '*' > "$B/skills/triage/.gitignore"
+check "a .gitignore in skills/ is still refused" refused skills/triage/.gitignore
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo evil > "$B/README.md"
+check "a refused root file keeps her skill edit from being proposed" eval 'refused README.md && [ -z "$(prop_head)" ]'
+
+setup; mac status -s; printf 'a\nb\nc\nd\ne\n' > "$W/mac/skills/triage/SKILL.md"; mac_commit "five lines"; sync
+sed -i 's/^a$/a1/' "$B/skills/triage/SKILL.md"; sync; sed -i 's/^e$/e1/' "$B/skills/triage/SKILL.md"; sync
+check "edits to different lines of one skill are both kept in the proposal" eval \
+  'silent && [ "$(prop_show skills/triage/SKILL.md | tr "\n" " ")" = "a1 b c d e1 " ] && [ "$(prop_commits)" = 1 ]'
+sed -i 's/^a$/a9/' "$B/skills/triage/SKILL.md"; sync
+check "an edit to a line the proposal already changed keeps both versions for the owner to pick" eval \
+  '[ "$(prop_show skills/triage/SKILL.md | tr "\n" " ")" = "a1 a9 b c d e1 " ]'
+
+# --- the owner decides
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; git -C "$W/remote.git" branch -q -D telma/proposals; sync
+check "deleting the branch says once that the proposal is dropped; her copy keeps main's" eval \
+  'says dropped && says skills/triage/SKILL.md && [ -z "$(prop_head)" ] && ! grep -q evil "$B/skills/triage/SKILL.md"'
+sync
+check "and the next run is silent" silent
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; git -C "$W/remote.git" branch -q -D telma/proposals; sync; echo again >> "$B/skills/triage/SKILL.md"; sync
+check "after a deleted proposal, a new edit starts a new one" eval 'says "telma/proposals" && prop_show skills/triage/SKILL.md | grep -q again && ! prop_show skills/triage/SKILL.md | grep -q evil'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; mac status -s; mac fetch -q origin telma/proposals; mac merge -q --no-edit FETCH_HEAD; mac push -q; sync
+check "a merged proposal: silent, the branch is cleaned up, her copy has the merged skill" eval \
+  'silent && [ -z "$(prop_head)" ] && grep -q evil "$B/skills/triage/SKILL.md" && remote_show skills/triage/SKILL.md | grep -q evil'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; mac status -s; mac fetch -q origin telma/proposals; mac merge -q --squash FETCH_HEAD >/dev/null; mac commit -qm squash; mac push -q
+git -C "$W/remote.git" branch -q -D telma/proposals; sync
+check "a squash-merged proposal whose branch GitHub deleted posts nothing" eval 'silent && grep -q evil "$B/skills/triage/SKILL.md"'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; mac status -s; echo "the owner's own edit" >> "$W/mac/skills/triage/SKILL.md"; mac_commit "owner edits the same skill"; sync
+check "main changing the same file drops the proposal: said once, branch gone, main's version in her copy" eval \
+  'says "main changed them too" && says skills/triage/SKILL.md && [ -z "$(prop_head)" ] && grep -q "owner.s own edit" "$B/skills/triage/SKILL.md" && ! grep -q evil "$B/skills/triage/SKILL.md"'
+sync
+check "and the next run is silent" silent
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; head=$(prop_head); mac status -s; echo mac >> "$W/mac/notes/a.md"; mac_commit "owner edits a note"; sync
+check "main changing another file leaves the proposal alone" eval 'silent && [ "$(prop_head)" = "$head" ] && grep -q mac "$B/notes/a.md"'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo "new rule" >> "$B/AGENTS.md"; sync; mac status -s; echo "owner" >> "$W/mac/AGENTS.md"; mac_commit "owner edits AGENTS.md"; sync
+check "main changing one of two proposed files drops only that one" eval \
+  'says "main changed them too" && says AGENTS.md && prop_show skills/triage/SKILL.md | grep -q evil && ! prop_show AGENTS.md | grep -q "new rule"'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; sync; git -C "$W/remote.git" update-ref -d refs/heads/telma/proposals
+git -C "$W/seed" checkout -q --orphan unrelated && echo x > "$W/seed/x" && git -C "$W/seed" add x && git -C "$W/seed" commit -qm unrelated && git -C "$W/seed" push -q "$W/remote.git" unrelated:telma/proposals
+echo again >> "$B/skills/triage/SKILL.md"; sync
+check "a proposals branch with unrelated history does not break the run" eval 'says "telma/proposals" || ! says "failed"'
 
 # --- links, FIFOs and nested repos are not plain files
 setup; ln -s "$W/home/secret" "$B/notes/key.md"
@@ -351,6 +430,29 @@ check "a new root file is refused behind her own self-ignoring root .gitignore" 
 
 setup; printf '/.gitignore\n/notes/\n' > "$B/.gitignore"; echo n > "$B/notes/hidden.md"
 check "her note behind her own root .gitignore is not dropped silently" refused .gitignore
+
+# --- found by the adversarial round on step 8
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"
+printf '#!/bin/sh\nwhile read o n r; do case $r in refs/heads/telma/*) exit 1;; esac; done\n' > "$W/remote.git/hooks/pre-receive"; chmod +x "$W/remote.git/hooks/pre-receive"; sync
+check "a proposal push that fails is said, and does not hold back main; her edit stays for the next run" eval \
+  'says "push of telma/proposals failed" && remote_has notes/n.md && grep -q evil "$B/skills/triage/SKILL.md"'
+mac status -s >/dev/null; echo "OWNER LINE" >> "$W/mac/skills/triage/SKILL.md"; mac_commit "owner edits the skill"; sync
+rm "$W/remote.git/hooks/pre-receive"; sync
+check "an owner edit to the same skill meanwhile is kept next to hers in the proposal" eval 'prop_show skills/triage/SKILL.md | grep -q "OWNER LINE" && prop_show skills/triage/SKILL.md | grep -q evil'
+check "and once the push works the edit is proposed and her copy reverted" eval 'prop_show skills/triage/SKILL.md | grep -q evil && ! grep -q evil "$B/skills/triage/SKILL.md"'
+
+setup; chmod +x "$B/skills/triage/SKILL.md"; sync
+check "an exec-bit change to a skill is proposed" eval 'git -C "$W/remote.git" ls-tree telma/proposals skills/triage/SKILL.md | grep -q "^100755" && [ ! -x "$B/skills/triage/SKILL.md" ]'
+
+setup; mkdir -p "$B/skills/new" && echo v1 > "$B/skills/new/SKILL.md"; sync
+mac status -s >/dev/null; git -C "$W/mac" fetch -q origin telma/proposals; git -C "$W/mac" checkout -q -B prop FETCH_HEAD; echo "owner line" >> "$W/mac/skills/new/SKILL.md"
+git -C "$W/mac" commit -qam owner; git -C "$W/mac" push -q origin prop:telma/proposals; git -C "$W/mac" checkout -q main
+mkdir -p "$B/skills/new" && echo v2 > "$B/skills/new/SKILL.md"; sync
+check "creating the same new file twice merges with the proposal and keeps the owner's line" eval \
+  'prop_show skills/new/SKILL.md | grep -q v1 && prop_show skills/new/SKILL.md | grep -q v2 && prop_show skills/new/SKILL.md | grep -q "owner line"'
+
+setup; mkdir -p "$B/skills/zz/sub" && echo x > "$B/skills/zz/sub/f"; sync
+check "a proposed new skill folder leaves no empty folders in her copy" eval '[ ! -e "$B/skills/zz" ] && [ -d "$B/skills" ]'
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -227,6 +227,21 @@ def write_in_place(pfd, name, body, mode):
         os.close(fd)
 
 
+def prune(root, parts):
+    """Remove the folders a deleted file leaves empty, deepest first, never a folder at the brain's top level."""
+    for k in range(len(parts) - 1, 1, -1):
+        try:
+            pfd = open_parent(root, parts[:k], False)
+        except OSError:
+            return
+        try:
+            os.rmdir(parts[k - 1], dir_fd=pfd)
+        except OSError:
+            return
+        finally:
+            os.close(pfd)
+
+
 def apply(src, brain):
     data = sys.stdin.buffer.read().split(b"\0")
     failed = []
@@ -246,6 +261,7 @@ def apply(src, brain):
                             remove(pfd, parts[-1])
                     finally:
                         os.close(pfd)
+                    prune(root, parts)
                     continue
                 st = os.lstat(os.path.join(src, path))
                 if not stat.S_ISREG(st.st_mode):

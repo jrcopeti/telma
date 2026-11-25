@@ -1,6 +1,6 @@
 # 4. sync-brain keeps its own clone
 
-Status: accepted, 2026-11-19
+Status: accepted, 2026-11-19 (amended 2026-11-25 by [ADR 6](0006-rule-file-changes-go-through-a-proposal.md): changes to rule files are proposed, not refused)
 
 ## Context
 

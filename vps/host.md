@@ -46,10 +46,14 @@ with `hermes config set`, which writes both files; a hand edit of `config.yaml` 
 
 ## The skills
 
-Her four brain skills (capture, ask-brain, triage, lint) live in the brain repo, which she reads
-read-only. [`brain-skills/`](brain-skills/) is a copy of them, credited to the MIT brain
-template they come from. A change to them goes through a PR on the brain repo; update this copy
-after it merges. The bundled skills Hermes installs in `~/.hermes/skills/` are its own and aren't
+Her four brain skills (capture, ask-brain, triage, lint) live in the brain repo. Her sandbox mounts
+them read-only, but Hermes's own skill editing runs on the host and can write them. A change she
+makes to a skill, `AGENTS.md`, `CLAUDE.md` or `taste.md` is never pushed to `main`: sync-brain puts
+it on the branch `telma/proposals`, posts the compare link to Discord once, and writes `main`'s
+version back into her copy ([ADR 6](../docs/adr/0006-rule-file-changes-go-through-a-proposal.md)).
+The owner merges the PR (after the eval, for a skill) or deletes the branch.
+[`brain-skills/`](brain-skills/) is a copy of the skills, credited to the MIT brain template they
+come from. A change to them goes through a PR on the brain repo; update this copy after it merges. The bundled skills Hermes installs in `~/.hermes/skills/` are its own and aren't
 copied.
 
 ## Her jobs

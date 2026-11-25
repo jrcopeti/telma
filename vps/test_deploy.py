@@ -247,6 +247,13 @@ class Deploy(unittest.TestCase):
                 self.assertIn(message, self.f.out)
                 self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain.\n")
 
+    def test_rows_of_another_setup_in_the_file_refuse_the_run(self):
+        self.f.change({"vps/SOUL.md": SOUL_TEXT})
+        run = "evals/results/2026-11-25T1000-x.jsonl"
+        self.f.change({run: run_line(self.f.head()) + run_line(self.f.head(), soul_source="host", eval_soul_sha="0" * 12)})
+        self.assertEqual(self.f.deploy("--eval-run", run, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
+        self.assertIn("more than one setup", self.f.out)
+
     def test_the_run_must_have_used_this_owner_name(self):
         # the same repo text filled with another name hashes differently, so it can't unlock this one
         self.f.change({"vps/SOUL.md": SOUL_TEXT})

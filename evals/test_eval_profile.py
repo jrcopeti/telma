@@ -36,6 +36,11 @@ class RepoSoulTest(unittest.TestCase):
         self.assertIn(base64.b64encode(soul).decode(), repo)
         self.assertGreater(repo.index("EOF_SOUL"), repo.index("shutil.copy2(hers / \"SOUL.md\""))  # hers first, then replaced
 
+    def test_an_empty_repo_soul_is_still_copied(self):
+        with unittest.mock.patch.object(eval_profile, "vps", sent := Sent()):
+            eval_profile.sync_profile(b"")
+        self.assertIn("EOF_SOUL", sent.scripts[0])
+
     def test_the_stamp_says_which_soul_it_tested(self):
         reply = "Hermes 1\nhost\neval\nc\nec\n"
         with unittest.mock.patch.object(eval_profile, "vps", Sent(reply)):

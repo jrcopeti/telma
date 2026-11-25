@@ -26,7 +26,7 @@ def repo_soul():
     spec.loader.exec_module(drift)
     try:
         data = drift.filled(drift.git("show", f"HEAD:{SOUL}").stdout, SOUL, drift.private_values())
-    except drift.Stop as e:
+    except (drift.Stop, UnicodeDecodeError) as e:
         sys.exit(str(e))
     return data, hashlib.sha256(data).hexdigest()[:12]
 
@@ -41,7 +41,7 @@ rsync -a --exclude 'state.db*' --exclude '*.lock' --exclude logs --exclude sessi
   --exclude runtime --exclude cron --exclude cache --exclude backups --exclude sandboxes --exclude projects.db \\
   {SEED}/ {PROFILE}/
 """ + py("sync_profile.py", HERS, PROFILE, WORK) + (
-        f"base64 -d > {PROFILE}/SOUL.md <<'EOF_SOUL'\n{base64.b64encode(soul).decode()}\nEOF_SOUL\n" if soul else "") + f"""hermes -p eval config set fallback_providers "[]" >/dev/null
+        f"base64 -d > {PROFILE}/SOUL.md <<'EOF_SOUL'\n{base64.b64encode(soul).decode()}\nEOF_SOUL\n" if soul is not None else "") + f"""hermes -p eval config set fallback_providers "[]" >/dev/null
 hermes -p eval config set agent.run_budget_seconds {BUDGET} >/dev/null
 mkdir -p {EVAL}/baseline {EVAL}/out
 rsync -a --delete {HERS}/memories/ {EVAL}/baseline/memories/
@@ -58,4 +58,4 @@ def setup_stamp(brain_commit, soul_sha=None):
               "do sha256sum $f | cut -c1-12; done").stdout.split("\n")
     return {"telma_commit": telma, "brain_commit": brain_commit, "hermes": out[0], "model": MODEL,
             "soul_sha": out[1], "eval_soul_sha": out[2], "config_sha": out[3], "eval_config_sha": out[4],
-            "soul_source": "repo" if soul_sha else "host", **({"repo_soul_sha": soul_sha} if soul_sha else {})}
+            "soul_source": "host" if soul_sha is None else "repo", **({} if soul_sha is None else {"repo_soul_sha": soul_sha})}

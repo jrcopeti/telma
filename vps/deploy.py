@@ -111,10 +111,13 @@ def check_eval_run(path, results, soul=None):
     if p.suffix != ".jsonl" or committed.returncode:
         raise Stop(f"--eval-run {results}: not a committed results .jsonl")
     try:
-        stamp = json.loads(committed.stdout.decode().splitlines()[0])["setup"]
+        lines = [json.loads(l) for l in committed.stdout.decode().splitlines() if l.strip()]
+        stamp = lines[0]["setup"]
         ran_on = stamp["telma_commit"]
     except (IndexError, ValueError, KeyError, TypeError):
         raise Stop(f"--eval-run {results}: no setup stamp in its first line")
+    if soul is not None and any(l.get("setup") != stamp for l in lines if isinstance(l, dict)):
+        raise Stop(f"--eval-run {results} holds rows of more than one setup (two runs in one file)")
     if not re.fullmatch(r"[0-9a-f]{7,40}", str(ran_on)):
         raise Stop(f"--eval-run {results}: its telma_commit {ran_on!r} isn't a commit hash")
     changed = git("log", "-1", "--format=%H", "--", path).stdout.decode().strip()

@@ -125,6 +125,8 @@ def main(argv=None):
         pages = json.loads(pages_file.read_text()) if pages_file.exists() else {}
         sync_profile(soul[0])
         stamp = setup_stamp(brain_commit, soul[1])
+        if soul[1] and stamp["eval_soul_sha"] != soul[1]:  # before any paid trial
+            sys.exit(f"the eval profile's SOUL.md is {stamp['eval_soul_sha']!r}, not the repo's {soul[1]}: the copy failed")
         stamp["notes_commit"] = NOTES_REF[:7]  # the notes; brain_commit is only OVERLAY (skills and rules)
         stamp["eval_notes_stripped"] = len(stripped)  # the trials ran on notes_commit less these
         stamp["cost_source"] = "openrouter key"  # earlier runs: Hermes' estimate, about 5× too low

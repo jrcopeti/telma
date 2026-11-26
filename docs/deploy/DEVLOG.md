@@ -403,10 +403,11 @@ in one line each, steps with a short description and a status, needs the owner, 
 What it dropped is kept below: the full old text, verbatim, from `main` before the trim, including the
 old decisions and the long status cells. Old entries above are left as written, as the devlog keeps them.
 
-Open items that the devlog named but the plan did not list are now in the plan's Open: the eval gate does
-not read the run's verdict or partial status, and accepts a run with failed tasks; the gate matches by file
-name, not host path (both from "2026-11-25: PR 2, fourth adversarial review"); `check-drift.py`'s `COLLECT`
-is still a string (from "2026-11-24: PR 2, adversarial review and the host code in files").
+Open items: the eval gate's verdict and file-name matching, and the gap for toolsets and the Hermes
+version, are now in the plan's Open. The job-start race, which the old decision accepted, is back in
+Decisions. Two items the review named were closed in later rounds and are not open: the symlink race
+on a folder mid-copy (the second adversarial round fixed it with `dir_fd`), and `in_sync` (the offer
+comes right after the check, so it can't go stale).
 
 ### The plan before the trim
 
@@ -426,7 +427,7 @@ hashes; the showcase plan called that too thin (owner, 2026-11-24).
 `ok`, the `deployed` tag is set, `deploy.py` has deployed at least one change end to end, and each
 eval run writes the check's summary into its results.
 
-## Decisions (the owner, 2026-11-24, grill session)
+##### Decisions (the owner, 2026-11-24, grill session)
 
 - **Telma's own copy of the bot's design.** Same manifest format and statuses as ticket-bay-bot's design
   (an intent in the owner's brain: deploy manifest, drift check, `deployed` tag), but a separate script in each repo: they're split along the trust boundary, and neither is
@@ -541,7 +542,7 @@ eval run writes the check's summary into its results.
 - **The eval doesn't block on drift.** It writes the check's summary to `drift.txt` in its results,
   in place of today's hash stamp: a run is sometimes meant to test an undeployed change.
 
-## The manifest
+##### The manifest
 
 `vps/deploy.manifest`, plain text, one line per file, whitespace-separated, read by `while read`:
 
@@ -562,7 +563,7 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
   within about 30 seconds), `hermes chat --accept-hooks`, a gateway restart, back to back. The three
   hooks' lines say `reapprove-hook`, and `deploy.py` prints those three commands for each.
 
-## Steps
+##### Steps
 
 | # | Step | Check | Status |
 |---|---|---|---|
@@ -573,7 +574,7 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 | 5 | **PR 3: the eval writes `drift.txt`.** Replaces the hash stamp in `eval_profile.py` and the report line. Changes the eval harness, not her setup, so no eval run is needed to merge it. | A run's results has `<run>.drift.txt`, and the report quotes its summary | done (#78); smoke run `--only T1 -k 1` on 2026-11-25 wrote `<run>.drift.txt` (16 of 17 in sync, `capture/SKILL.md` host ahead: the open proposal) and the report quoted it |
 | 6 | **Bot's intent in the brain:** the `jobs` and `tree` modes and the copied script. Point the showcase plan's Open item here. | The brain's intent for ticket-bay-bot's sync records the two modes, `deploy.py` and the copied script; the showcase Open item links this plan | done 2026-11-25: brain intent and project note updated through the brain's sync; showcase Open item points here |
 
-## Open
+##### Open
 
 - ~~How a `SOUL.md` change is evaluated before it is deployed.~~ **Done 2026-11-25:** `run.py
   --repo-soul` makes the eval profile use the repo's filled `SOUL.md`, and `deploy.py --eval-run`

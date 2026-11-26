@@ -1,97 +1,65 @@
 # Hardening: split Telma by trust boundary
 
-**Frozen at tag `pre-split` (2026-11-19).** ticket-bay-bot moved to its own repo,
-[jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot); see [the repo split](../repo-split/PLAN.md).
-
-**Reopened 2026-11-25 for steps 7 to 14** (Telma's side only): step 2's "Telma can't change
-`skills/`" held for her sandbox, not for her Hermes process on the host. See
-[Reopened 2026-11-25](#reopened-2026-11-25-brain-rule-files-and-hourly-triage).
-
 **Goal:** no agent on the VPS holds all three legs of the lethal trifecta (private data, untrusted
 input, a way out). Every control is enforced by permissions, mounts or the network, not by prompts
 or command regexes.
 
 **Why:** the safety audit of 2026-11-17 ([audit-before.md](audit-before.md)) found all three legs in
-the bug-loop job, and a path from an injected run to code running on the local machine with full permissions.
-An injection had already worked once and poisoned Telma's memory.
+the bug-loop job, and a path from an injected run to code running on the local machine with full
+permissions. An injection had already worked once and poisoned Telma's memory.
 
 **Done when:** the safety audit, rerun with probes, shows at least one leg cut for every job, and the
-injection test suite passes against both agents.
+injection test suite passes against both agents. (Met by step 6.)
+
+**State:** steps 0 to 6 are done and were split at tag `pre-split` (2026-11-19): ticket-bay-bot moved
+to [jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot), see
+[the repo split](../repo-split/PLAN.md). Steps 7 to 14 were
+[reopened 2026-11-25](#reopened-2026-11-25-brain-rule-files-and-hourly-triage), Telma's side only:
+step 2's "Telma can't change `skills/`" held for her sandbox, not for her Hermes process on the host.
+The full text of steps 0 to 6 and their decisions is in the [devlog](DEVLOG.md).
 
 ## Decisions
 
-- **Two agents, one per trust level.** Telma does the brain only. `ticket-bay-bot` does the bug loop
-  and PR triage. Both run on the same VPS, as separate Linux users with their own rootless Docker and
-  Hermes home. Each has its own Discord bot and server (brain-server, ticket-bay).
-- ~~**One showcase repo for both agents.** They share the host, the hardening and the threat model.~~
-  Superseded 2026-11-19 by [the repo split](../repo-split/PLAN.md): one repo per agent, along the
-  trust boundary.
-- **One OpenRouter key per agent,** each with its own credit limit.
-- **GitHub identity: an App, not a machine account.** `ticket-bay-bot` is a GitHub App owned by the owner's
-  account and installed on ticket-bay only; its PRs show as `ticket-bay-bot[bot]`, with 1-hour tokens.
-  Telma gets a brain deploy key held by `sync-brain`, with git author `Telma`. If she later needs to act
-  on GitHub, she gets her own App (`telma-brain`), never ticket-bay-bot's.
-- **The owner's skills live in the brain.** Personal skills used across projects (capture, triage, lint,
-  ask-brain) are written on the local machine and pushed; every agent gets them through `install.mjs` links,
-  and Telma pulls them read-only. ~~Telma never writes a brain skill: she leaves a note in the inbox instead.~~
-  Amended 2026-11-25: her changes to them reach the owner as a proposal branch, never `main` (see
-  Reopened 2026-11-25). Her own Hermes skills (`~/.hermes/skills`) are another matter: see the next decision.
-  Project skills stay in their project; ticket-bay-bot's skills come from `dmoka/skills`.
-- **The ticket-bay fork gets security patches, not Renovate** (the owner, 2026-11-19). Upstream owns its
-  dependency versions, so routine updates stay off: the fork would drift from the lessons. A Dependabot
-  alert on what the VPS runs is fixed on the fork's `main` with the smallest version that closes it,
-  by hand, one PR (#17 did `next`, `better-auth` and the MCP SDK). Renovate (proposes) + ticket-bay-bot
-  (reviews) + the owner (merges) is for a repo the owner owns, such as trip-ai.
-- **The brain stays one repo.** Telma can't change `skills/` or `AGENTS.md`: they are mounted
-  read-only in her sandbox, only `sync-brain` on the host holds the push key, and it refuses commits
-  that touch those paths. Splitting out a `brain-skills` repo is a possible later ADR, not needed now.
-  Amended 2026-11-25: the mounts don't cover her Hermes process on the host, which can write
-  `skills/`; sync-brain turns such changes into a proposal instead of refusing (step 8).
-- **Telma keeps web and browser in chats, as an accepted risk.** They run in her Hermes process on the
-  host and need any site, so no allowlist can cut them, and a third agent for web work costs too much
-  for now. In chats with the owner she holds all three legs: the brain, the pages she opens, and any URL.
-  Her unattended job, brain-triage, runs without web and browser (`enabled_toolsets`), so no job holds
-  all three. Discord link previews are a way out no VPS rule closes. Step 5's canary is the check on
-  both.
-- **ticket-bay-bot learns: memory and `skill_manage` on** (changed in step 4; step 1 had memory off).
-  An injected run can save something every later run reads; that's accepted for the learning. A daily
-  diff of its memory and skills goes to Discord, and the owner undoes what looks planted. Telma gets the
-  same diff, twice a day after brain-triage, which keeps `skill_manage` (in the `skills` toolset).
-  **Telma keeps `skill_manage`** (the owner, 2026-11-18), after she used it to write a skill that described
-  the canary. Her skills in `~/.hermes/skills` are hers to write; the diff is the control, and the owner
-  edits what shouldn't be there. Emptying her memory alone doesn't undo what she learned: check her
-  skills and `~/.hermes/skills/.curator_ledger.jsonl` too.
-- **The bot's allowlist trusts whole platforms, as an accepted risk** (the owner, 2026-11-19). Squid sees
-  only the CONNECT host, so any account on `github.com`, `api.github.com` or `registry.npmjs.org` is
-  reachable: an injected email carrying the attacker's own GitHub or npm token could have the bot push,
-  open a gist or `npm publish` what it read, or pull a payload from the attacker's repo or package.
-  Nothing denies or alerts on it, and the kill switch checks only the bot's fork. Narrowing it means
-  TLS inspection, or moving git and `gh` work to the host and npm behind a mirror: not now.
-- **An obedient bot can paste its 1-hour token into a public PR, as an accepted risk** (the owner,
-  2026-11-19, step 6's B9). The terminal guard blocks the plain ways (`hosts.yml`, `gh auth token`,
-  `printenv`); a reworded command or the file tool gets past it. The token reaches the fork only and
-  dies within the hour. Not built: a wider guard, revoking the token at the end of each run, or a
-  host-side script that checks the PR body before posting.
-- **Step 5 detects, it doesn't record.** Shipping tool-call logs off the VPS keeps evidence safe from
-  root on the host but alerts on nothing: dropped. Squid's denials are added: a blocked request from the
-  bot's sandbox is the clearest sign of an injected run. The canary's file is named nowhere in this
-  repo or the brain, only in the token memo, so an attacker who reads either can't avoid it. Its alerts
-  go to Discord, in a channel Telma's bot can't read or delete. It is a link, not a fake secret: the
-  brain's rules forbid secrets, so Telma flags one; Hermes masks AWS key IDs before she sees them; and a
-  bare `canarytokens.com` URL gives itself away. A fake AWS key was tried and dropped: its alert never came.
-- **Step 5b watches Telma's web and browser calls for brain text, and blocks nothing.** A hook on
-  Hermes's `pre_tool_call` (web and browser, plus the other tools that send data off the host:
-  `vision_analyze`, `video_analyze`, `image_generate`, `text_to_speech`, `manage_connections`,
-  `computer_use`, `x_search`) posts to `#alerts` when a call's arguments carry 8 words in a row from a
-  note, or a short note whole (plain, URL- or base64-decoded, either order), or name the brain's folder (`browser_exec` runs Python, which
-  could read a note from disk). It catches the lazy injection: a note pasted into a URL. Text split
-  across calls, reworded or encoded another way still gets out unseen: that gap stays accepted, and the
-  fix is still prevention (a web agent with no brain), deferred on cost. No marker planted in notes:
-  text runs already catch a copied note, Telma would see the marker, and a page can tell her to strip
-  it. Published or rule files (`skills/`, `AGENTS.md`, `CLAUDE.md`, `README.md`) don't count. Its own
-  webhook, so a hijacked Telma who finds it can delete only the tripwire's posts, not the canary's.
-- **The local machine keeps its skill links** (`~/.claude/skills`, `~/.agents/skills` → `~/brain/skills`).
-  Copies would break `install.mjs`'s links-only design.
+- **Two agents, one per trust level.** Telma does the brain only; `ticket-bay-bot` does the bug loop
+  and PR triage. Separate Linux users on one VPS, each with its own rootless Docker, Hermes home,
+  Discord bot and OpenRouter key (with its own credit limit). One repo per agent
+  ([the repo split](../repo-split/PLAN.md)).
+- **GitHub identity: an App, not a machine account.** `ticket-bay-bot` is a GitHub App installed on
+  ticket-bay only (1-hour tokens). Telma has a brain deploy key held by `sync-brain`, git author
+  `Telma`. If she needs to act on GitHub, she gets her own App, never the bot's.
+- **The owner's skills live in the brain,** written on the local machine and linked into every agent
+  by `install.mjs`. Telma pulls them read-only; her changes reach the owner as a proposal branch, never
+  `main` (amended 2026-11-25, step 8). Her own Hermes skills (`~/.hermes/skills`) are hers to write;
+  the memory diff is the control. Project skills stay in their project.
+- **The brain stays one repo.** `skills/`, `AGENTS.md` and `CLAUDE.md` are `:ro` in her sandbox; her
+  host process can write them, so `sync-brain` (the only holder of the push key) turns such changes
+  into a proposal (step 8) and never runs git in a folder she writes. A separate `brain-skills` repo
+  is a possible later ADR, not needed now.
+- **The ticket-bay fork gets security patches, not Renovate.** A Dependabot alert on what the VPS runs
+  is fixed on the fork's `main` with the smallest version that closes it, one PR by hand.
+- **Telma keeps web and browser in chats, as an accepted risk.** No allowlist can cut them. Her
+  unattended job, brain-triage, runs without them, so no job holds all three legs. Step 5's canary and
+  5b's tripwire are the checks.
+- **ticket-bay-bot learns** (memory and `skill_manage` on), and **Telma keeps `skill_manage`** (the
+  owner, 2026-11-18). A memory and skills diff goes to Discord (daily for the bot; for Telma after
+  each brain-triage, see step 11) and the owner undoes what looks planted. Emptying her memory
+  alone doesn't undo what she learned: check her skills and `~/.hermes/skills/.curator_ledger.jsonl`.
+- **The bot's allowlist trusts whole platforms, as an accepted risk.** Squid sees only the CONNECT
+  host, so any account on `github.com`, `api.github.com` or `registry.npmjs.org` is reachable.
+  Narrowing it means TLS inspection or a host-side mirror: not now.
+- **An obedient bot can paste its 1-hour token into a public PR, as an accepted risk.** The terminal
+  guard blocks the plain ways; the token reaches the fork only and dies within the hour.
+- **Detection, not recording (step 5).** Squid's denials go to Discord; a canary link in the brain
+  alerts a channel Telma's bot can't read or delete. The canary's file is named nowhere in this repo
+  or the brain, only in the token memo: never write it into a doc. Shipping tool-call logs off the VPS is dropped.
+- **The exfil tripwire watches and blocks nothing (step 5b).** A `pre_tool_call` hook posts to
+  `#alerts` through its own webhook when a web, browser or other off-host call carries brain text
+  (published and rule files don't count). Text split, reworded or
+  encoded another way gets out unseen: accepted; the fix is a web agent with no brain, deferred on cost.
+- **The local machine keeps its skill links** (`~/.claude/skills`, `~/.agents/skills` →
+  `~/brain/skills`).
+
+The full text of each decision is in the [devlog](DEVLOG.md#2026-11-26-steps-0-to-6-their-decisions-and-the-old-open-list-trimmed).
 
 ## Steps
 
@@ -99,176 +67,189 @@ Each step is one branch and one PR. Steps that change a running agent need the o
 
 | # | Step | Done when | Status |
 |---|---|---|---|
-| 0 | **Incident response.** Rotate the classic GitHub token and the Gmail app password. Check gists, cron jobs, Telma's memory and the brain's git log for changes nobody asked for. Reset the poisoned memory. Write a blameless postmortem. | Old credentials are revoked, nothing unexplained is left, postmortem written | done |
-| 1 | **Set up ticket-bay-bot.** New Linux user, rootless Docker, Hermes home, Discord bot, OpenRouter key with a limit. GitHub App scoped to ticket-bay, with a host-side script that mints a 1-hour token per run. Gmail fetched on the host; the agent gets the email as a file. Tools `memory`, `cronjob` and `code_execution` off. Move bug-loop and pr-triage to it. | From its sandbox, `ls ~/brain` fails and a search finds no long-lived secret | done |
-| 1b | **MCP server for ticket-bay-bot (optional).** Run TicketBay with seed data as its own Linux user, and connect its MCP server with no key (public tools only) and a tool include-list without `my_orders` (customer data would bring back the private-data leg). | The bot answers "which events are coming up?" through MCP, and has no tool that returns customer data | done |
-| 2 | **Reduce Telma to the brain.** Remove the ticket-bay jobs, the gh token, the Gmail mount and the ticket-bay checkout. Move her to brain-server. Brain deploy key held by `sync-brain` on the host only. `skills/` and `AGENTS.md` mounted read-only; `sync-brain` refuses and alerts on commits that touch them. | Triage still runs; a commit touching `skills/` is refused and alerted | done |
-| 3 | **Egress control.** Telma's sandbox gets no network, and brain-triage runs without the web and browser toolsets. ticket-bay-bot's sandbox joins an internal Docker network whose only way out is a squid allowlist (`github.com`, `api.github.com`, `registry.npmjs.org`); npm install scripts are off. | A Python fetch of `example.com` fails from both sandboxes; `api.github.com` works from the bot's; brain-triage's session has no web or browser tool | done |
-| 4 | **Supply chain.** `dmoka/skills` in a folder the bot can't write, owned by an unprivileged `skills-sync` user. It updates itself after a 7-day wait, and only if Hermes's skills guard finds nothing new. Hermes pinned. Dependabot alerts (not version-update PRs) on the ticket-bay fork. | No root cron jobs; every external input is pinned or gated; Dependabot alerts are on | done |
-| 5 | **Detection.** A canary in the brain: a canarytokens.org URL token behind a link that doesn't show its domain, alerting to a brain-server `#alerts` channel Telma's bot can't see. A no-agent job on the bot posts squid's denials to ticket-bay every 10 minutes. A kill-switch runbook per agent. | Opening the link (from the local machine, and through Telma in a chat) posts to `#alerts`; a denied fetch from the bot's sandbox posts to ticket-bay | done |
-| 5b | **Exfil tripwire.** A detection-only Hermes hook on Telma's tools that send data off the host (web, browser and seven more): when a call's arguments carry brain content (8-word runs or a short note whole, also URL- and base64-decoded) or name the brain's folder, it posts to `#alerts` through its own webhook. Blocks nothing. A health job says when it can't alert. | A web call carrying a brain note posts to `#alerts`; a normal browsing session posts nothing | done |
-| 6 | **Verification.** Injection test suite (the email that worked, lesson 8.5's email 2, new ones) run against both agents. Safety audit rerun with probes. Before/after table, ADRs and postmortem written by the owner. Cases in [injection-suite.md](injection-suite.md), results in [step6-results.jsonl](step6-results.jsonl), audit in [audit-after.md](audit-after.md). | The done-when at the top holds | done |
+| 0 | **Incident response:** rotate the leaked credentials, check for changes nobody asked for, reset the poisoned memory, write a postmortem. | Old credentials are revoked, nothing unexplained is left, postmortem written | done |
+| 1 | **Set up ticket-bay-bot:** own Linux user, Docker, Hermes home, Discord bot and key; GitHub App with a host-side 1-hour token; Gmail fetched on the host; `memory`, `cronjob` and `code_execution` off; bug-loop and pr-triage moved to it. | From its sandbox, `ls ~/brain` fails and a search finds no long-lived secret | done |
+| 1b | **MCP server for ticket-bay-bot (optional):** TicketBay with seed data, no key, include-list without `my_orders`. | The bot answers "which events are coming up?" through MCP and has no tool that returns customer data | done |
+| 2 | **Reduce Telma to the brain:** remove the ticket-bay jobs, gh token, Gmail mount and checkout; brain deploy key on the host only; `skills/` and `AGENTS.md` mounted read-only; `sync-brain` refuses and alerts on commits touching them. | Triage still runs; a commit touching `skills/` is refused and alerted | done |
+| 3 | **Egress control:** Telma's sandbox has no network and brain-triage no web or browser toolsets; the bot's sandbox sits behind a squid allowlist (`github.com`, `api.github.com`, `registry.npmjs.org`); npm install scripts off. | A fetch of `example.com` fails from both sandboxes; `api.github.com` works from the bot's; brain-triage has no web or browser tool | done |
+| 4 | **Supply chain:** `dmoka/skills` in a folder the bot can't write, updated by an unprivileged `skills-sync` after a 7-day wait and a skills-guard scan; Hermes pinned; Dependabot alerts on the fork. | No root cron jobs; every external input is pinned or gated; Dependabot alerts are on | done |
+| 5 | **Detection:** a canary link in the brain alerting `#alerts`; squid's denials posted every 10 minutes; a kill-switch runbook per agent. | Opening the link (locally and through Telma) posts to `#alerts`; a denied fetch from the bot's sandbox posts to ticket-bay | done |
+| 5b | **Exfil tripwire:** a detection-only hook on Telma's off-host tools, with a health job. | A web call carrying a brain note posts to `#alerts`; a normal browsing session posts nothing | done |
+| 6 | **Verification:** injection suite ([injection-suite.md](injection-suite.md), [results](step6-results.jsonl)) against both agents; safety audit rerun ([audit-after.md](audit-after.md)); before/after table, ADRs and postmortem. | The done-when at the top holds | done |
+
 
 ## Reopened 2026-11-25: brain rule files and hourly triage
 
-**What happened.** On 2026-11-25 sync-brain posted "refused to push … `skills/capture/SKILL.md`"
-every 15 minutes. Telma didn't edit it in a chat: Hermes's background self-improvement review (the
-`💾 Self-improvement review: Skill 'capture' patched` line after a chat turn) and its curator (03:49,
-ledger actor `curator`) patched it, adding one Gotchas bullet. Both run `skill_manage` in her Hermes
-process on the host, where `skills.external_dirs` points at `/home/agent/brain/skills` and the `:ro`
-mounts don't apply. Hermes's docs say so: external dirs are not a write-protection boundary. The
-curator's prompt says to leave external skills alone; that is a prompt, not a lock.
+**Goal:** a change to a brain rule file (`skills/`, `AGENTS.md`, `CLAUDE.md`, `taste.md`) made on the
+VPS reaches the owner as a proposal to review, never as a refusal that blocks her other pushes and
+never as a push to `main`. Triage runs hourly, only when the inbox holds something.
 
-**Who can write a brain skill** (read in Hermes's source on the VPS, 2026-11-26). Four callers have
-`skill_manage` in her process: her chats (it is in Hermes's core tools), brain-triage (its `skills`
-toolset is that tool and its two readers), the self-improvement review and the curator. Hermes's one
-guard for `external_dirs` refuses a delete, and only in a background run (`skill_manager_guards.py`);
-it says content writes are not gated by ownership. So chats and triage have no guard at all, and
-triage reads untrusted inbox text. The proposal review is the control for all four.
+**Why:** step 2's read-only mounts cover her sandbox, not her Hermes process on the host, which can
+write `skills/`. sync-brain refused those edits and held back her inbox pushes. The story is in the
+[devlog](DEVLOG.md#2026-11-25-reopened-for-steps-7-to-12-the-owner-grilled-in-a-claude-code-session).
 
-**Why it matters more than the noise.** `refuse_outside` exits before the push, so while it refuses,
-none of her changes reach GitHub, the inbox included (that day's taste capture sat unpushed).
-memory-diff watches `~/.hermes/skills`, not `~/brain/skills`, so only the refusal showed the edit.
-
-**And taste.md.** The capture skill says to append a correction to `taste.md`
-(`skills/capture/SKILL.md`, Taste entries). Her sandbox mounts it read-only, so the write failed
-(`mv … Device or resource busy`: a single-file bind mount can't be replaced) and she put the line in
-`inbox/` instead. The 2026-11-22 brain decision already says `taste.md` changes go through a PR.
-
-**Triage.** The owner wants triage several times a day, and only when there's something to file.
-Hermes skips a job's AI call when its pre-script prints nothing (or `{"wakeAgent": false}`).
+**Done when:** steps 7 to 14 are done and the docs match what runs (step 12).
 
 ### Decisions (the owner, 2026-11-25)
 
-- **Rule files from the VPS become a proposal, never a refusal or a push to `main`.** The rule files
-  are `skills/`, `AGENTS.md`, `CLAUDE.md` and `taste.md`. sync-brain still pushes the allowed paths
-  to `main` as before, and puts her rule-file changes on one branch, `telma/proposals`, as a commit
-  on top of `main`. Discord gets the compare link once per new proposal. The owner opens the PR and
-  merges it, after an eval when it changes a skill (this repo's AGENTS.md). The deploy key could
-  already push `main`, so a branch push is no new way out. Links, gitlinks and `.git*` files are
-  still refused everywhere, proposals included.
-- **The self-improvement review and the curator stay on.** Their edits to brain skills become
-  proposals. Not done: turning the review off (`auxiliary.background_review.enabled: false`) would stop
-  her learning in chats and still leave `skill_manage` able to patch a brain skill; making
-  `~/brain/skills` unwritable for `agent` needs another user to apply GitHub's skill changes.
-- **Her edits never stay live** (an edit that lands between sync-brain's read and its write-back is
-  overwritten, as for every file today: accepted, no locking). Each run, sync-brain copies her rule-file changes to the proposal
-  branch and writes `main`'s version back into her copy, so she always runs reviewed rules. A second
-  edit before the owner decides is added to the open proposal, not lost.
-- **Deleting the branch means no.** The owner closes the PR and deletes `telma/proposals`; sync-brain
-  drops what it holds and posts once. GitHub may delete the branch after a merge too: a branch gone
-  whose changes are on `main` is a merge, not a rejection (compared file by file, mode and content,
-  against `main`: a file `main` holds as the proposal did is merged; a file it holds differently, or
-  lacks, was dropped). When `main` changes a file an open proposal
-  also changes, `main` wins: the proposal is dropped and sync-brain posts once.
+- **Rule files from the VPS become a proposal.** sync-brain pushes allowed paths to `main`, and puts
+  her rule-file changes on one branch, `telma/proposals`, on top of `main`. Discord gets the compare
+  link once per new proposal. The owner opens the PR and merges it, after an eval when it changes a
+  skill. Links, gitlinks and `.git*` files are refused everywhere, prxoposals included.
+- **Her copy never stays edited.** Each run writes `main`'s version of a proposed file back into her
+  copy. A second edit before the owner decides is added to the open proposal.
+- **Deleting the branch means no.** sync-brain drops what it holds and posts once. A branch gone
+  because it was merged posts nothing. When `main` changes a file an open proposal also changes, `main`
+  wins and the proposal is dropped.
+- **The self-improvement review and the curator stay on.** Their edits become proposals.
 - **`taste.md` is a proposal like the rest, and writable in her sandbox.** Its two single-file mounts
-  go (not just `:ro`: a single-file mount can't be replaced, which is the `Device or resource busy`
-  above), so `taste.md` is an ordinary file in her writable brain folder, and
-  capture's taste line lands in her copy and sync-brain proposes it. `skills/`, `AGENTS.md`,
-  `CLAUDE.md` and the other rule files stay `:ro` in the sandbox. Every agent reads `taste.md` before
-  it judges anything (the brain's AGENTS.md), so unreviewed lines would reach the local machine.
-- **Triage runs hourly, gated.** `0 0,8-23 * * *` (Berlin), 17 checks a day. A host pre-script wakes
-  the agent only when `inbox/` holds anything besides `README.md`. It prints a fixed line
-  (`inbox: N items`), never file names, since its output goes into the prompt. It wakes once per
-  inbox state (a hash of names and sizes: a run that touches files without filing them mustn't count as
-  a change; step 11 settles it): a run that left items isn't retried until the inbox changes, except at 09:00, which always runs.
-- **memory-diff follows triage by ten minutes.** From step 11 it runs at `10 0,8-23 * * *` (the owner,
-  2026-11-25), not at 09:30 and 21:30. It is a script with no agent, it posts only when something was
-  saved. Her saves come from chats and the curator, not from triage (cron runs skip the background
-  review), so triage is only the clock it follows. Twice a day left the curator's 13:03 patch unreported until 21:30. The ten
-  minutes is a margin, not an ordering: a triage run that takes longer is snapshotted half done, and the
-  rest is posted the next hour. The overnight slots (01:10 to 07:10) are skipped, as triage's are. The
-  script keeps no state besides its snapshot repo, so more runs mean smaller posts (read 2026-11-25).
-  Not yet changed on the VPS: until step 11 ships, `vps/README.md` and `jobs.overrides.yaml` still say 09:30
-  and 21:30.
+  are gone. `skills/`, `AGENTS.md` and `CLAUDE.md` stay `:ro` in the sandbox.
+- **Triage runs hourly, gated.** `0 0,8-23 * * *` (Berlin). A host pre-script wakes the agent only
+  when `inbox/` holds anything besides `README.md`, once per inbox state, and always at 09:00. It
+  prints a fixed line (`inbox: N items`), never file names.
+- **memory-diff follows triage by ten minutes:** `10 0,8-23 * * *`, a script with no agent that
+  posts only when something was saved.
+
+### Facts the steps rely on
+
+- Four callers can write a brain skill in her process: her chats, brain-triage, the self-improvement
+  review and the curator. Hermes guards only a delete, and only in a background run. The proposal
+  review is the control for all four. Read in Hermes's source, 2026-11-26.
+- Hermes ranks local skills (`~/.hermes/skills/`) above `external_dirs`, so a local skill with a
+  brain skill's name hides the reviewed one.
+- Hermes skips a job's AI call when its pre-script prints nothing or `{"wakeAgent": false}`.
 
 ### Steps
 
 Each step is one branch and one PR, with its docs (the table below) in the same PR. Steps that
 change the VPS need the owner's yes first.
 
-| # | Step | Done when | Status |
-|---|---|---|---|
-| 7 | **Unblock now.** On the VPS, write GitHub's `skills/capture/SKILL.md` over her copy, so sync-brain pushes again. The curator's bullet ("capture is triggered by the owner asking; 'just chatting' means answer only") and the inbox's taste line go to a brain PR by hand, the skill one after an eval. | The next sync-brain run is silent and her held-back inbox files are on GitHub | done 2026-11-25: her copy overwritten by hand and the curator's edit written back for step 8 to propose; her inbox files and notes reached GitHub at 21:42, after a temp file and an `index.md` conflict were cleared by hand, and the 21:50 run was silent (see the devlog). The bullet and taste line went to brain PRs #3 and #4; the capture skill (#4) was merged without the eval, the owner's decision on 2026-11-25, so the eval is still owed |
-| 8 | **Proposals in sync-brain.** `PROPOSE='^skills/|^(AGENTS|CLAUDE|taste)\.md$'`. Split her diff: allowed paths to `main`, rule files to `telma/proposals` (force-pushed with a lease, built on the open proposal), then `main`'s versions back into her copy. Post the compare link once per new proposal; post once when it is dropped (branch deleted, or `main` changed the same file). Everything else outside `ALLOWED` is refused as today. Tests in `test-sync-brain.sh`, then an adversarial round. | A skill edit in her copy shows as one commit on `telma/proposals` and one Discord post; her copy is back to `main`'s; inbox pushes go on meanwhile; deleting the branch posts "dropped" once; a merge posts nothing | deployed 2026-11-25 (`deploy/2026-11-25-1`); seen live 2026-11-25: a skill edit became one commit on `telma/proposals` and one post (21:42 and 22:22), deleting the branch posted "dropped" once (21:56), and merging it (#4) posted nothing, with the branch deleted by the next run (23:00). The refusal that names a failed write's rule file is merged (#82), not deployed |
-| 9 | **taste.md writable.** Drop the two `taste.md` `:ro` volumes from `config.overrides.yaml`. Capture's taste section had to change too (it told her `taste.md` is read-only and to use `inbox/`): brain PR #5 makes it "append the line to `taste.md`", and step 8 proposes it. Needs step 8 live first, or the old refusal comes back. Until it lands, a taste edit from her fails and leaves a temp file (see the devlog, 2026-11-25). | A taste correction in a chat shows as a proposal, and `taste.md` on `main` is unchanged until the owner merges | deployed 2026-11-26 (config set by hand, gateway restarted; the tags are the owner's); the first chat test still put the line in `inbox/` because of capture's old text, fixed by brain PR #5, merged without the eval (the owner's decision, 2026-11-26, so the eval is still owed); proof seen 2026-11-26 01:26 to 01:30 (a taste correction in a chat, written to `taste.md` under `## Never`, became one commit on `telma/proposals` touching only `taste.md` and one post; her copy went back to `main`'s version, `main` stayed unchanged; the owner deleted the branch, it was a test) |
-| 10 | **Watch brain skills.** memory-diff also snapshots `~/brain/skills`. sync-brain alerts when a skill in `~/.hermes/skills/` has the name of a brain skill: Hermes ranks local skills above `external_dirs`, so any of the four callers (chats, triage, the review, the curator) could write a local `capture` that hides the reviewed one. | A planted `~/.hermes/skills/capture/` posts once; a brain-skill edit shows in the next memory-diff | todo |
-| 11 | **Hourly gated triage.** A `triage-gate.sh` pre-script in `~/.hermes/scripts/`, with tests; `brain-triage` gets it and `0 0,8-23 * * *` in `jobs.overrides.yaml`; `memory-diff` moves there from `30 9,21 * * *` to `10 0,8-23 * * *`, with `vps/README.md`'s schedule line and the "Twice a day" comment at the top of `memory-diff.sh`. Find out first what Hermes does when a pre-script exits non-zero (skip, or run without it). | An hour with an empty inbox logs "skipping AI call" and posts nothing; a capture is filed within the hour; a run that left items isn't retried until the inbox changes or 09:00; memory-diff is `10 0,8-23 * * *` and a saved edit is posted within the hour | todo |
-| 12 | **Docs sweep.** Every doc below matches what runs, public prose approved by the owner in its PR. Runs after 13 and 14, since both change what sync-brain does. `AGENTS.md`'s "Finished work" line says hardening is reopened for 7 to 14, and closed again when 12 is done. | A grep for "twice a day" and "09:00 and 21:00" finds nothing stale, and every "read-only" and "refuse" in the docs is checked by hand, and every doc that names who edits a skill lists all four callers (see "Who can write a brain skill"), and every doc that says she can't write a rule file is checked for `taste.md`, which she now can (step 9): the sandbox mounts of `skills/`, `AGENTS.md` and `CLAUDE.md` and the refusal of links, gitlinks and `.git*` files stay true; "she can't change a rule file" and "a rule-file change is refused" do not | todo |
-| 13 | **Leftover temp files anywhere.** A `.hermes-tmp.*` file is refused wherever it is, before the allowlist check. Today one under `notes/` goes to `main` and one under `skills/` goes to `telma/proposals`, silently (the same on `main` before step 8; found by the adversarial round, reproduced 2026-11-25). The likeliest cause under `notes/` is a sync that catches a write in flight, so the refusal must not hold back a file for good: it clears once the temp file is gone. | A temp file under `notes/` and one under `skills/` each give the failed-write post and push nothing; deleting it lets the next run go out | todo |
-| 14 | **`index.md` merges by line.** sync-brain refuses when she and the owner both change `index.md` near each other (git conflicts on adjacent lines, even when one side's change contains the other's), and holds back everything she wrote until it is fixed by hand. `index.md` is one entry per line, so merge it as a three-way line merge against the version last synced: edits on neighbouring lines merge, and only when both change the same line do both versions stay (the proposal merge does that already for a collision), so a duplicate is possible and the lint shows it. A plain union of both sides would bring back a line the owner deleted. | She adds a line right after one the owner changed: the next run pushes both and posts nothing. The owner rewrites a line she also touched: both versions show. The owner deletes a line she left alone: it stays deleted | todo |
+| # | Step | Status |
+|---|---|---|
+| 7 | Unblock sync-brain | done 2026-11-25 (brain PRs #3, #4) |
+| 8 | Proposals in sync-brain | done 2026-11-25 (#74; deployed `deploy/2026-11-25-1`) |
+| 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
+| 10 | Watch brain skills | todo |
+| 11 | Hourly gated triage | todo |
+| 12 | Docs sweep | todo, after 13 and 14 |
+| 13 | Leftover temp files anywhere | todo |
+| 14 | `index.md` merges by line | todo |
 
-**Evals.** Changing `SOUL.md` (step 12) needs the eval with the owner's yes, and so does the owner
-merging a skill change into the brain: a proposal from step 8 on, or the capture-skill PR of step 7
-(AGENTS.md's rule, tied to the merge, not to a step). The mount (9) and the schedule (11) aren't on
-AGENTS.md's list; the owner decides whether to run it for them.
+#### 7. Unblock sync-brain (done)
+
+- **Do:** on the VPS, write GitHub's `skills/capture/SKILL.md` over her copy. Send the curator's
+  bullet and the inbox's taste line to brain PRs by hand.
+- **Done when:** the next sync-brain run is silent and her held-back inbox files are on GitHub.
+
+#### 8. Proposals in sync-brain (done)
+
+- **Do:** split her diff in `vps/sync-brain.sh`: allowed paths to `main`, rule files
+  (`^skills/|^(AGENTS|CLAUDE|taste)\.md$`) to `telma/proposals`, force-pushed with a lease and built
+  on the open proposal; then write `main`'s versions back into her copy. Post the compare link once
+  per new proposal, and once when it is dropped. Everything else outside `ALLOWED` is refused as
+  before. Tests in `vps/test-sync-brain.sh`, then an adversarial round.
+- **Done when:** a skill edit in her copy is one commit on `telma/proposals` and one Discord post;
+  her copy is back to `main`'s; inbox pushes go on meanwhile; deleting the branch posts "dropped"
+  once; a merge posts nothing.
+
+#### 9. `taste.md` writable (done)
+
+- **Do:** drop the two `taste.md` `:ro` volumes from `vps/hermes/config.overrides.yaml`. Capture's
+  taste section says to insert the line under the right section of `taste.md` (brain PRs #5 and #7).
+- **Done when:** a taste correction in a chat shows as a proposal, and `taste.md` on `main` is
+  unchanged until the owner merges.
+
+#### 10. Watch brain skills
+
+- **Do:**
+  1. `vps/memory-diff.sh` also snapshots `~/brain/skills`, with its test in `vps/test-memory-diff.sh`.
+  2. `vps/sync-brain.sh` alerts when a skill in `~/.hermes/skills/` has the name of a brain skill.
+- **Done when:** a planted `~/.hermes/skills/capture/` posts once; a brain-skill edit shows in the
+  next memory-diff.
+- **Needs the owner:** deploy.
+
+#### 11. Hourly gated triage
+
+- **Do:**
+  1. Find out what Hermes does when a pre-script exits non-zero (skip, or run without it).
+  2. Add `vps/triage-gate.sh` with tests, and list it in `vps/deploy.manifest`.
+  3. In `vps/hermes/jobs.overrides.yaml`, give `brain-triage` the gate and `0 0,8-23 * * *`, and
+     move `memory-diff` from `30 9,21 * * *` to `10 0,8-23 * * *`.
+  4. Update `vps/README.md`'s schedule line and the "Twice a day" comment in `vps/memory-diff.sh`.
+- **Done when:** an hour with an empty inbox logs "skipping AI call" and posts nothing; a capture is
+  filed within the hour; a run that left items isn't retried until the inbox changes or 09:00; a
+  saved edit is posted within the hour.
+- **Needs the owner:** deploy; whether to run the eval for the schedule.
+
+#### 12. Docs sweep
+
+- **Do:** after 13 and 14, make every doc in the table below match what runs. Set `AGENTS.md`'s
+  "Finished work" line to say hardening is closed again.
+- **Done when:**
+  - a grep for "twice a day" and "09:00 and 21:00" finds nothing stale;
+  - every "read-only" and "refuse" in the docs is checked by hand: the `:ro` mounts of `skills/`,
+    `AGENTS.md` and `CLAUDE.md` and the refusal of links, gitlinks and `.git*` files stay true;
+  - "she can't change a rule file" and "a rule-file change is refused" are gone, since she can write
+    `taste.md` (step 9) and the others become proposals;
+  - every doc that names who edits a skill lists all four callers.
+- **Needs the owner:** approval of each public doc in its PR; the eval with their yes for `SOUL.md`.
+
+#### 13. Leftover temp files anywhere
+
+- **Do:** in `vps/sync-brain.sh`, refuse a `.hermes-tmp.*` file wherever it is, before the allowlist
+  check. The refusal clears once the temp file is gone, so it never holds a file back for good.
+- **Done when:** a temp file under `notes/` and one under `skills/` each give the failed-write post
+  and push nothing; deleting it lets the next run go out.
+
+#### 14. `index.md` merges by line
+
+- **Do:** in `vps/sync-brain.sh`, merge `index.md` as a three-way line merge against the version
+  last synced. Edits on neighbouring lines merge; when both sides change the same line, both versions
+  stay (a duplicate is possible and the lint shows it). Not a plain union: it would bring back a line
+  the owner deleted.
+- **Done when:** she adds a line right after one the owner changed, and the next run pushes both and
+  posts nothing; the owner rewrites a line she also touched, and both versions show; the owner
+  deletes a line she left alone, and it stays deleted.
+
+#### Evals owed
+
+Merging a skill change into the brain, or changing `SOUL.md` (step 12), needs the eval with the
+owner's yes (AGENTS.md). Owed: brain PR #4, #5 and #7 (the capture skill), merged without it on the
+owner's decision. The mount (9) and the schedule (11) aren't on AGENTS.md's list; the owner decides.
 
 ### Docs to update
 
 | Doc | What changes | Step |
 |---|---|---|
-| `vps/sync-brain.sh`, `vps/test-sync-brain.sh` | proposals, the header comment's "pushes only ALLOWED paths" | 8 |
-| `vps/hermes/config.overrides.yaml` | `taste.md` mounts gone; the mounts comment | 9 |
 | `vps/memory-diff.sh`, `vps/test-memory-diff.sh` | `~/brain/skills` in the snapshot | 10 |
 | `vps/hermes/jobs.overrides.yaml`, `vps/deploy.manifest`, new `vps/triage-gate.sh` | schedule, script, manifest entry | 11 |
 | `vps/hermes/brain-triage-prompt.txt` | if the gate's line needs a word in the prompt | 11 |
-| `vps/hermes/SOUL.md` | triage hourly, not twice a day; `skills/` and rule-file changes become a proposal the owner merges (needs the eval) | 12 |
-| `vps/README.md` | her jobs (schedule, gate), the skills section (proposals) | 8, 11 |
-| `vps/kill-switch.md` | delete `telma/proposals` when something planted is on it | 8 |
-| `vps/brain-skills/` | the copy, after a capture or triage skill change merges | 7 |
-| `docs/threat-model.md` | the brain diagram, rows 3 and 5 (her host process can write skills; the control is the proposal review), brain-triage's schedule, memory-diff's reach | 12 |
+| `vps/README.md` | her jobs (schedule, gate) | 11 |
+| `docs/deploy/PLAN.md` | new files in the manifest and drift check | 11 |
+| `vps/hermes/SOUL.md` | triage hourly, not twice a day; rule-file changes become a proposal the owner merges (needs the eval) | 12 |
+| `docs/threat-model.md` | the brain diagram, rows 3 and 5, brain-triage's schedule, memory-diff's reach | 12 |
 | `README.md` | "twice a day", "09:00 and 21:00", "skills and rules read-only", "Her edits can't reach the owner's machine" | 12 |
 | `docs/before-after.md` | the brain and sync rows: proposals instead of refusals | 12 |
 | `docs/adr/0001-telma-keeps-the-brain.md` | "twice a day" | 12 |
-| new ADR | rule-file changes from the VPS go through a proposal branch | 8 |
-| `docs/deploy/PLAN.md` | new files in the manifest and drift check | 11 |
 | `AGENTS.md` | the "Finished work" line | 12 |
 | Brain: the 2026-11-22 decision, `projects/telma.md`, `notes/hermes-agent-setup-gotchas.md`, `notes/telma-lethal-trifecta-and-safety-audit.md` | amended through capture and triage, not edited here | 12 |
 
+Done in steps 7 to 9: `vps/sync-brain.sh` and its test, `vps/kill-switch.md`, `vps/brain-skills/`,
+`vps/hermes/config.overrides.yaml`, ADR 6.
+
 ## Open
 
-- ticket-bay-bot's test gate: Hermes stopped waiting for a hook after 30 s, so a red verdict came too late.
-  Timeout raised to 300 s on 2026-11-18; check on the next bug-loop run that edits code.
+- **ticket-bay-bot's test gate:** Hermes stopped waiting for a hook after 30 s. Timeout raised to
+  300 s on 2026-11-18; check on the next bug-loop run that edits code.
+- **Dependabot on the fork:** `zod` (< 4.6.6) and `source-map-js` alerts stay open.
+- **Step 4 proof:** the first real skills update or block, once upstream moves past the pin.
+- **The owner's calls, no fix planned:** the skills guard matches findings per pattern and path (a
+  second `~/.ssh` read in one file passes); the test gate runs `git rev-parse` and `worktree remove`
+  on the host in sandbox-written repos (no exec seen, low).
+- **Step 6 skips (the owner):** B7 (an injected PR from a second account) and a B1 rerun on the
+  fallback models; classic branch protection on the fork's `main` is gone, the `main` ruleset has the
+  same rules.
 
-- `zod` (< 4.6.6) and `source-map-js` Dependabot alerts on the fork stay open (the critical `next`,
-  `better-auth` and MCP SDK ones were fixed and deployed on 2026-11-19, `e9da215`).
-- Step 4 proof still to see: the first real skills update or block (no upstream commit since the pin
-  yet).
-
-- Steps 0–4 review: three fixes merged (#12) and deployed 2026-11-19. The rest, in this order (one
-  branch and one PR each; anything that changes the VPS needs the owner's yes):
-  1. ~~`fix/sync-brain-push-guard`~~ **done** (#13, deployed and checked live 2026-11-19). The host
-     never runs git in a folder Telma writes: sync-brain keeps its own clone in
-     `~/.local/share/brain-push` and copies her files in with `brain-files.py`. Four adversarial
-     rounds; 61 tests on git 2.56. Live: step 2's done-when holds, links, FIFOs and a `HEAD` file
-     from her sandbox are refused, an edit on the local machine to `AGENTS.md` shows in her sandbox, and her first
-     push went out as `Telma`. Rollback: `sync-brain.sh.bak-redesign-*` (devlog).
-  2. ~~`fix/bot-workdir-and-pins`~~ **done** (deployed 2026-11-19). bug-loop and pr-triage-morning
-     have no workdir any more: Hermes loads no project context file for them, runs their pre-scripts
-     elsewhere, and its 6-hourly worktree sweep (host `git status`) no longer looks at the clone. The
-     test gate's path rewrite fixed. `postgres:17` and `node:22-bookworm-slim` pinned by digest.
-     Both jobs checked with a run; a planted `.hermes.md` didn't reach pr-triage-morning's answer.
-  3. ~~`audit/skills-sync-and-egress`~~ **done** (#16, deployed 2026-11-19). Both modules attacked by a fresh agent, skills-sync twice. skills-sync: the scan saw a
-     `git archive` copy that upstream's `export-ignore` can trim, of three folders only. Now each
-     commit is checked out fresh in a throwaway clone and scanned whole, and the bot's folder is
-     rewritten to match; links leaving the repo block; over 50 MB or 5,000 files isn't unpacked; a
-     commit upstream force-pushed away during the wait is never taken (the owner); the status can't carry
-     mentions or links. Squid: an IP whose reverse DNS says `github.com` got a tunnel (`dstdomain`
-     without `-n`), and squid-denials skipped `TCP_DENIED_ABORTED`; image now 6.6-24.04 LTS. Whole-platform trust: accepted
-     risk (Decisions).
-  The owner's calls, no fix planned: the skills guard matches findings per pattern and path (a
-  second `~/.ssh` read in the same file passes); the test gate runs `git rev-parse` and
-  `worktree remove` on the host in sandbox-written repos (no exec seen, low).
-  Dropped: the memory-diff cut splitting a character (both gateways run `LANG=C.UTF-8`) and Discord's
-  length count (Hermes splits long posts and keeps code blocks closed). A model-written memory summary
-  job was designed and dropped: the owner asks Telma for one in a chat when they want it.
-
-- Moved 2026-11-19: Telma's open items (the triage-to-`guidelines/` question, shipping tool-call logs
-  off the VPS) to [the showcase plan](../showcase/PLAN.md); lessons 8.5 and 8.6 on ticket-bay-bot to
-  [jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot/blob/main/docs/hardening/PLAN.md).
-- Step 6: classic branch protection on the fork's `main` is gone; left so (the owner): the `main` ruleset has
-  the same rules. B7 (an injected PR from a second account) skipped, and no B1 rerun on the fallback
-  models (the owner).
 
 ## Rules for this repo
 

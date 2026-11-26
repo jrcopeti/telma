@@ -6,7 +6,7 @@
 [![secret-scan](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml)
 
 
-A 24/7 AI agent that keeps the owner's second brain: capture, ask, triage, lint.
+A 24/7 AI agent that keeps the owner's [second brain](https://github.com/jrcopeti/brain-template) capture, ask, triage, lint.
 Built on Hermes Agent, designed around security, tested with an eval of 30 scenarios. She runs on a VPS and talks to the owner in [Discord](https://discord.com).
 
 > **Status: work in progress.** Telma is open source (MIT).

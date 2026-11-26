@@ -8,7 +8,7 @@ trap 'rm -rf "$T"' EXIT
 pass=0 fail=0
 
 setup() { rm -rf "$T/w" && W=$T/w && mkdir -p "$W/brain/inbox" && echo "# inbox" > "$W/brain/inbox/README.md"; HOUR=14; run; }
-run() { out=$(HOME=$W BRAIN_DIR=$W/brain TRIAGE_GATE_STATE=$W/state TRIAGE_HOUR=$HOUR bash "$SCRIPT" 2>&1); }
+run() { out=$(HOME=$W BRAIN_DIR=$W/brain TRIAGE_GATE_STATE=$W/state TRIAGE_JOBS_FILE=$W/jobs.json TRIAGE_HOUR=$HOUR bash "$SCRIPT" 2>&1); }
 check() { local name=$1; shift; if "$@"; then echo "ok   $name"; pass=$((pass + 1)); else echo "FAIL $name"; echo "     output: ${out:-<none>}"; fail=$((fail + 1)); fi; }
 
 setup
@@ -83,6 +83,26 @@ if [ "$(id -u)" != 0 ]; then
   check "an unlistable inbox says so and wakes her each run" eval '[[ $first == *"cannot list"* && $first == *"inbox: 1 items"* && $out == *"inbox: 1 items"* ]]'
   chmod 700 "$W/brain/inbox"
 fi
+
+# Hermes records the last run's outcome in jobs.json; an error is retried, a success that left items is not.
+status() { printf '{"jobs":[{"name":"memory-diff","last_status":"error"},{"name":"brain-triage","last_status":"%s"}]}' "$1" > "$W/jobs.json"; }
+setup; echo a > "$W/brain/inbox/a.md"; status ok; run; status error; run
+check "a failed run is retried with the inbox unchanged" eval '[ "$out" = "inbox: 1 items" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; status ok; run; run
+check "a run that succeeded and left items is not retried" eval '[ -z "$out" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; run; echo '{"jobs":[{"name":"memory-diff","last_status":"error"},{"name":"brain-triage","last_status":"ok"}]}' > "$W/jobs.json"; run
+check "another job's error does not retry triage" eval '[ -z "$out" ]'
+
+setup; status error; run
+check "a failed run with an empty inbox stays silent" eval '[ -z "$out" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; run; echo '{not json' > "$W/jobs.json"; run
+check "an unreadable jobs file means no retry, no error" eval '[ -z "$out" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; status error; run; run
+check "a failure is retried every hour until it clears" eval '[ "$out" = "inbox: 1 items" ]'
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

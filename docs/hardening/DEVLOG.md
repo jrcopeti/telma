@@ -1768,3 +1768,8 @@ on 2026-11-26 before the trim.
   the run to start in that hour, and the gate pins `date` to Berlin; `memory-diff` runs ten minutes
   after triage as decided, so a longer triage run is shown in two reports; and its nested-git warning,
   which repeats every run, now repeats hourly (step 10's code, unchanged here).
+- **Failed runs are retried (the owner).** The gate reads `brain-triage`'s `last_status` from
+  `~/.hermes/cron/jobs.json` (checked on the host: `ok` or `error`, set when a run ends, so at the next
+  gate it is the previous run's). With the inbox unchanged and the status `error` it wakes her again,
+  hourly, until a run succeeds. A run that succeeded and left items still waits for a change or 09:00.
+  A jobs file that can't be read means no retry. 6 more tests (27 on Debian).

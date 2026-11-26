@@ -29,12 +29,20 @@ watch() {
   # A nested repo becomes a gitlink: its files are not snapshotted, so it is said every run.
   nested=$(for d in "$@"; do [[ $d == :* ]] || find "$w/$d" -name .git -not -path "$w/skills/.hub/*" 2>/dev/null; done | head -n 3)
   [ -z "$nested" ] || { echo "⚠️ memory-diff: a nested git folder hides its files from this check:"; echo '```'; echo "${nested//\`/}"; echo '```'; }
+  # git add fails on a path that is neither on disk nor tracked (a folder that never existed, or was deleted
+  # and the deletion already saved), so only those paths are added; with none left there is nothing to add.
+  local specs=() have=
+  for d in "$@"; do
+    if [[ $d == :* ]]; then specs+=("$d"); continue; fi
+    if [ -e "$w/$d" ] || [ -n "$(g "$a" "$w" ls-files --cached -- "$d" 2>/dev/null | head -n 1)" ]; then specs+=("$d"); have=1; fi
+  done
   if ! g "$a" "$w" rev-parse -q --verify HEAD >/dev/null; then
-    out=$(g "$a" "$w" add -f -A -- "$@" 2>&1 && g "$a" "$w" -c user.name=audit -c user.email=audit@localhost commit -q --allow-empty -m baseline 2>&1) ||
+    out=$( { [ -z "$have" ] || g "$a" "$w" add -f -A -- "${specs[@]}"; } 2>&1 && g "$a" "$w" -c user.name=audit -c user.email=audit@localhost commit -q --allow-empty -m baseline 2>&1) ||
       echo "⚠️ memory-diff: baseline failed: $out"
     return
   fi
-  out=$(g "$a" "$w" add -f -A -- "$@" 2>&1) || { echo "⚠️ memory-diff: git add failed: $out"; return; }
+  [ -z "$have" ] && return
+  out=$(g "$a" "$w" add -f -A -- "${specs[@]}" 2>&1) || { echo "⚠️ memory-diff: git add failed: $out"; return; }
   g "$a" "$w" diff --cached --quiet && return
   d=$(g "$a" "$w" diff --cached --stat=80 && echo && g "$a" "$w" diff --cached --unified=1 -- "$@")
   g "$a" "$w" -c user.name=audit -c user.email=audit@localhost commit -qm "$(date -u +%FT%H:%MZ)" 2>&1 || echo "⚠️ memory-diff: commit failed"

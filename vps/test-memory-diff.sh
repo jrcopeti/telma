@@ -101,5 +101,16 @@ check "an audit repo from an older version gets the attributes too" eval 'says "
 setup; rm -rf "$W/brain/skills"; run
 check "deleting the brain's skills folder is shown" eval 'says "📚" && says "capture/SKILL.md"'
 
+# A watched folder that never existed must not turn into a "git add failed" post on every run.
+setup; rm -rf "$W/brain/skills" "$W/brain-audit.git"; git init -q --bare "$W/brain-audit.git"; run
+check "an audit repo with no baseline and no skills folder: silent" eval '[ -z "$out" ]'
+run
+check "and silent again on the next run" eval '[ -z "$out" ]'
+mkdir -p "$W/brain/skills/n" && echo x > "$W/brain/skills/n/SKILL.md"; run
+check "a skills folder that appears later is shown" eval 'says "skills/n/SKILL.md"'
+
+setup; rm -rf "$W/brain/skills"; run; run
+check "a brain whose skills folder is gone since the baseline stays silent" eval '[ -z "$out" ]'
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

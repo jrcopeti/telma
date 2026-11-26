@@ -1798,3 +1798,19 @@ on 2026-11-26 before the trim.
 - **For the next PR (the owner):** `sync-brain.sh`'s shadow check (an empty `name:` matches on both sides;
   a Hermes-bundled skill with a brain skill's name warns for good) and `memory-diff.sh`'s brain-skills
   watch (`git add` on a missing, never-tracked `skills/` repeats a pathspec error, now hourly).
+
+## 2026-11-26: two step-10 review findings fixed
+
+From a code review of step 11's PR; both were in step 10's merged code.
+
+- `vps/sync-brain.sh`, the shadow check: a skill with an empty frontmatter `name:` printed a blank line
+  that landed in the posted block next to a real name. An empty name is no name now. Not a bug, so not
+  changed: two empty names never matched into a warning (a blank `$shadowed` reads as empty), and a
+  Hermes-bundled skill with a brain skill's name is a real shadow, so the warning stands. None of the
+  four brain skill names matches a skill on the host today.
+- `vps/memory-diff.sh`, the brain-skills watch: `git add` fails on a path that is neither on disk nor
+  tracked. An audit repo with no baseline and no `skills/`, or a `skills/` deleted and the deletion
+  already saved, posted "baseline failed" or "git add failed" on every run, which is hourly since step
+  11. `watch` now adds only paths that exist or are tracked; with none left it takes an empty baseline
+  and stays silent, and a folder that appears later is shown. 4 new tests in `test-memory-diff.sh`
+  (30), 2 in `test-sync-brain.sh` (122, on Debian).

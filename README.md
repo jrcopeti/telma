@@ -11,9 +11,9 @@ Built on Hermes Agent, designed around security, tested with an eval of 30 scena
 
 > **Status: work in progress.** Telma is open source (MIT).
 
-## Install
+## Quick Start
 
-> An `INSTALL.md` that you can hand to your own coding agent (Claude Code, Codex, Cursor) is a work in
+> A `SETUP.md` that you can hand to your own coding agent (Claude Code, Codex, Cursor) is a work in
 > progress, so it sets Telma up for you.
 
 ## How it Works
@@ -101,7 +101,7 @@ config change. The owner's picks today:
 
 | Role | Model | Why |
 |---|---|---|
-| Main | `deepseek/deepseek-v4.1-flash` | cheap and effective ($0.30/M in, $1.20/M out), 1M context, tool calling, and it passed the real prompt-injection test twice |
+| Main | `deepseek/deepseek-v4.1-flash` | cheap and effective ($0.30/M in, $1.20/M out), 1M context |
 | Fallback 1 | `inclusionai/ling-3.2-flash:free` | free |
 | Fallback 2 | `baidu/ernie-5.5-flash-preview:free` | free |
 

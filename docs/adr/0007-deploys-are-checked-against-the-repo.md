@@ -33,7 +33,8 @@ A manifest, a check and a deploy script, all run by the owner from the local mac
 - **The deploy script** (`vps/deploy.py`) copies only the files named on the command line, shows each
   diff, takes a yes per file, then does the whole copy at once. It keeps a backup on the host, writes
   each file to a temporary name with the right owner and mode, and swaps it in atomically without
-  following a link on the host. It refuses to copy while a job of hers is running. It never writes
+  following a link on the host. It refuses to copy while a job of hers is running, but a job that
+  starts between that check and the swap is not stopped (see Consequences). It never writes
   `config.yaml`, `.env` or `jobs.json`: it prints the commands instead. Skills go through a brain PR
   and her sync, not through it. It never restarts anything.
 - **Each deploy also gets a permanent tag**, `deploy/<date>-<n>`, because `deployed` moves and keeps
@@ -60,5 +61,7 @@ A manifest, a check and a deploy script, all run by the owner from the local mac
   unchanged since the run. Those still come from the host.
 - A job that starts between the running-jobs check and the swap is accepted. Closing it would mean
   holding Hermes's scheduler lock, a Hermes internal.
+- The eval does not gate her toolsets or the Hermes version. AGENTS.md requires an eval before either
+  changes, so the owner runs one by hand; the plan lists the gap as open.
 - ticket-bay-bot copies the script and the design in its own repo. The two repos stay separate, as
   the agents are.

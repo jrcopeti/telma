@@ -203,6 +203,40 @@ fi
 
 out=$(g fetch -q "$REMOTE" +main:refs/sync/github 2>&1) || { say "fetch failed:"; block <<<"$out"; exit 0; }
 base=$(g rev-parse --verify -q 'refs/sync/github^{commit}') || { say "no main on GitHub"; exit 0; }
+# Hermes ranks a skill in $HERMES_HOME/skills above the brain's, so one with a brain skill's name (folder or
+# frontmatter name, any case) hides the reviewed version. Posted once per set of names.
+# The frontmatter name: CRLF, a BOM, quotes and a trailing comment tolerated; lowercase.
+fm_name() {
+  awk 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") }
+    NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit }
+    /^name:/ { sub(/^name:[ \t]*/, ""); sub(/[ \t]+#.*$/, ""); gsub(/^["\047]|["\047][ \t]*$/, ""); sub(/[ \t]+$/, ""); print tolower($0); exit }'
+}
+# Names of the SKILL.md paths on stdin (NUL-ended): the folder's name, then the frontmatter's from $1 file or git blob.
+names_of() {
+  local f n
+  while IFS= read -r -d '' f; do
+    n=${f%/*}; n=${n##*/}
+    [[ $n == *$'\n'* ]] || echo "${n,,}"
+    # The first 8 KB only: a file she made huge must not hold the run (and its lock) for long.
+    if [ "$1" = git ]; then g cat-file blob "$base:$f" | head -c 8192 | fm_name; elif [ -f "$f" ]; then head -c 8192 "$f" | fm_name; fi
+  done
+}
+lst=$P/.git/skill-list
+if g ls-tree -r -z --name-only "$base" -- skills >"$lst" && brain=$(grep -zE '(^|/)SKILL\.md$' "$lst" | names_of git | sort -u; [ "${PIPESTATUS[0]}" -le 1 ]); then
+  # -L: Hermes may follow a linked folder. Bounded, since she can link anywhere; -type f skips a folder named
+  # SKILL.md; only the top .hub is Hermes's. A cut scan is said, never taken for a complete one.
+  hs=${HERMES_HOME:-$HOME/.hermes}/skills found=$P/.git/skill-find
+  timeout 20 find -L "$hs" -maxdepth 5 -name SKILL.md -type f ! -path "$hs/.hub/*" -print0 >"$found" 2>/dev/null
+  [ $? != 124 ] || say "the scan of $hs took over 20 s and was cut, so a skill with a brain skill's name may be missed. Look for links or a flood of files there."
+  shadowed=$(comm -12 <(echo "$brain") <(names_of file <"$found" | sort -u))
+  seen=$HOME/.cache/sync-brain.shadowed
+  if [ -z "$shadowed" ]; then rm -f "$seen"
+  elif [ "$shadowed" != "$(cat "$seen" 2>/dev/null)" ]; then
+    echo "⚠️ sync-brain: a skill in her Hermes home has a brain skill's name, so it hides the reviewed one. Look in ~/.hermes/skills/ and delete it:"
+    block <<<"$shadowed"
+    echo "$shadowed" > "$seen"
+  fi
+fi
 # Her proposal branch: $cur is its tip, empty once the owner deletes it. $held is what this script last saw there.
 heads=$(g ls-remote --heads "$REMOTE" 2>&1) || { say "ls-remote failed:"; block <<<"$heads"; exit 0; }
 cur=$(awk -v r="refs/heads/$PBR" '$2 == r { print $1 }' <<<"$heads")

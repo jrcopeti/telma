@@ -79,7 +79,7 @@ eval run writes the check's summary into its results.
 - **The hooks stay owned by `agent`.** Her file and terminal tools run in the sandbox and can't
   reach `~/.hermes/agent-hooks/`, so they are safe from her (owner, 2026-11-24). Accepted with it: a
   change to a hook or to `config.yaml` by something else running as `agent` on the host shows only
-  when this check runs, never on a schedule (`memory-diff` watches `memories` and `skills` only).
+  when this check runs, never on a schedule (`memory-diff` watches `memories`, `skills` and the brain's `skills` only).
 - **A tree's mode isn't checked, only its owner.** The skills' modes come from git through
   sync-brain (`644`, `664`, `755` and `775` on the VPS today), not from a deploy (PR 1).
 - **Host state too:** the Hermes commit of both installs and `/opt/hermes-guard` (the lockstep

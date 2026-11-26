@@ -75,6 +75,22 @@ check "a nested skill with the brain skill's frontmatter name is alerted" eval '
 setup; shadow other other; sync
 check "a local skill with another name is silent" eval 'silent'
 
+# An empty frontmatter name is no name: it matches nothing, on either side.
+blank() { mkdir -p "$1/$2" && printf '%s\n' "---" "name:" "---" "# s" > "$1/$2/SKILL.md"; }
+setup; blank "$W/seed/skills" empty; git -C "$W/seed" add -A && git -C "$W/seed" commit -qm blank && git -C "$W/seed" push -q "$W/remote.git" main; in_b pull -q --ff-only; blank "$W/home/.hermes/skills" mine; sync
+check "two empty frontmatter names are silent" eval 'silent'
+
+# A comment where the name should be is no name either: two such skills must not match.
+commented() { mkdir -p "$1/$2" && printf '%s\n' "---" "name: $3" "---" "# s" > "$1/$2/SKILL.md"; }
+for v in "# fill in"; do
+  setup; commented "$W/seed/skills" c "$v"; git -C "$W/seed" add -A && git -C "$W/seed" commit -qm c && git -C "$W/seed" push -q "$W/remote.git" main; in_b pull -q --ff-only; commented "$W/home/.hermes/skills" d "$v"; sync
+  check "two skills named '$v' in place of a name are silent" eval 'silent'
+done
+
+
+setup; blank "$W/seed/skills" empty; git -C "$W/seed" add -A && git -C "$W/seed" commit -qm blank && git -C "$W/seed" push -q "$W/remote.git" main; in_b pull -q --ff-only; blank "$W/home/.hermes/skills" mine; shadow triage triage; sync
+check "a real shadow next to empty names lists only the real name" eval 'says "hides the reviewed one" && [ "$(grep -A1 "^\`\`\`\$" <<<"$out" | sed -n 2p)" = triage ]'
+
 setup; mkdir -p "$W/home/.hermes/skills/.hub/triage" && echo x > "$W/home/.hermes/skills/.hub/triage/SKILL.md"; sync
 check "Hermes's .hub folder is ignored" eval 'silent'
 

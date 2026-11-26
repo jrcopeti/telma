@@ -58,6 +58,62 @@ mkcommit() {
 }
 adopt() { local c=$1; shift; in_b update-ref refs/heads/main "$c" && in_b read-tree main && in_b update-index --skip-worktree "$@"; }
 
+# --- a local skill shadowing a brain skill
+shadow() { mkdir -p "$W/home/.hermes/skills/$1" && printf '%s\n' "---" "name: $2" "---" "# s" > "$W/home/.hermes/skills/$1/SKILL.md"; }
+setup; shadow triage triage; sync
+check "a local skill named like a brain skill is alerted" eval 'says "hides the reviewed one" && says "triage"'
+
+setup; shadow triage triage; sync; sync
+check "the alert is posted once" eval 'silent'
+
+setup; shadow triage triage; sync; rm -rf "$W/home/.hermes/skills/triage"; sync; shadow triage triage; sync
+check "it is posted again once the skill was gone and came back" eval 'says "hides the reviewed one"'
+
+setup; shadow coding/mine triage; sync
+check "a nested skill with the brain skill's frontmatter name is alerted" eval 'says "triage"'
+
+setup; shadow other other; sync
+check "a local skill with another name is silent" eval 'silent'
+
+setup; mkdir -p "$W/home/.hermes/skills/.hub/triage" && echo x > "$W/home/.hermes/skills/.hub/triage/SKILL.md"; sync
+check "Hermes's .hub folder is ignored" eval 'silent'
+
+setup; mkdir -p "$W/home/.hermes/skills/x" && mkfifo "$W/home/.hermes/skills/x/SKILL.md"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+check "a FIFO named SKILL.md does not hang the run" eval 'silent'
+
+setup; d=$W/home/.hermes/skills/z; mkdir -p "$d" && printf -- '---\r\nname: triage\r\n---\r\n' > "$d/SKILL.md"; sync
+check "a CRLF frontmatter is read" eval 'says "triage"'
+
+setup; d=$W/home/.hermes/skills/z; mkdir -p "$d" && printf '\357\273\277---\nname: triage\n---\n' > "$d/SKILL.md"; sync
+check "a BOM before the frontmatter is read" eval 'says "triage"'
+
+setup; d=$W/home/.hermes/skills/z; mkdir -p "$d" && printf -- '---\nname: "Triage"  # mine\n---\n' > "$d/SKILL.md"; sync
+check "a quoted, commented, differently cased name is matched" eval 'says "triage"'
+
+setup; mkdir -p "$W/home/.hermes/skills/triage/SKILL.md"; sync
+check "a folder named SKILL.md is not a skill" eval 'silent'
+
+setup; shadow tri-age "tri age"; sync
+check "a name with a space is not the name without it" eval 'silent'
+
+setup; mkdir -p "$W/home/.hermes/skills/$(printf 'x\ntriage')" && echo x > "$W/home/.hermes/skills/$(printf 'x\ntriage')/SKILL.md"; sync
+check "a folder name with a newline can't forge a name" eval 'silent'
+
+setup; shadow real triage; mv "$W/home/.hermes/skills/real" "$W/home/real"; ln -s "$W/home/real" "$W/home/.hermes/skills/linked"; sync
+check "a linked skill folder is found" eval 'says "hides the reviewed one"'
+
+setup; shadow loop other; ln -s .. "$W/home/.hermes/skills/loop/up"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+check "a link loop in her skills doesn't hang the run" eval 'silent'
+
+setup; d=$W/home/.hermes/skills/big; mkdir -p "$d"; { printf -- '---\nname: triage\n'; head -c 3000000 /dev/zero | tr '\0' 'a'; } > "$d/SKILL.md"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+check "a huge SKILL.md is read only at its start" eval 'says "triage"'
+
+setup; shadow .hub/triage triage; sync
+check "a shadow inside the top .hub is Hermes's own, not alerted" eval 'silent'
+
+setup; shadow foo/.hub/triage triage; sync
+check "a .hub deeper down is not exempt" eval 'says "triage"'
+
 # --- allowed changes go out silently
 setup; echo new > "$B/notes/new.md"; sync
 check "a new note is pushed, silently" eval 'silent && remote_has notes/new.md'

@@ -1564,6 +1564,39 @@ patch unreported until 21:30. Until step 11 ships, `vps/README.md` and `jobs.ove
   merged without the eval (the owner's decision), so the eval is still owed. Proof seen 01:26 to 01:30
   (see the entry above).
 
+## 2026-11-26: step 10 built, not deployed
+
+- `vps/memory-diff.sh` now runs one `watch` per tree: `~/.hermes` (memories and skills, as before) and
+  `~/brain/skills` in a second snapshot repo (`~/.brain-skills-audit.git`, work tree `~/brain`). Its
+  post is labelled "brain skills changed", and says a merge arriving from GitHub shows there too: the
+  snapshot can't tell her edit from sync-brain writing `main`'s version back.
+- `vps/sync-brain.sh` compares the skill names on GitHub's `main` (folder name and frontmatter `name:`,
+  lowercase) with the `SKILL.md` files under `~/.hermes/skills/` (links followed, five levels, 20 s;
+  `.hub` skipped). A match posts once per set of names, kept in `~/.cache/sync-brain.shadowed`, and
+  again if the set changes or the skill is deleted and comes back. It runs after the fetch, before any
+  exit that holds the push back, so a conflict or refusal doesn't hide it. If git can't list the brain's
+  skills, the check is skipped and the state kept.
+- **Adversarial round 1** (a fresh agent), fixed here: a `.gitignore` she plants in a skills folder hid
+  new skills from memory-diff, a `.gitattributes` with `-diff` blanked the diff, and a nested git folder
+  became a gitlink that hid its later edits; all three also held for the old `~/.hermes` snapshot.
+  Now `git add -f`, `* diff` in the snapshot's own `info/attributes`, and a post naming any nested
+  `.git`. Hermes's bookkeeping files are excluded by pathspec, not by the repo's exclude file, so they
+  don't hide a brain file of the same name. An empty brain `skills/` takes an empty baseline; a linked
+  one is said. The name check read CRLF, BOM, quotes and comments wrongly, matched a folder named
+  `SKILL.md`, split a folder name holding a newline, and dropped spaces from names. Not changed: a
+  directory at the state file's path repeats the alert (contrived).
+- **Adversarial round 2**, fixed here: an audit repo made by the old script never got `info/attributes`
+  (now written every run); a 40 GB `SKILL.md` held sync-brain and its lock (now the first 8 KB only);
+  a flood of links cut the 20 s scan silently (now said); deleting the brain's `skills/` was silent
+  (now shown); the `.hub` skip applied at any depth (now the top one only). Left for the owner: the
+  name reader accepts fewer YAML forms than Hermes may (`"name": x`, `name : x`, a block scalar); the
+  folder-name match still covers them. Whether Hermes follows links, or recurses past five levels, is
+  unchecked. A symlinked `~/.hermes/skills` now fails the add loudly instead of posting once.
+  A file git can't add (an unreadable one, a nested repo with no commit) stops the whole snapshot
+  with a "git add failed" post on every run, as on main.
+- Tests: 26 in `test-memory-diff.sh`, 118 in `test-sync-brain.sh` (run on Debian in a container, as
+  the script needs `flock`). Deploy and the live proof (the plan's done-when) wait for the owner's yes.
+
 ## 2026-11-26: steps 0 to 6, their decisions and the old Open list trimmed
 
 With the owner's yes (the freeze in AGENTS.md was lifted for this), PLAN.md's steps 0 to 6, the

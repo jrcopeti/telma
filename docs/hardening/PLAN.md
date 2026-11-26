@@ -31,16 +31,18 @@ The full text of steps 0 to 6 and their decisions is in the [devlog](DEVLOG.md).
   by `install.mjs`. Telma pulls them read-only; her changes reach the owner as a proposal branch, never
   `main` (amended 2026-11-25, step 8). Her own Hermes skills (`~/.hermes/skills`) are hers to write;
   the memory diff is the control. Project skills stay in their project.
-- **The brain stays one repo.** `skills/` and `AGENTS.md` are `:ro` in her sandbox; her host process
-  can write them, so `sync-brain` (the only holder of the push key) turns such changes into a
-  proposal (step 8).
+- **The brain stays one repo.** `skills/`, `AGENTS.md` and `CLAUDE.md` are `:ro` in her sandbox; her
+  host process can write them, so `sync-brain` (the only holder of the push key) turns such changes
+  into a proposal (step 8) and never runs git in a folder she writes. A separate `brain-skills` repo
+  is a possible later ADR, not needed now.
 - **The ticket-bay fork gets security patches, not Renovate.** A Dependabot alert on what the VPS runs
   is fixed on the fork's `main` with the smallest version that closes it, one PR by hand.
 - **Telma keeps web and browser in chats, as an accepted risk.** No allowlist can cut them. Her
   unattended job, brain-triage, runs without them, so no job holds all three legs. Step 5's canary and
   5b's tripwire are the checks.
-- **ticket-bay-bot learns** (memory and `skill_manage` on), and **Telma keeps `skill_manage`**. A
-  memory and skills diff goes to Discord and the owner undoes what looks planted. Emptying her memory
+- **ticket-bay-bot learns** (memory and `skill_manage` on), and **Telma keeps `skill_manage`** (the
+  owner, 2026-11-18). A memory and skills diff goes to Discord (daily for the bot; for Telma after
+  each brain-triage, see step 11) and the owner undoes what looks planted. Emptying her memory
   alone doesn't undo what she learned: check her skills and `~/.hermes/skills/.curator_ledger.jsonl`.
 - **The bot's allowlist trusts whole platforms, as an accepted risk.** Squid sees only the CONNECT
   host, so any account on `github.com`, `api.github.com` or `registry.npmjs.org` is reachable.
@@ -48,9 +50,11 @@ The full text of steps 0 to 6 and their decisions is in the [devlog](DEVLOG.md).
 - **An obedient bot can paste its 1-hour token into a public PR, as an accepted risk.** The terminal
   guard blocks the plain ways; the token reaches the fork only and dies within the hour.
 - **Detection, not recording (step 5).** Squid's denials go to Discord; a canary link in the brain
-  alerts a channel Telma's bot can't read or delete. Shipping tool-call logs off the VPS is dropped.
+  alerts a channel Telma's bot can't read or delete. The canary's file is named nowhere in this repo
+  or the brain, only in the token memo: never write it into a doc. Shipping tool-call logs off the VPS is dropped.
 - **The exfil tripwire watches and blocks nothing (step 5b).** A `pre_tool_call` hook posts to
-  `#alerts` when a web, browser or other off-host call carries brain text. Text split, reworded or
+  `#alerts` through its own webhook when a web, browser or other off-host call carries brain text
+  (published and rule files don't count). Text split, reworded or
   encoded another way gets out unseen: accepted; the fix is a web agent with no brain, deferred on cost.
 - **The local machine keeps its skill links** (`~/.claude/skills`, `~/.agents/skills` →
   `~/brain/skills`).
@@ -91,7 +95,7 @@ write `skills/`. sync-brain refused those edits and held back her inbox pushes. 
 - **Rule files from the VPS become a proposal.** sync-brain pushes allowed paths to `main`, and puts
   her rule-file changes on one branch, `telma/proposals`, on top of `main`. Discord gets the compare
   link once per new proposal. The owner opens the PR and merges it, after an eval when it changes a
-  skill. Links, gitlinks and `.git*` files are refused everywhere, proposals included.
+  skill. Links, gitlinks and `.git*` files are refused everywhere, prxoposals included.
 - **Her copy never stays edited.** Each run writes `main`'s version of a proposed file back into her
   copy. A second edit before the owner decides is added to the open proposal.
 - **Deleting the branch means no.** sync-brain drops what it holds and posts once. A branch gone
@@ -151,7 +155,7 @@ change the VPS need the owner's yes first.
 #### 9. `taste.md` writable (done)
 
 - **Do:** drop the two `taste.md` `:ro` volumes from `vps/hermes/config.overrides.yaml`. Capture's
-  taste section says to append the line to `taste.md` (brain PR #5).
+  taste section says to insert the line under the right section of `taste.md` (brain PRs #5 and #7).
 - **Done when:** a taste correction in a chat shows as a proposal, and `taste.md` on `main` is
   unchanged until the owner merges.
 

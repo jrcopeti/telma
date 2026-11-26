@@ -8,6 +8,7 @@
 vps/sync-brain.sh                 /home/agent/.hermes/scripts/sync-brain.sh          exact     agent:agent  755   none
 vps/brain-files.py                /home/agent/.hermes/scripts/brain-files.py         exact     agent:agent  644   none
 vps/memory-diff.sh                /home/agent/.hermes/scripts/memory-diff.sh         exact     agent:agent  755   none
+vps/triage-gate.sh                /home/agent/.hermes/scripts/triage-gate.sh         exact     agent:agent  755   none
 vps/tripwire-health.sh            /home/agent/.hermes/scripts/tripwire-health.sh     exact     agent:agent  755   none
 vps/guard-network.sh              /home/agent/.hermes/agent-hooks/guard-network.sh   exact     agent:agent  755   reapprove-hook
 vps/exfil-tripwire.py             /home/agent/.hermes/agent-hooks/exfil-tripwire.py  exact     agent:agent  755   reapprove-hook

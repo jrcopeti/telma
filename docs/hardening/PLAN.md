@@ -130,7 +130,7 @@ change the VPS need the owner's yes first.
 | 8 | Proposals in sync-brain | done 2026-11-25 (#74; deployed `deploy/2026-11-25-1`) |
 | 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
-| 11 | Hourly gated triage | todo |
+| 11 | Hourly gated triage | built, not deployed |
 | 12 | Docs sweep | todo, after 13 and 14 |
 | 13 | Leftover temp files anywhere | todo |
 | 14 | `index.md` merges by line | todo |
@@ -177,8 +177,8 @@ change the VPS need the owner's yes first.
      move `memory-diff` from `30 9,21 * * *` to `10 0,8-23 * * *`.
   4. Update `vps/README.md`'s schedule line and the "Twice a day" comment in `vps/memory-diff.sh`.
 - **Done when:** an hour with an empty inbox logs "skipping AI call" and posts nothing; a capture is
-  filed within the hour; a run that left items isn't retried until the inbox changes or 09:00; a
-  saved edit is posted within the hour.
+  filed within the hour; a run that left items isn't retried until the inbox changes or 09:00, but a
+  run that ended in error is retried hourly, three times, then at 09:00; a saved edit is posted within the hour.
 - **Needs the owner:** deploy; whether to run the eval for the schedule.
 
 #### 12. Docs sweep

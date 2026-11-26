@@ -1752,3 +1752,49 @@ on 2026-11-26 before the trim.
 - Step 6: classic branch protection on the fork's `main` is gone; left so (the owner): the `main` ruleset has
   the same rules. B7 (an injected PR from a second account) skipped, and no B1 rerun on the fallback
   models (the owner).
+
+## 2026-11-26: step 11 built, not deployed
+
+- **Item 1, read in Hermes's source on the host (read-only):** a pre-script that exits non-zero doesn't
+  skip the run. The scheduler runs the agent anyway and puts a "Script Error" block, with the script's
+  output, in its prompt. Only empty output or `{"wakeAgent": false}` from a script that ran skips the
+  AI call. So the gate fails open: a broken gate costs an extra triage run, never a missed capture.
+- `vps/triage-gate.sh` hashes the names and contents of everything in `inbox/` but its README, and
+  keeps the hash in `~/.triage-gate.state`. It prints `inbox: N items` when the hash differs from the
+  last run's and the inbox isn't empty, and at 09:00 Berlin whatever the inbox holds. Otherwise it
+  prints nothing. A run that leaves items therefore isn't retried until the inbox changes or 09:00;
+  an agent run that fails halfway is retried the same way. An unwritable state file is said in the
+  output and the agent still wakes. 15 tests (21 after the adversarial round and the review) in `vps/test-triage-gate.sh`, added to CI.
+- `jobs.overrides.yaml`: `brain-triage` gets the script and `0 0,8-23 * * *`; `memory-diff` moves to
+  `10 0,8-23 * * *`. `triage-gate.sh` is in `deploy.manifest` (`check-drift.py` reads it as missing on
+  the host until deployed). `vps/README.md` and the comment in `memory-diff.sh` match. The prompt
+  needed no change.
+- **Adversarial round 1** (a fresh agent, proved on Debian as a non-root user), fixed here: a FIFO in
+  `inbox/` hung `sha256sum` and so the gate; a dangling link or an unreadable file left no trace in the
+  hash, so a second one never woke her; a newline in a name counted as two items. Now the hash covers
+  every entry's name and the content of regular files only, and the count is NUL-based. Left as is
+  (the owner): the state is written before the agent runs, so a run that files only some items is
+  followed by one more run; dotfiles count as items; a link retargeted under the same name isn't seen
+  (sync-brain refuses links anyway).
+- Deploy and the live proof (the plan's done-when), and whether to run the eval for the schedule, wait
+  for the owner's yes.
+- **/code-review**, fixed here: the count and the hash came from separate listings (one now feeds both),
+  and a failed listing read as an empty inbox (it now says so and wakes her every run). Left, with
+  reasons: the state is written before the agent runs (the owner's call above); the 09:00 wake needs
+  the run to start in that hour, and the gate pins `date` to Berlin; `memory-diff` runs ten minutes
+  after triage as decided, so a longer triage run is shown in two reports; and its nested-git warning,
+  which repeats every run, now repeats hourly (step 10's code, unchanged here).
+- **Failed runs are retried (the owner).** The gate reads `brain-triage`'s `last_status` from
+  `~/.hermes/cron/jobs.json` (checked on the host: `ok` or `error`, set when a run ends, so at the next
+  gate it is the previous run's). With the inbox unchanged and the status `error` it wakes her again,
+  hourly, until a run succeeds. A run that succeeded and left items still waits for a change or 09:00.
+  A jobs file that can't be read means no retry. 6 more tests (27 on Debian).
+- **Retries capped at three (the owner).** A code review pointed out that an outage would mean up to 17
+  paid runs a day. The state file now holds `<hash> <retries>`; each retry prints `inbox: N items
+  (retry k/3)` for k = 1 to 3, then the gate is silent until the inbox changes or 09:00, which also
+  clears the count. Accepted (the owner): a run that dies before Hermes records its status leaves a
+  stale `ok`, so that capture waits for a change or 09:00; only the status `error` is retried, not
+  `delivery_failed`; the gate's reading of `jobs.json` is proved on the host at deploy. 32 tests on Debian.
+- **For the next PR (the owner):** `sync-brain.sh`'s shadow check (an empty `name:` matches on both sides;
+  a Hermes-bundled skill with a brain skill's name warns for good) and `memory-diff.sh`'s brain-skills
+  watch (`git add` on a missing, never-tracked `skills/` repeats a pathspec error, now hourly).

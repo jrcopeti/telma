@@ -1873,4 +1873,9 @@ From a code review of step 11's PR; both were in step 10's merged code.
   file out); it now sets a flag that refuses the run, with a test using a `git` that fails on that diff alone.
   The refusal header no longer says "outside what Telma may change" when a temp file under an allowed path
   is the only offender. A name holding the byte `\001` still shows truncated in the post (cosmetic, left). 127 pass.
+- Second adversarial round found nothing in the change itself, and one older gap: the other two diffs in
+  `refuse_outside` (the link check and the `.git*` check) had no `pipefail`, so a failed `git diff` there
+  passed silently (a `.gitignore` went out). Fixed in this PR: `bad` is built under `pipefail` and a failed
+  diff says "(git diff failed)". The `-z` test fails on the old script; the `--raw` test passes on it too,
+  because `brain-files.py export` refuses a link first, so it only guards the line. 129 pass.
 - Not deployed: the owner's yes is needed.

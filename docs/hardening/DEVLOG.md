@@ -1748,7 +1748,7 @@ on 2026-11-26 before the trim.
   last run's and the inbox isn't empty, and at 09:00 Berlin whatever the inbox holds. Otherwise it
   prints nothing. A run that leaves items therefore isn't retried until the inbox changes or 09:00;
   an agent run that fails halfway is retried the same way. An unwritable state file is said in the
-  output and the agent still wakes. 15 tests (20 after the adversarial round) in `vps/test-triage-gate.sh`, added to CI.
+  output and the agent still wakes. 15 tests (21 after the adversarial round and the review) in `vps/test-triage-gate.sh`, added to CI.
 - `jobs.overrides.yaml`: `brain-triage` gets the script and `0 0,8-23 * * *`; `memory-diff` moves to
   `10 0,8-23 * * *`. `triage-gate.sh` is in `deploy.manifest` (`check-drift.py` reads it as missing on
   the host until deployed). `vps/README.md` and the comment in `memory-diff.sh` match. The prompt
@@ -1762,3 +1762,9 @@ on 2026-11-26 before the trim.
   (sync-brain refuses links anyway).
 - Deploy and the live proof (the plan's done-when), and whether to run the eval for the schedule, wait
   for the owner's yes.
+- **/code-review**, fixed here: the count and the hash came from separate listings (one now feeds both),
+  and a failed listing read as an empty inbox (it now says so and wakes her every run). Left, with
+  reasons: the state is written before the agent runs (the owner's call above); the 09:00 wake needs
+  the run to start in that hour, and the gate pins `date` to Berlin; `memory-diff` runs ten minutes
+  after triage as decided, so a longer triage run is shown in two reports; and its nested-git warning,
+  which repeats every run, now repeats hourly (step 10's code, unchanged here).

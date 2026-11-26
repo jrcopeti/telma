@@ -20,8 +20,8 @@ tripwire-health:
   no_agent: true
   deliver: discord
 brain-triage:
-  schedule: 0 9,21 * * *
-  script: null
+  schedule: 0 0,8-23 * * *
+  script: triage-gate.sh
   skills: [triage, lint]
   toolsets: [terminal, file, skills, todo]
   enabled: true
@@ -29,7 +29,7 @@ brain-triage:
   deliver: discord
   prompt: vps/hermes/brain-triage-prompt.txt
 memory-diff:
-  schedule: 30 9,21 * * *
+  schedule: 10 0,8-23 * * *
   script: memory-diff.sh
   skills: []
   toolsets: null

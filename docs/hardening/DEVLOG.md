@@ -1736,3 +1736,29 @@ on 2026-11-26 before the trim.
 - Step 6: classic branch protection on the fork's `main` is gone; left so (the owner): the `main` ruleset has
   the same rules. B7 (an injected PR from a second account) skipped, and no B1 rerun on the fallback
   models (the owner).
+
+## 2026-11-26: step 11 built, not deployed
+
+- **Item 1, read in Hermes's source on the host (read-only):** a pre-script that exits non-zero doesn't
+  skip the run. The scheduler runs the agent anyway and puts a "Script Error" block, with the script's
+  output, in its prompt. Only empty output or `{"wakeAgent": false}` from a script that ran skips the
+  AI call. So the gate fails open: a broken gate costs an extra triage run, never a missed capture.
+- `vps/triage-gate.sh` hashes the names and contents of everything in `inbox/` but its README, and
+  keeps the hash in `~/.triage-gate.state`. It prints `inbox: N items` when the hash differs from the
+  last run's and the inbox isn't empty, and at 09:00 Berlin whatever the inbox holds. Otherwise it
+  prints nothing. A run that leaves items therefore isn't retried until the inbox changes or 09:00;
+  an agent run that fails halfway is retried the same way. An unwritable state file is said in the
+  output and the agent still wakes. 15 tests in `vps/test-triage-gate.sh`, added to CI.
+- `jobs.overrides.yaml`: `brain-triage` gets the script and `0 0,8-23 * * *`; `memory-diff` moves to
+  `10 0,8-23 * * *`. `triage-gate.sh` is in `deploy.manifest` (`check-drift.py` reads it as missing on
+  the host until deployed). `vps/README.md` and the comment in `memory-diff.sh` match. The prompt
+  needed no change.
+- **Adversarial round 1** (a fresh agent, proved on Debian as a non-root user), fixed here: a FIFO in
+  `inbox/` hung `sha256sum` and so the gate; a dangling link or an unreadable file left no trace in the
+  hash, so a second one never woke her; a newline in a name counted as two items. Now the hash covers
+  every entry's name and the content of regular files only, and the count is NUL-based. Left as is
+  (the owner): the state is written before the agent runs, so a run that files only some items is
+  followed by one more run; dotfiles count as items; a link retargeted under the same name isn't seen
+  (sync-brain refuses links anyway).
+- Deploy and the live proof (the plan's done-when), and whether to run the eval for the schedule, wait
+  for the owner's yes.

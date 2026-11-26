@@ -130,7 +130,7 @@ change the VPS need the owner's yes first.
 | 8 | Proposals in sync-brain | done 2026-11-25 (#74; deployed `deploy/2026-11-25-1`) |
 | 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
 | 10 | Watch brain skills | built 2026-11-26, deploy waits for the owner |
-| 11 | Hourly gated triage | todo |
+| 11 | Hourly gated triage | built, not deployed |
 | 12 | Docs sweep | todo, after 13 and 14 |
 | 13 | Leftover temp files anywhere | todo |
 | 14 | `index.md` merges by line | todo |

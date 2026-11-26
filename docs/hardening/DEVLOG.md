@@ -1804,7 +1804,9 @@ on 2026-11-26 before the trim.
 From a code review of step 11's PR; both were in step 10's merged code.
 
 - `vps/sync-brain.sh`, the shadow check: a skill with an empty frontmatter `name:` printed a blank line
-  that landed in the posted block next to a real name. An empty name is no name now. Not a bug, so not
+  that landed in the posted block next to a real name. An empty name is no name now, and so is a
+  comment alone (`name: # fill in`), which was read as the name `# fill in`. A block scalar (`name: |`)
+  is still read as `|`, which needs the lines after it; left. Not a bug, so not
   changed: two empty names never matched into a warning (a blank `$shadowed` reads as empty), and a
   Hermes-bundled skill with a brain skill's name is a real shadow, so the warning stands. None of the
   four brain skill names matches a skill on the host today.
@@ -1813,4 +1815,4 @@ From a code review of step 11's PR; both were in step 10's merged code.
   already saved, posted "baseline failed" or "git add failed" on every run, which is hourly since step
   11. `watch` now adds only paths that exist or are tracked; with none left it takes an empty baseline
   and stays silent, and a folder that appears later is shown. 4 new tests in `test-memory-diff.sh`
-  (30), 2 in `test-sync-brain.sh` (122, on Debian).
+  (30), 3 in `test-sync-brain.sh` (123, on Debian).

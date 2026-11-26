@@ -205,11 +205,11 @@ out=$(g fetch -q "$REMOTE" +main:refs/sync/github 2>&1) || { say "fetch failed:"
 base=$(g rev-parse --verify -q 'refs/sync/github^{commit}') || { say "no main on GitHub"; exit 0; }
 # Hermes ranks a skill in $HERMES_HOME/skills above the brain's, so one with a brain skill's name (folder or
 # frontmatter name, any case) hides the reviewed version. Posted once per set of names.
-# The frontmatter name: CRLF, a BOM, quotes and a trailing comment tolerated; lowercase; an empty one is no name.
+# The frontmatter name: CRLF, a BOM, quotes and a trailing comment tolerated (a comment alone is no name); lowercase; an empty one is no name.
 fm_name() {
   awk 'NR == 1 { sub(/^\357\273\277/, "") } { sub(/\r$/, "") }
     NR == 1 && $0 != "---" { exit } NR > 1 && $0 == "---" { exit }
-    /^name:/ { sub(/^name:[ \t]*/, ""); sub(/[ \t]+#.*$/, ""); gsub(/^["\047]|["\047][ \t]*$/, ""); sub(/[ \t]+$/, ""); if ($0 != "") print tolower($0); exit }'
+    /^name:/ { sub(/^name:[ \t]*/, ""); sub(/(^|[ \t]+)#.*$/, ""); gsub(/^["\047]|["\047][ \t]*$/, ""); sub(/[ \t]+$/, ""); if ($0 != "") print tolower($0); exit }'
 }
 # Names of the SKILL.md paths on stdin (NUL-ended): the folder's name, then the frontmatter's from $1 file or git blob.
 names_of() {

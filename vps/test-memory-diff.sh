@@ -102,7 +102,7 @@ setup; rm -rf "$W/brain/skills"; run
 check "deleting the brain's skills folder is shown" eval 'says "📚" && says "capture/SKILL.md"'
 
 # A watched folder that never existed must not turn into a "git add failed" post on every run.
-setup; rm -rf "$W/brain/skills" "$W/brain-audit.git"; git init -q --bare "$W/brain-audit.git"; run
+setup; rm -rf "$W/brain/skills" "$W/brain-audit.git"; git init -q --bare "$W/brain-audit.git" && git -C "$W/brain-audit.git" config core.bare false; run
 check "an audit repo with no baseline and no skills folder: silent" eval '[ -z "$out" ]'
 run
 check "and silent again on the next run" eval '[ -z "$out" ]'

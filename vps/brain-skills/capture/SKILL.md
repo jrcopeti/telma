@@ -5,7 +5,7 @@ description: "Save a link, snippet, or decision into the brain inbox. Use when t
 
 # Capture
 
-Capture is fast and dumb. It writes one file into `inbox/`, runs `node sync.mjs`, and stops. It never sorts, summarizes into notes, or edits existing notes — that is triage's job.
+Capture is fast and dumb. It writes one file into `inbox/`, runs `node sync.mjs`, and stops. It never sorts, summarizes into notes, or edits existing notes, apart from a taste line in `taste.md` — that is triage's job.
 
 ## Save something
 
@@ -35,12 +35,11 @@ When the user corrects you with a reason, the taste line is
 (`## Never` / `## Prefer` / `## Tie-breakers`). Use their words. No reason given? Ask one question
 ("why?") first. No reason, no entry.
 
-`taste.md` is a **rule file**: it is mounted read-only, and a change to it goes through a branch and a
-PR the owner merges — never straight to main (`decisions/2026-11-22-brain-skill-changes-go-through-a-pr.md`).
-So do NOT try to edit `taste.md`. Capture the change into `inbox/` instead: put the exact line to add,
-the section it goes in, and the owner's words in the item, and say in the reply that it needs a branch + PR.
-Then run `node sync.mjs` from the brain folder (the host sync pushes; the item itself is a normal
-main capture).
+`taste.md` is a rule file, but it is the one you can write: append the line to your copy of it. A
+change to it never goes straight to main: the host sync puts it on a branch for a PR the owner merges
+(`decisions/2026-11-22-brain-skill-changes-go-through-a-pr.md`). So write the line in `taste.md`, not
+in `inbox/`, run `node sync.mjs` from the brain folder, and say in the reply that it is waiting for the
+owner's review.
 
 ## Gotchas
 
@@ -48,9 +47,11 @@ main capture).
   casual chat, don't offer to file things or write up what was talked about — "just chatting"
   means answer only, no note.
 - Don't create notes or edit the index here. Everything goes through `inbox/`, so nothing skips triage.
-- Rule files — `taste.md`, `AGENTS.md`, `CLAUDE.md`, `skills/` — are read-only here and their changes go
+  The one exception is a taste line, which goes into `taste.md` (see Taste entries).
+- Rule files — `AGENTS.md`, `CLAUDE.md`, `skills/` — are read-only here and their changes go
   through a branch + PR the owner merges. When one should change, capture the proposed edit (exact text,
-  location, reason) into `inbox/` and say it needs a PR. Never try to write a rule file: the write fails
-  (read-only mount) or, worse, would land on main unreviewed.
+  location, reason) into `inbox/` and say it needs a PR. `taste.md` is the exception (see Taste
+  entries). Never try to write the others: the write fails (read-only mount) or, worse, would land on
+  main unreviewed.
 - Don't paste secrets or other people's personal data into the brain, even when the user forwards them. Keep the link, drop the secret.
 - Screenshots: save the image file into `inbox/` next to the item and describe what it shows in the item's text.

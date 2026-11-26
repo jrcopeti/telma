@@ -1808,7 +1808,7 @@ Merged as #99, then deployed with the owner's yes. `deploy.py` copied `triage-ga
 written by the script, so the two jobs were changed as `agent` with `hermes cron edit` after a copy of
 `jobs.json` went to the same backup folder: `brain-triage` got `--script triage-gate.sh` and
 `0 0,8-23 * * *`, `memory-diff` got `10 0,8-23 * * *`. Skills and toolsets didn't change. The drift check read
-18 of 18 in sync. The `deployed` tag was left for the owner to move.
+18 of 18 in sync. The owner then moved `deployed` to `bf6e74d`.
 - **Proof, run on the host as `agent`** with `BRAIN_DIR`, `TRIAGE_GATE_STATE` and `TRIAGE_JOBS_FILE` pointed at
   scratch copies, so the real inbox and state file were untouched (no real state file exists yet):
   - the real inbox (README only) and the real `jobs.json`: silent, state `empty 0`. The gate read the real file

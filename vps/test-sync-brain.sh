@@ -207,6 +207,12 @@ rm "$B/notes/.hermes-tmp.Nt1234"; sync
 check "deleting the temp file under notes/ lets the next run go out" eval 'silent && remote_has notes/n.md'
 setup; mkdir -p "$B/notes/.hermes-tmp.Dir123" && printf 'v\n' > "$B/notes/.hermes-tmp.Dir123/f.md"
 check "a file inside a temp folder under notes/ is refused" eval 'refused .hermes-tmp.Dir123/f.md && says "A failed edit"'
+setup; printf 'v\n' > "$B/notes/.hermes-tmp.Nt5678"; echo ok > "$B/notes/n.md"; sync
+check "a temp file alone under notes/ is not called outside what she may change" eval 'says "refused" && says "A failed edit" && ! says "outside what Telma may change"'
+setup; real=$(command -v git); mkdir "$W/fakebin"
+printf '#!/bin/sh\ncase " $* " in *" --diff-filter=d "*) exit 128;; esac\nexec %s "$@"\n' "$real" > "$W/fakebin/git"; chmod +x "$W/fakebin/git"
+printf 'v\n' > "$B/notes/.hermes-tmp.Nt9999"; echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run bash "$SCRIPT" 2>&1)
+check "a failure of the temp-file scan's own git diff refuses the run" eval 'says "refused" && says "git diff failed" && [ "$(remote_head)" = "$head" ] && ! remote_has notes/n.md'
 setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; echo ok > "$B/notes/n.md"
 check "a temp file under skills/ is refused, not proposed" eval 'refused .hermes-tmp.Sk1234 && says "A failed edit" && ! prop_head >/dev/null && ! remote_has notes/n.md'
 rm "$B/skills/triage/.hermes-tmp.Sk1234"; sync

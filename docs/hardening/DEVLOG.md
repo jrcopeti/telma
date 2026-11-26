@@ -1869,4 +1869,8 @@ From a code review of step 11's PR; both were in step 10's merged code.
   released once the temp file is deleted. 124 pass on Debian, 0 fail.
 - Code-review fixes: a file inside a `.hermes-tmp.*` folder is refused too, and a failed `git diff` in the
   scan refuses the run instead of passing it. 125 pass.
+- Adversarial round: the failed-diff guard was dead code (a failure of only the scan's diff let the temp
+  file out); it now sets a flag that refuses the run, with a test using a `git` that fails on that diff alone.
+  The refusal header no longer says "outside what Telma may change" when a temp file under an allowed path
+  is the only offender. A name holding the byte `\001` still shows truncated in the post (cosmetic, left). 127 pass.
 - Not deployed: the owner's yes is needed.

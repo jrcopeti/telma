@@ -66,15 +66,20 @@ failed_writes() {
 # .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy),
 # or is a .hermes-tmp.* file (or inside such a folder) anywhere, even under an allowed path (a failed write; deleting it lifts the refusal).
 refuse_outside() {
-  local bad t tmps=() live
-  live=$(set -o pipefail; g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" -- | tr '\0' '\1') || live=$'(git diff failed)\1'
+  local bad t tmps=() live scanfail=
+  live=$(set -o pipefail; g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" -- | tr '\0' '\1') || scanfail=1
   while IFS= read -r -d $'\1' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*(/|$) ]] && tmps+=("$t"); done <<<"$live"
   bad=$( (g diff --name-only --no-renames "$1" "$2" -- || echo "(git diff failed)") | grep -Ev "$3"
     g diff --raw --no-renames "$1" "$2" -- | awk '$2 ~ /^1[26]0000$/ { sub(/^[^\t]*\t/, ""); print }'
-    g diff --name-only --no-renames -z "$1" "$2" -- | python3 "$FILES" gitfiles || echo "(gitfiles check failed)")
+    g diff --name-only --no-renames -z "$1" "$2" -- | python3 "$FILES" gitfiles || echo "(gitfiles check failed)"
+    [ -z "$scanfail" ] || echo "(git diff failed)")
   [ -z "$bad" ] && [ ${#tmps[@]} = 0 ] && return
-  echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
-  short 8 <<<"${bad:-$(printf '%s\n' "${tmps[@]}")}"
+  if [ -n "$bad" ]; then
+    echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
+    short 8 <<<"$bad"
+  else
+    echo "🚫 sync-brain: refused to push. A failed write left a temp file."
+  fi
   [ ${#tmps[@]} = 0 ] || failed_writes "$2" "${tmps[@]}"
   echo "Nothing was pushed, and nothing will be until they are gone."
   exit 0

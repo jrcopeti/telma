@@ -1748,7 +1748,7 @@ on 2026-11-26 before the trim.
   last run's and the inbox isn't empty, and at 09:00 Berlin whatever the inbox holds. Otherwise it
   prints nothing. A run that leaves items therefore isn't retried until the inbox changes or 09:00;
   an agent run that fails halfway is retried the same way. An unwritable state file is said in the
-  output and the agent still wakes. 15 tests in `vps/test-triage-gate.sh`, added to CI.
+  output and the agent still wakes. 15 tests (20 after the adversarial round) in `vps/test-triage-gate.sh`, added to CI.
 - `jobs.overrides.yaml`: `brain-triage` gets the script and `0 0,8-23 * * *`; `memory-diff` moves to
   `10 0,8-23 * * *`. `triage-gate.sh` is in `deploy.manifest` (`check-drift.py` reads it as missing on
   the host until deployed). `vps/README.md` and the comment in `memory-diff.sh` match. The prompt

@@ -10,14 +10,19 @@ hour=${TRIAGE_HOUR:-$(TZ=Europe/Berlin date +%H)}
 
 # Every entry's name, plus the content of regular files, so an edit counts as a change. Only regular files
 # are read: a FIFO would block sha256sum forever, and a link or unreadable file still counts by its name.
+# One listing feeds the count and the hash, so a capture landing mid-run can't make them disagree.
 n=0 state=empty
 if [ -d "$B/inbox" ]; then
-  state=$(cd "$B/inbox" && {
-    find . -mindepth 1 ! -type d ! -path ./README.md -print0 | LC_ALL=C sort -z | tr '\0' '\n'
-    find . -mindepth 1 -type f ! -path ./README.md -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>/dev/null
-  } | sha256sum | cut -d' ' -f1)
-  # NUL-counted, so a newline in a name is one item.
-  n=$(cd "$B/inbox" && find . -mindepth 1 ! -type d ! -path ./README.md -print0 | tr -cd '\0' | wc -c | tr -d ' ')
+  L=$(mktemp) || L=
+  if [ -n "$L" ] && (cd "$B/inbox" && find . -mindepth 1 ! -type d ! -path ./README.md -print0 | LC_ALL=C sort -z) > "$L"; then
+    # NUL-counted, so a newline in a name is one item.
+    n=$(tr -cd '\0' < "$L" | wc -c | tr -d ' ')
+    state=$(cd "$B/inbox" && { tr '\0' '\n' < "$L"; xargs -0 -r sh -c 'for f; do [ -f "$f" ] && [ ! -L "$f" ] && sha256sum "$f"; done' sh < "$L" 2>/dev/null; } | sha256sum | cut -d' ' -f1)
+  else
+    echo "⚠️ triage-gate: cannot list $B/inbox, so the agent runs"
+    n=1 state=unreadable-$RANDOM$RANDOM
+  fi
+  rm -f "$L"
 fi
 [ "$n" = 0 ] && state=empty
 

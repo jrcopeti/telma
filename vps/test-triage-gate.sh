@@ -77,5 +77,12 @@ if [ "$(id -u)" != 0 ]; then
   chmod 600 "$W"/brain/inbox/u*
 fi
 
+# A listing that fails (no search permission on inbox/) must wake her, every run, not read as empty.
+if [ "$(id -u)" != 0 ]; then
+  setup; echo a > "$W/brain/inbox/a.md"; chmod 000 "$W/brain/inbox"; run; first=$out; run
+  check "an unlistable inbox says so and wakes her each run" eval '[[ $first == *"cannot list"* && $first == *"inbox: 1 items"* && $out == *"inbox: 1 items"* ]]'
+  chmod 700 "$W/brain/inbox"
+fi
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

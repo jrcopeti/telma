@@ -13,8 +13,8 @@ Built on Hermes Agent, designed around security, tested with an eval of 30 scena
 
 ## Install
 
-> I'm writing an `INSTALL.md` that you can hand to your own coding agent
-(Claude Code, Codex, Cursor) so it sets Telma up for you.
+> An `INSTALL.md` that you can hand to your own coding agent (Claude Code, Codex, Cursor) is a work in
+> progress, so it sets Telma up for you.
 
 ## How it Works
 
@@ -51,7 +51,7 @@ The brain is a git repo of markdown notes, decisions and guidelines that the own
 read before they work. Notes arrive all day and land unsorted in `inbox/`. Telma does the sorting
 nobody does.
 
-The Public template is in [jrcopeti/brain-template](https://github.com/jrcopeti/brain-template)
+The public template is in [jrcopeti/brain-template](https://github.com/jrcopeti/brain-template).
 
 **Capture.** Say "save this" with a link, a snippet or a decision, and she writes it to the inbox.
 
@@ -66,8 +66,9 @@ link to each one. If the brain has nothing, she says so.
 
 <p align="center"><img src="docs/assets/screenshots/ask-2.png" width="320" alt="Her answer, with a link to each note"></p>
 
-**Triage.** At 09:00 and 21:00 she files each inbox item as a guideline, decision, project note or
-general note, updates the index, checks for dead links and posts what she filed and where.
+**Triage.** Every hour from 08:00 to midnight (Berlin time) she files each inbox item as a guideline,
+decision, project note or general note, updates the index, checks for dead links and posts what she
+filed and where. An hourly run only happens when the inbox holds something; the 09:00 run always does.
 
 <p align="center"><img src="docs/assets/screenshots/triage.png" width="320" alt="A brain-triage post: what she filed and where"></p>
 
@@ -79,7 +80,7 @@ the owner (Discord, phone)
         ▼
 ┌─────────────────── VPS ────────────────────┐
 │ Hermes: Telma                              │──▶ web + browser (chats only)
-│   chats · reminders · triage at 9 and 21   │
+│   chats · reminders · hourly triage        │
 │   exfil tripwire hook                      │──▶ #alerts
 │ ┌───────────────── sandbox ──────────────┐ │
 │ │ rootless Docker, no network            │ │
@@ -121,19 +122,19 @@ rebuilt. The walls are permissions, mounts, network rules and hooks, not prompts
 - **No network for unattended work.** Triage runs in a Docker sandbox with no network, so a page in
   the inbox has nowhere to send notes.
 - **Rule and skill changes are reviewed.** She can only propose edits to `taste.md`. Her skill
-  edits, from the curator or from her own chats, also come out of her copy. Sync-brain puts every
+  edits, from the curator or her own chats, are pulled out of her copy. Sync-brain puts every such
   change on `telma/proposals` for the owner to merge or reject.
 - **Watched where blocking would cost her.** Chats keep web and browser tools. A tripwire posts to
   `#alerts` when a call off the host carries note text, and a canary in the brain alerts when it
   is opened.
-- **Alerts for what she didn't ask for.** A memory diff twice a day shows what she saved to memory
-  or skills. A cron alert announces every job she creates, changes or runs.
+- **Alerts for what she didn't ask for.** A memory diff after each triage shows what she saved to
+  memory or skills. A cron alert posts every change she makes to a scheduled job, including pauses,
+  runs and removals.
 - **A kill switch.** A written runbook shuts her down when an alert fires.
 - **Tested by attack.** An [injection suite](docs/hardening/injection-suite.md) and probes from
   inside the sandbox try to break each wall.
 
-The walls are permissions, mounts, network rules and hooks, not prompts. The
-[threat model](docs/threat-model.md) maps each threat to the control that stops it, and names the
+The [threat model](docs/threat-model.md) maps each threat to the control that stops it, and names the
 few places where only the model stands in the way.
 
 <p align="center"><img src="docs/assets/screenshots/alert.png" width="320" alt="An exfil tripwire alert in #alerts"></p>
@@ -161,7 +162,7 @@ answer, five times each, on a throwaway copy of the brain:
 A script grades each trial from what changed in the copy and what left the server. A situation
 passes only if all five trials pass.
 
-The first run passed 13 of 25 situations, with 29 failed trials. The last full run failed 3 trials
+The first run, on an earlier set of 25 situations, passed 13, with 29 failed trials. The last full run failed 3 trials
 out of 150, and each of those three situations was rerun the next day. In the end just one trial
 failed: 29 of the 30 situations pass all five trials, the last one passes four of five, and no fake
 secret ever left the server. The [results](evals/README.md#results) explain each failure.
@@ -181,9 +182,10 @@ server pulls from the repo, and she can't run the deploy herself.
    prints those commands and runs none of them.
 
 Changes to her model, her fallback order, `SOUL.md` or her skills run through the
-[eval](evals/) first. Her settings and jobs are changed by hand. The full walk-through, the file
-manifest and the git tags that record each deploy are in [`vps/README.md`](vps/README.md). The
-reasoning is in the [decision record](docs/adr/0007-deploys-are-checked-against-the-repo.md) and the
+[eval](evals/) first. Her settings and jobs are changed by hand. The prerequisites, the eval flag,
+the terminal rule, the file manifest and the git tags that record each deploy are in
+[`vps/README.md`](vps/README.md). The reasoning is in the
+[decision record](docs/adr/0007-deploys-are-checked-against-the-repo.md) and the
 [deploy plan](docs/deploy/PLAN.md).
 
 
@@ -201,8 +203,7 @@ The tests run in CI, and gitleaks scans the full history on every push.
 
 ## Credits
 
-Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
-Brain template adapted from [dmoka/brain-template](https://github.com/dmoka/brain-template)
+Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research. Brain template adapted from [dmoka/brain-template](https://github.com/dmoka/brain-template)
 
 This is open source, and pull requests are welcome.
 > CONTRIBUTING.md is work in progress.

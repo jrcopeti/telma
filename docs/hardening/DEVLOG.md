@@ -30,6 +30,8 @@
 | `docs/brain-skills-capture-wording-copy` | 9 | merged (#89) |
 | `docs/hardening-step-9-proof` | 9 | merged (#90) |
 | `docs/hardening-plan-trim` | plan | PR #91 |
+| `feat/hardening-step-11-triage-gate` | 11 | merged (#99) |
+| `docs/hardening-step-11-deployed` | 11 | PR to open |
 
 ## 2026-11-17: safety audit and plan
 
@@ -1798,6 +1800,27 @@ on 2026-11-26 before the trim.
 - **For the next PR (the owner):** `sync-brain.sh`'s shadow check (an empty `name:` matches on both sides;
   a Hermes-bundled skill with a brain skill's name warns for good) and `memory-diff.sh`'s brain-skills
   watch (`git add` on a missing, never-tracked `skills/` repeats a pathspec error, now hourly).
+
+## 2026-11-26: step 11 deployed and proved by hand
+
+Merged as #99, then deployed with the owner's yes. `deploy.py` copied `triage-gate.sh` and
+`memory-diff.sh` (`deploy/2026-11-26-2`, backup in `~/.hermes/deploy-backups/`). `jobs.json` isn't
+written by the script, so the two jobs were changed as `agent` with `hermes cron edit` after a copy of
+`jobs.json` went to the same backup folder: `brain-triage` got `--script triage-gate.sh` and
+`0 0,8-23 * * *`, `memory-diff` got `10 0,8-23 * * *`. Skills and toolsets didn't change. The drift check read
+18 of 18 in sync. The owner then moved `deployed` to `bf6e74d`.
+- **Proof, run on the host as `agent`** with `BRAIN_DIR`, `TRIAGE_GATE_STATE` and `TRIAGE_JOBS_FILE` pointed at
+  scratch copies, so the real inbox and state file were untouched (no real state file exists yet):
+  - the real inbox (README only) and the real `jobs.json`: silent, state `empty 0`. The gate read the real file
+    without error;
+  - one capture: `inbox: 1 items`, then silent while it was unchanged;
+  - a copy of the real `jobs.json` with `brain-triage` at `error`: `retry 1/3`, `2/3`, `3/3`, then silent;
+  - a changed inbox: woke her and reset the count.
+- **Not yet seen:** the "skipping AI call" log line and a real capture filed within the hour. Both need a
+  real hourly run (the first is at 23:00). `brain-triage` was not run by hand.
+- The memory-diff post of `skills/capture/SKILL.md` deleted (step 10's planted file) was the cleanup
+  showing once, in `~/.hermes` and not in the brain.
+- Still the owner's call: whether to run the eval for the new schedule.
 
 ## 2026-11-26: two step-10 review findings fixed
 

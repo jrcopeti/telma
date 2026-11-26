@@ -178,7 +178,7 @@ change the VPS need the owner's yes first.
   4. Update `vps/README.md`'s schedule line and the "Twice a day" comment in `vps/memory-diff.sh`.
 - **Done when:** an hour with an empty inbox logs "skipping AI call" and posts nothing; a capture is
   filed within the hour; a run that left items isn't retried until the inbox changes or 09:00, but a
-  run that ended in error is retried the next hour; a saved edit is posted within the hour.
+  run that ended in error is retried hourly, three times, then at 09:00; a saved edit is posted within the hour.
 - **Needs the owner:** deploy; whether to run the eval for the schedule.
 
 #### 12. Docs sweep

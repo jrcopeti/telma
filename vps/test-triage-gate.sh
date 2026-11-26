@@ -87,7 +87,7 @@ fi
 # Hermes records the last run's outcome in jobs.json; an error is retried, a success that left items is not.
 status() { printf '{"jobs":[{"name":"memory-diff","last_status":"error"},{"name":"brain-triage","last_status":"%s"}]}' "$1" > "$W/jobs.json"; }
 setup; echo a > "$W/brain/inbox/a.md"; status ok; run; status error; run
-check "a failed run is retried with the inbox unchanged" eval '[ "$out" = "inbox: 1 items" ]'
+check "a failed run is retried with the inbox unchanged" eval '[ "$out" = "inbox: 1 items (retry 1/3)" ]'
 
 setup; echo a > "$W/brain/inbox/a.md"; status ok; run; run
 check "a run that succeeded and left items is not retried" eval '[ -z "$out" ]'
@@ -102,7 +102,20 @@ setup; echo a > "$W/brain/inbox/a.md"; run; echo '{not json' > "$W/jobs.json"; r
 check "an unreadable jobs file means no retry, no error" eval '[ -z "$out" ]'
 
 setup; echo a > "$W/brain/inbox/a.md"; status error; run; run
-check "a failure is retried every hour until it clears" eval '[ "$out" = "inbox: 1 items" ]'
+check "a failure is retried, counted 1/3" eval '[ "$out" = "inbox: 1 items (retry 1/3)" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; status error; run; run; run; r2=$out; run; r3=$out; run
+check "retries are counted 1/3, 2/3, 3/3, then silent" eval '[ "$r2" = "inbox: 1 items (retry 2/3)" ] && [ "$r3" = "inbox: 1 items (retry 3/3)" ] && [ -z "$out" ]'
+run
+check "and stay silent hour after hour" eval '[ -z "$out" ]'
+HOUR=09; run; HOUR=14; run
+check "09:00 wakes her and clears the count, then three retries again" eval '[ "$out" = "inbox: 1 items (retry 1/3)" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; status error; run; run; run; run; echo b > "$W/brain/inbox/b.md"; run
+check "a changed inbox wakes her after the cap, with no suffix" eval '[ "$out" = "inbox: 2 items" ]'
+
+setup; echo a > "$W/brain/inbox/a.md"; run; read -r h _ < "$W/state"; echo "$h" > "$W/state"; status error; run
+check "an old state file with the hash alone reads as no retries" eval '[ "$out" = "inbox: 1 items (retry 1/3)" ]'
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

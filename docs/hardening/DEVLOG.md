@@ -1773,3 +1773,12 @@ on 2026-11-26 before the trim.
   gate it is the previous run's). With the inbox unchanged and the status `error` it wakes her again,
   hourly, until a run succeeds. A run that succeeded and left items still waits for a change or 09:00.
   A jobs file that can't be read means no retry. 6 more tests (27 on Debian).
+- **Retries capped at three (the owner).** A code review pointed out that an outage would mean up to 17
+  paid runs a day. The state file now holds `<hash> <retries>`; each retry prints `inbox: N items
+  (retry k/3)` for k = 1 to 3, then the gate is silent until the inbox changes or 09:00, which also
+  clears the count. Accepted (the owner): a run that dies before Hermes records its status leaves a
+  stale `ok`, so that capture waits for a change or 09:00; only the status `error` is retried, not
+  `delivery_failed`; the gate's reading of `jobs.json` is proved on the host at deploy. 32 tests on Debian.
+- **For the next PR (the owner):** `sync-brain.sh`'s shadow check (an empty `name:` matches on both sides;
+  a Hermes-bundled skill with a brain skill's name warns for good) and `memory-diff.sh`'s brain-skills
+  watch (`git add` on a missing, never-tracked `skills/` repeats a pathspec error, now hourly).

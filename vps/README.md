@@ -77,9 +77,10 @@ nothing. The tripwire and cron alert hooks post to `#alerts`.
 scripts, skills and toolsets, and whether each is on: `sync-brain` and `tripwire-health` every
 15 minutes, `brain-triage` (an agent run, with [this prompt](hermes/brain-triage-prompt.txt)) hourly
 from 08:00 to 00:00, and `memory-diff` ten minutes after each of those. `triage-gate.sh` is
-`brain-triage`'s pre-script: it wakes the agent only when `inbox/` holds something it hasn't seen
-(it prints `inbox: N items`, never a file name), and always at 09:00, and again each hour while the last run ended in error. A gate that fails still
-runs the agent. The check reads only those four jobs from the host.
+`brain-triage`'s pre-script. It wakes the agent when `inbox/` holds something it hasn't seen,
+and always at 09:00; it prints `inbox: N items`, never a file name. If the last run ended in error and
+the inbox is unchanged, it wakes her again each hour, up to three times (`retry 1/3` to `retry 3/3`),
+and then waits for a change or 09:00. A gate that fails still runs the agent. The check reads only those four jobs from the host.
 
 Jobs she makes in a chat (a reminder) land in the same file; the cron alert hook posts each one to
 `#alerts`. None of them is copied here. The check counts them and never names them, which is why it

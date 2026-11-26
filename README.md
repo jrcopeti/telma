@@ -5,14 +5,18 @@
 [![tests](https://github.com/jrcopeti/telma/actions/workflows/tests.yml/badge.svg)](https://github.com/jrcopeti/telma/actions/workflows/tests.yml)
 [![secret-scan](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/jrcopeti/telma/actions/workflows/secret-scan.yml)
 
-An always-on agent that keeps the owner's second brain (its public template is
-[jrcopeti/brain-template](https://github.com/jrcopeti/brain-template)): she saves what the owner sends
-her, answers questions from the notes and sorts the inbox twice a day. She runs on
-[Hermes Agent](https://hermes-agent.nousresearch.com) on a VPS and talks to the owner in Discord.
 
-Formerly Tania.
+A 24/7 AI agent that keeps the owner's [second brain](https://github.com/jrcopeti/brain-template) capture, ask, triage, lint.
+Built on Hermes Agent, designed around security, tested with an eval of 30 scenarios. She runs on a VPS and talks to the owner in [Discord](https://discord.com).
 
-## What she does
+> **Status: work in progress.** Telma is open source (MIT).
+
+## Quick Start
+
+> A `SETUP.md` that you can hand to your own coding agent (Claude Code, Codex, Cursor) is a work in
+> progress, so it sets Telma up for you.
+
+## How it Works
 
 She is a personal assistant the owner reaches from a phone, with the brain as her main job.
 
@@ -23,6 +27,21 @@ She is a personal assistant the owner reaches from a phone, with the brain as he
   asked.
 - **Looks things up:** web search and a browser, in chats.
 - **Remembers how the owner works:** Hermes memory keeps preferences across chats.
+- **Keeps the brain healthy:** lint checks for dead links, broken markdown and other
+  problems, and posts a report.
+- **Keeps the brain in sync:** a host job pushes the brain to GitHub, and she pulls it back down.
+- **Her changes are reviewed:** skill and rule edits go to the remote on a branch for the owner to
+  merge or reject.
+- **Keeps the owner safe:** a tripwire, a canary, a memory diff and a cron alert flag what she
+  didn't ask for, and a kill switch shuts her down. See [Built to be safe](#built-to-be-safe).
+
+**What she does not do**
+
+- Write code, open pull requests or work on the owner's projects.
+- Push to the brain. The sync job does that.
+- Send email, post publicly or message anyone but the owner.
+- Reach the host from her sandbox, or the internet from triage.
+- Change her own rules, settings or approvals.
 
 <p align="center"><img src="docs/assets/screenshots/capabilities.png" width="320" alt="Telma describing what she does"></p>
 
@@ -31,6 +50,8 @@ She is a personal assistant the owner reaches from a phone, with the brain as he
 The brain is a git repo of markdown notes, decisions and guidelines that the owner's coding agents
 read before they work. Notes arrive all day and land unsorted in `inbox/`. Telma does the sorting
 nobody does.
+
+The public template is in [jrcopeti/brain-template](https://github.com/jrcopeti/brain-template).
 
 **Capture.** Say "save this" with a link, a snippet or a decision, and she writes it to the inbox.
 
@@ -45,8 +66,9 @@ link to each one. If the brain has nothing, she says so.
 
 <p align="center"><img src="docs/assets/screenshots/ask-2.png" width="320" alt="Her answer, with a link to each note"></p>
 
-**Triage.** At 09:00 and 21:00 she files each inbox item as a guideline, decision, project note or
-general note, updates the index, checks for dead links and posts what she filed and where.
+**Triage.** Every hour from 08:00 to midnight (Berlin time) she files each inbox item as a guideline,
+decision, project note or general note, updates the index, checks for dead links and posts what she
+filed and where. An hourly run only happens when the inbox holds something; the 09:00 run always does.
 
 <p align="center"><img src="docs/assets/screenshots/triage.png" width="320" alt="A brain-triage post: what she filed and where"></p>
 
@@ -58,7 +80,7 @@ the owner (Discord, phone)
         ▼
 ┌─────────────────── VPS ────────────────────┐
 │ Hermes: Telma                              │──▶ web + browser (chats only)
-│   chats · reminders · triage at 9 and 21   │
+│   chats · reminders · hourly triage        │
 │   exfil tripwire hook                      │──▶ #alerts
 │ ┌───────────────── sandbox ──────────────┐ │
 │ │ rootless Docker, no network            │ │
@@ -79,7 +101,7 @@ config change. The owner's picks today:
 
 | Role | Model | Why |
 |---|---|---|
-| Main | `deepseek/deepseek-v4.1-flash` | cheap and effective ($0.30/M in, $1.20/M out), 1M context, tool calling, and it passed the real prompt-injection test twice |
+| Main | `deepseek/deepseek-v4.1-flash` | cheap and effective ($0.30/M in, $1.20/M out), 1M context |
 | Fallback 1 | `inclusionai/ling-3.2-flash:free` | free |
 | Fallback 2 | `baidu/ernie-5.5-flash-preview:free` | free |
 
@@ -92,30 +114,27 @@ list of models and providers.
 ## Built to be safe
 
 An agent that holds private notes, reads outside pages and can reach the internet can be talked
-into leaking the notes: the [lethal trifecta](docs/threat-model.md#the-lens-the-lethal-trifecta).
-After a real prompt injection on 2026-11-17
+into leaking them: the [lethal trifecta](docs/threat-model.md#the-lens-the-lethal-trifecta).
+After a real prompt injection
 ([postmortem](docs/hardening/postmortem-2026-11-17-prompt-injection.md)), Telma was audited and
-rebuilt around it:
+rebuilt. The walls are permissions, mounts, network rules and hooks, not prompts.
 
-- **Split by trust boundary.** Strangers' bug emails moved to a second agent with no brain. Telma
-  never sees them.
-- **No way out for unattended work.** Triage runs in a rootless Docker sandbox with no network, so
-  a page in the inbox has nowhere to send notes.
-- **Her edits to the rules reach the owner's machine only after a review.** The skills and rule
-  files (`AGENTS.md`, `CLAUDE.md`) are read-only in her sandbox, but Hermes's own skill
-  editing runs on the host and can write them. She can write `taste.md` from the sandbox, and that edit becomes a proposal like the others. So the job that pushes the brain, from its own clone,
-  sends her notes straight to GitHub and puts any change to a rule file on one branch,
-  `telma/proposals`, for the owner to review and merge. Her copy gets the reviewed version back, so
-  she never runs a rule nobody has seen. Deleting the branch means no. 89 tests in CI, a smoke test
-  against a real repo and adversarial review rounds back it.
-- **Watched where blocking would cost her usefulness.** Chats keep web and browser tools. A
-  tripwire posts to `#alerts` when a call off the host carries note text, and a canary in the
-  brain alerts when it's opened.
+- **No network for unattended work.** Triage runs in a Docker sandbox with no network, so a page in
+  the inbox has nowhere to send notes.
+- **Rule and skill changes are reviewed.** She can only propose edits to `taste.md`. Her skill
+  edits, from the curator or her own chats, are pulled out of her copy. Sync-brain puts every such
+  change on `telma/proposals` for the owner to merge or reject.
+- **Watched where blocking would cost her.** Chats keep web and browser tools. A tripwire posts to
+  `#alerts` when a call off the host carries note text, and a canary in the brain alerts when it
+  is opened.
+- **Alerts for what she didn't ask for.** A memory diff after each triage shows what she saved to
+  memory or skills. A cron alert posts every change she makes to a scheduled job, including pauses,
+  runs and removals.
+- **A kill switch.** A written runbook shuts her down when an alert fires.
 - **Tested by attack.** An [injection suite](docs/hardening/injection-suite.md) and probes from
-  inside the sandbox.
+  inside the sandbox try to break each wall.
 
-The walls are permissions, mounts, network rules and hooks, not prompts. The
-[threat model](docs/threat-model.md) maps each threat to the control that stops it, and names the
+The [threat model](docs/threat-model.md) maps each threat to the control that stops it, and names the
 few places where only the model stands in the way.
 
 <p align="center"><img src="docs/assets/screenshots/alert.png" width="320" alt="An exfil tripwire alert in #alerts"></p>
@@ -143,71 +162,32 @@ answer, five times each, on a throwaway copy of the brain:
 A script grades each trial from what changed in the copy and what left the server. A situation
 passes only if all five trials pass.
 
-The first run passed 13 of 25 situations, with 29 failed trials. The last full run failed 3 trials
+The first run, on an earlier set of 25 situations, passed 13, with 29 failed trials. The last full run failed 3 trials
 out of 150, and each of those three situations was rerun the next day. In the end just one trial
 failed: 29 of the 30 situations pass all five trials, the last one passes four of five, and no fake
 secret ever left the server. The [results](evals/README.md#results) explain each failure.
 
 ## Deploy
 
-She runs from files on the server, and the copies in this repo are the source of truth. A change is
-reviewed and merged here first, and only then copied to the server by a script run from the owner's
-own machine. Nothing on the server pulls from the repo, and she can't run any of this.
+Her files run on the server. The copies in this repo are the source of truth: a change is reviewed
+and merged here, then a script copies it to the server from the owner's machine. Nothing on the
+server pulls from the repo, and she can't run the deploy herself.
 
-Two scripts and a list of files do the work:
+1. **Merge** the change to `main`.
+2. **Check** what is out of date with `python3 vps/check-drift.py`. It compares each file with the
+   server and changes nothing.
+3. **Deploy** the files marked "repo ahead" with `python3 vps/deploy.py <path>`. It shows each diff
+   and asks yes or no before it copies anything.
+4. **Follow up.** Some files need a new chat, a gateway restart or a sandbox rebuild. The script
+   prints those commands and runs none of them.
 
-- `vps/deploy.manifest` lists every deployed file: where it is in the repo, where it goes on the
-  server, who owns it and what it needs afterwards.
-- `vps/check-drift.py` compares the server with the repo, one line per file: in sync, repo ahead
-  (merged but not deployed), host ahead (edited on the server), both changed, missing or differs. It only
-  reads, and it prints no file contents. It also checks the Hermes installs and her hooks.
-- `vps/deploy.py` copies the files you name, after showing each diff and asking.
-
-A git tag called `deployed` marks the last commit known to match the server, which is how the check
-tells "repo ahead" from "host ahead". Every deploy also leaves a `deploy/<date>-<n>` tag that
-records what went out. `git tag -l 'deploy/*' -n20` lists them.
-
-To deploy a change (the full walk-through, with the statuses and the tags, is in
-[`vps/README.md`](vps/README.md)):
-
-1. Merge it to `main` and pull. The script deploys `main` as pushed, with nothing uncommitted under `vps/`.
-2. See what is ahead: `python3 vps/check-drift.py`. It needs an ssh alias `agents-vps` with root
-   access, and the owner's name in the repo's private values file (`OWNER_NAME=...`, never committed).
-3. Deploy the files that read "repo ahead": `python3 vps/deploy.py vps/cron-alert.py` (any paths from
-   the manifest). Answer yes or no for each diff. Nothing is copied until every file has an answer.
-   It must run at a terminal.
-4. Read the re-check it runs, and what each file still needs: a new chat, a gateway restart, a
-   sandbox rebuild, or approving a hook again. The script prints the commands and runs none of them.
-5. At the end it offers the two tags. Say yes only if the check came back in sync.
-
-Some changes take a different path:
-
-- **`SOUL.md`, the skills, her model and fallback order** are evaluated first. For `SOUL.md`, commit
-  it and run `python3 evals/run.py --repo-soul`, then pass the run to the deploy:
-  `python3 vps/deploy.py --eval-run evals/results/<run>.jsonl vps/hermes/SOUL.md`.
-- **Her settings and jobs** are never written by the script. It prints the `hermes config set`
-  commands, or the job change, for you to run.
-- **Her brain skills** go through a pull request on the brain and her own sync, then `vps/brain-skills/`
-  is updated to match.
-
-Each run of the eval also saves the check's output next to its results as `<run>.drift.txt`, so a
-result says what setup it was run against. The reasoning is in the
+Changes to her model, her fallback order, `SOUL.md` or her skills run through the
+[eval](evals/) first. Her settings and jobs are changed by hand. The prerequisites, the eval flag,
+the terminal rule, the file manifest and the git tags that record each deploy are in
+[`vps/README.md`](vps/README.md). The reasoning is in the
 [decision record](docs/adr/0007-deploys-are-checked-against-the-repo.md) and the
 [deploy plan](docs/deploy/PLAN.md).
 
-## Lessons
-
-- **A prompt is not a control.** The model that was injected had been told to ignore instructions
-  in emails. Every control since then works outside the model.
-- **Cut a leg; don't filter it.** No network in the sandbox holds. A filter on the way out is
-  bypassed by a browser click, and an allowlist breaks the pages she needs.
-- **Test the walls, not the model.** A pass on a model that refuses proves nothing about the
-  walls. So the suite ran a case on a model that obeys, then tested the walls directly with probes
-  from inside the sandbox.
-- **Host tools in an agent's folder are part of the attack surface.** Host git in the folder she
-  writes opened 16 attacks. Giving sync-brain its own clone closed them as a class.
-- **Where you can't block, watch.** The tripwire alerts on a leak it can't stop, and a health job
-  alerts when the tripwire goes quiet.
 
 ## What's in this repo
 
@@ -223,9 +203,12 @@ The tests run in CI, and gitleaks scans the full history on every push.
 
 ## Credits
 
-Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
+Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research. Brain template adapted from [dmoka/brain-template](https://github.com/dmoka/brain-template)
 
-This is open source, and pull requests are welcome. To report a security problem, see
+This is open source, and pull requests are welcome.
+> CONTRIBUTING.md is work in progress.
+
+To report a security problem, see
 [SECURITY.md](SECURITY.md).
 
 ## License

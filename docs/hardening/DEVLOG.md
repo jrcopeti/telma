@@ -1597,6 +1597,22 @@ patch unreported until 21:30. Until step 11 ships, `vps/README.md` and `jobs.ove
 - Tests: 26 in `test-memory-diff.sh`, 118 in `test-sync-brain.sh` (run on Debian in a container, as
   the script needs `flock`). Deploy and the live proof (the plan's done-when) wait for the owner's yes.
 
+## 2026-11-26: step 10 deployed and proved live
+
+Merged as #92, deployed with `deploy.py` (`deploy/2026-11-26-1`, `deployed` on `a07bb71`, 17 of 17 in sync).
+Proof run by hand on the host as `agent`, with the owner's yes:
+- **Shadow alert.** A planted `~/.hermes/skills/capture/SKILL.md` (`name: capture`): the first
+  `sync-brain.sh` run posted once naming `capture`, the second was silent; after the folder was deleted
+  the next run was silent and the state file was gone. Seen in the run's output, not in Discord: the
+  by-hand run wrote the state, so the 15-minute job had nothing left to post.
+- **Brain-skill edit.** The first `memory-diff.sh` run took the brain-skills baseline (silent on that
+  side; its Hermes side also printed the planted skill as a new file). A one-line comment added to
+  `~/brain/skills/ask-brain/SKILL.md` came out as a "brain skills changed" post with the added line;
+  restoring the file posted the removal. The check script's own backup copy in `skills/` was
+  snapshotted too, which is the script's flaw, not the watcher's.
+- Her `~/brain` working tree differs from its own git HEAD (`capture/SKILL.md`): `sync-brain` writes
+  GitHub's files into her copy without committing there. Expected.
+
 ## 2026-11-26: steps 0 to 6, their decisions and the old Open list trimmed
 
 With the owner's yes (the freeze in AGENTS.md was lifted for this), PLAN.md's steps 0 to 6, the

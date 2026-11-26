@@ -1867,4 +1867,6 @@ From a code review of step 11's PR; both were in step 10's merged code.
   turned it into a proposal (the old "known gap" test). Deleting the file lifts the refusal on the next run.
 - Tests in `test-sync-brain.sh`: the two gap cases, each with a note beside the temp file held back and then
   released once the temp file is deleted. 124 pass on Debian, 0 fail.
+- Code-review fixes: a file inside a `.hermes-tmp.*` folder is refused too, and a failed `git diff` in the
+  scan refuses the run instead of passing it. 125 pass.
 - Not deployed: the owner's yes is needed.

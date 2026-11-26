@@ -67,7 +67,7 @@ failed_writes() {
 # or is a .hermes-tmp.* file (or inside such a folder) anywhere, even under an allowed path (a failed write; deleting it lifts the refusal).
 refuse_outside() {
   local bad t tmps=() live
-  live=$(g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" -- | tr '\0' '\1') || live=$'(git diff failed)\1'
+  live=$(set -o pipefail; g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" -- | tr '\0' '\1') || live=$'(git diff failed)\1'
   while IFS= read -r -d $'\1' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*(/|$) ]] && tmps+=("$t"); done <<<"$live"
   bad=$( (g diff --name-only --no-renames "$1" "$2" -- || echo "(git diff failed)") | grep -Ev "$3"
     g diff --raw --no-renames "$1" "$2" -- | awk '$2 ~ /^1[26]0000$/ { sub(/^[^\t]*\t/, ""); print }'

@@ -201,8 +201,14 @@ check "thirty refused paths with long names stay under 2000 characters" eval '[ 
 setup; n=$'.hermes-tmp.a\n@everyone "q" é'; printf 'AGENTS.md\nx\n' > "$B/$n"; sync
 check "a temp file whose name git would quote still gets the post, its name only inside the code block" eval \
   'says "A failed edit" && says "edit to:   AGENTS.md" && ! awk "/^\`\`\`/ { f = !f; next } !f" <<<"$out" | grep -q "@everyone"'
-setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; sync
-check "a temp file under skills/ is proposed like any rule-file change, not alerted (known gap, see the devlog)" eval 'says "💡"'
+setup; printf 'v\n' > "$B/notes/.hermes-tmp.Nt1234"; echo ok > "$B/notes/n.md"
+check "a temp file under notes/ is refused, and the note beside it is held back" eval 'refused .hermes-tmp.Nt1234 && says "A failed edit" && ! remote_has notes/n.md'
+rm "$B/notes/.hermes-tmp.Nt1234"; sync
+check "deleting the temp file under notes/ lets the next run go out" eval 'silent && remote_has notes/n.md'
+setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; echo ok > "$B/notes/n.md"
+check "a temp file under skills/ is refused, not proposed" eval 'refused .hermes-tmp.Sk1234 && says "A failed edit" && ! prop_head >/dev/null && ! remote_has notes/n.md'
+rm "$B/skills/triage/.hermes-tmp.Sk1234"; sync
+check "deleting the temp file under skills/ lets the next run go out" eval 'silent && remote_has notes/n.md && ! prop_head >/dev/null'
 
 setup; in_b mv skills/triage/SKILL.md notes/s.md; sync
 check "moving a skill into notes/: the copy goes to main, the skill's removal is only proposed" eval \

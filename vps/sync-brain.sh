@@ -63,18 +63,18 @@ failed_writes() {
     [ $# -le 3 ] || printf 'and %d more\n' $(($# - 3)); } | cut -c1-100 | block
 }
 # Stops the run if a change from $1 to $2 is outside the pattern $3, adds a link or a gitlink, or touches a
-# .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy).
+# .gitignore, .gitattributes or .gitmodules (git on the local machine reads them; the owner's own reach her copy),
+# or is a .hermes-tmp.* file anywhere, even under an allowed path (a failed write; deleting it lifts the refusal).
 refuse_outside() {
-  local bad t tmps
+  local bad t tmps=()
+  while IFS= read -r -d '' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*$ ]] && tmps+=("$t"); done \
+    < <(g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" --)
   bad=$( (g diff --name-only --no-renames "$1" "$2" -- || echo "(git diff failed)") | grep -Ev "$3"
     g diff --raw --no-renames "$1" "$2" -- | awk '$2 ~ /^1[26]0000$/ { sub(/^[^\t]*\t/, ""); print }'
     g diff --name-only --no-renames -z "$1" "$2" -- | python3 "$FILES" gitfiles || echo "(gitfiles check failed)")
-  [ -z "$bad" ] && return
+  [ -z "$bad" ] && [ ${#tmps[@]} = 0 ] && return
   echo "🚫 sync-brain: refused to push. These paths are outside what Telma may change:"
-  short 8 <<<"$bad"
-  tmps=()
-  while IFS= read -r -d '' t; do [[ $t =~ (^|/)\.hermes-tmp\.[^/]*$ ]] && ! [[ $t =~ $3 ]] && tmps+=("$t"); done \
-    < <(g diff --name-only --no-renames --diff-filter=d -z "$1" "$2" --)
+  short 8 <<<"${bad:-$(printf '%s\n' "${tmps[@]}")}"
   [ ${#tmps[@]} = 0 ] || failed_writes "$2" "${tmps[@]}"
   echo "Nothing was pushed, and nothing will be until they are gone."
   exit 0

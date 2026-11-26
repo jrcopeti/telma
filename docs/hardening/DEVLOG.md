@@ -1858,3 +1858,13 @@ From a code review of step 11's PR; both were in step 10's merged code.
   hour (`memory-diff` at `10 0,8-23`) ran twice with nothing to post.
 - The eval for the new schedule was not run (the owner's call). `SOUL.md` and `docs/threat-model.md` still
   say "twice a day"; that is step 12.
+
+## 2026-11-27: step 13, a temp file is refused wherever it is
+
+- `refuse_outside` in `vps/sync-brain.sh` now collects every `.hermes-tmp.*` file in the diff (deletions
+  excluded) before the allowlist check, so a temp file under `notes/` or `skills/` gives the failed-write
+  post and stops the push, like one at the root. Before, `notes/` let it through to `main` and `skills/`
+  turned it into a proposal (the old "known gap" test). Deleting the file lifts the refusal on the next run.
+- Tests in `test-sync-brain.sh`: the two gap cases, each with a note beside the temp file held back and then
+  released once the temp file is deleted. 124 pass on Debian, 0 fail.
+- Not deployed: the owner's yes is needed.

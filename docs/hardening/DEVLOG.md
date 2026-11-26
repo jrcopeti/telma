@@ -1485,3 +1485,14 @@ was deleted from the VPS before it reached GitHub.
 Merged without the eval, the owner's decision on 2026-11-26, so AGENTS.md's eval rule is still owed
 for this change, as for the capture bullets of 2026-11-25. This PR copies the merged file into
 `vps/brain-skills/`. Proof still to see: a taste correction in a chat becoming one proposal.
+
+## 2026-11-26: step 9 proven live
+
+With brain PR #5 on the host (01:18), the owner gave her a taste correction in a chat at 01:26. She
+wrote the line under `## Never` in `taste.md`, committed it in her sandbox (the push failed there, no
+network, as it should) and said it was waiting for review. The owner asked for a sync-brain run
+(`hermes cron run`, 01:30): one post with the compare link, one commit `2eb6723` on `telma/proposals`
+touching only `taste.md`, her copy rewritten to `main`'s version at 01:30:26, and `main` unchanged.
+The same run brought brain PR #7 (the wording fix) to the host. The owner deleted the branch (the rule
+was a test), so no proposal is left. Not yet seen: the "dropped" post for that deletion, and a
+taste edit from the curator or the review without a chat. The eval for the capture changes is still owed.

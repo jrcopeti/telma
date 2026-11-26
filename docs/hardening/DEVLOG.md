@@ -1839,3 +1839,22 @@ From a code review of step 11's PR; both were in step 10's merged code.
   11. `watch` now adds only paths that exist or are tracked; with none left it takes an empty baseline
   and stays silent, and a folder that appears later is shown. 4 new tests in `test-memory-diff.sh`
   (30), 3 in `test-sync-brain.sh` (123, on Debian).
+
+## 2026-11-27: step 11 proved on the hourly runs
+
+- **Deployed:** #101 (the two step-10 fixes) went out as `deploy/2026-11-26-3`; the drift check read 18 of
+  18 in sync and `deployed` is at `73ea183`.
+- **23:00, empty inbox:** the log said "script produced no output, skipping AI call", nothing was posted,
+  `last_status` stayed `ok`, and the state file was made as `empty 0`. `memory-diff` at 23:10 ran `ok` and
+  posted nothing.
+- **00:00, one capture:** the owner dropped an article in the inbox. The gate woke the agent, the run took
+  66 seconds, and it filed the item (a new note, source moved, index line, a cross-link), left the inbox
+  holding only its README, and its lint pass fixed the stale "09:00 and 21:00" line in
+  `projects/telma.md` in the brain.
+- **Done when:** an empty-inbox hour skips the AI call and posts nothing (seen); a capture is filed within
+  the hour (seen). A run that left items isn't retried, and a failed run is retried three times: both shown
+  on the host against scratch state and a copy of the real `jobs.json` (entry above), but no real run has
+  left items or failed yet, so neither has been seen on a live hourly run. The saved-edit post within the
+  hour (`memory-diff` at `10 0,8-23`) ran twice with nothing to post.
+- The eval for the new schedule was not run (the owner's call). `SOUL.md` and `docs/threat-model.md` still
+  say "twice a day"; that is step 12.

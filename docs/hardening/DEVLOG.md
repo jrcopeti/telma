@@ -28,8 +28,8 @@
 | `fix/taste-md-writable` | 9 | merged (#87) |
 | `docs/brain-skills-capture-taste-copy` | 9 | merged (#88) |
 | `docs/brain-skills-capture-wording-copy` | 9 | merged (#89) |
-| `docs/hardening-step-9-proof` | 9 | PR #90 |
-| `docs/hardening-plan-trim` | plan | PR to open |
+| `docs/hardening-step-9-proof` | 9 | merged (#90) |
+| `docs/hardening-plan-trim` | plan | PR #91 |
 
 ## 2026-11-17: safety audit and plan
 

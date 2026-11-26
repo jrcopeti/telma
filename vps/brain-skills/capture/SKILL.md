@@ -5,7 +5,7 @@ description: "Save a link, snippet, or decision into the brain inbox. Use when t
 
 # Capture
 
-Capture is fast and dumb. It writes one file into `inbox/`, runs `node sync.mjs`, and stops. It never sorts, summarizes into notes, or edits existing notes, apart from a taste line in `taste.md` — that is triage's job.
+Capture is fast and dumb. It writes one file into `inbox/`, runs `node sync.mjs`, and stops. It never sorts, summarizes into notes, or edits existing notes — that is triage's job. The one thing it writes outside `inbox/` is a taste line, in `taste.md`.
 
 ## Save something
 
@@ -35,8 +35,8 @@ When the user corrects you with a reason, the taste line is
 (`## Never` / `## Prefer` / `## Tie-breakers`). Use their words. No reason given? Ask one question
 ("why?") first. No reason, no entry.
 
-`taste.md` is a rule file, but it is the one you can write: append the line to your copy of it. A
-change to it never goes straight to main: the host sync puts it on a branch for a PR the owner merges
+`taste.md` is a rule file, but it is the one you can write: insert the line under the right section
+of your copy of it. A change to it never goes straight to main: the host sync puts it on a branch for a PR the owner merges
 (`decisions/2026-11-22-brain-skill-changes-go-through-a-pr.md`). So write the line in `taste.md`, not
 in `inbox/`, run `node sync.mjs` from the brain folder, and say in the reply that it is waiting for the
 owner's review.

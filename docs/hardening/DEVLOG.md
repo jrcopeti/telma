@@ -1465,3 +1465,23 @@ Not deployed: the live config still has the mounts, and the drift check will sho
 changed until the owner says to deploy. The README line is tightened for `taste.md` here; ADR 6's
 "her sandbox can't write them" and the rest of the sweep stay with step 12. Proof still to see: a
 taste correction in a real chat becoming one proposal.
+
+## 2026-11-26: step 9 deployed; capture's skill had to change too
+
+The config was set on the VPS by hand: `hermes config set terminal.docker_volumes` with the repo's
+list, taken from `config.overrides.yaml`; the check read 17 of 17 in sync, with `config.yaml` and
+`.env` saved first in `~/.hermes/deploy-backups/step9-pre-20261125T234208Z`. The owner restarted the
+gateway. `deploy.py` can't write `config.yaml`, and it refuses an agent's shell, so the copy step and
+the tags stay the owner's.
+
+The first test failed: asked to add a taste rule in a chat, she answered that `taste.md` is a rule
+file she can't write, and saved the line to `inbox/`. Not a mount: the capture skill itself said
+`taste.md` is mounted read-only, to not edit it, and to capture the change into `inbox/`. The plan
+had said the section "stays as written", which was wrong; nobody read it before step 9. Brain PR #5
+changes the section (and the intro and one gotcha that said everything goes through `inbox/`) so she
+appends the line to `taste.md` and runs `node sync.mjs`, and the host sync proposes it. Her inbox item
+was deleted from the VPS before it reached GitHub.
+
+Merged without the eval, the owner's decision on 2026-11-26, so AGENTS.md's eval rule is still owed
+for this change, as for the capture bullets of 2026-11-25. This PR copies the merged file into
+`vps/brain-skills/`. Proof still to see: a taste correction in a chat becoming one proposal.

@@ -219,29 +219,26 @@ class Deploy(unittest.TestCase):
         self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain well.\n")
         self.assertIn("takes effect in her next chat", self.f.out)
 
-    def test_skip_eval_deploys_soul_and_the_tag_keeps_the_reason(self):
+    def test_skip_eval_deploys_soul_and_the_tag_says_so(self):
         self.f.change({"vps/SOUL.md": "You keep {{OWNER_NAME}}'s brain well.\n"})
-        for bad in ("  ", "", "a\nb", "x" * 81):
-            self.assertEqual(self.f.deploy("--skip-eval", bad, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "--eval-run", "r", "vps/SOUL.md", answers="y\n"), 2, self.f.out)
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "--deployed"), 2, self.f.out)
-        self.assertEqual(self.f.deploy("--skip-eval", "", "--deployed"), 2, self.f.out)
-        self.assertEqual(self.f.deploy("--skip-eval", "wording only", "vps/SOUL.md", answers="y\ny\ny\n"), 0, self.f.out)
-        self.assertIn("eval skipped by the owner: wording only", self.f.out)
+        for other in (["--eval-run", "r"], ["--eval-run", ""], ["--deployed"]):
+            self.assertEqual(self.f.deploy("--skip-eval", *other, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
+        self.assertEqual(self.f.deploy("--skip-eval", "vps/SOUL.md", answers="y\ny\ny\n"), 0, self.f.out)
+        self.assertIn("eval skipped by the owner", self.f.out)
         self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain well.\n")
-        self.assertIn("eval skipped by the owner: wording only", self.origin("tag", "-l", "-n20", f"deploy/{TODAY}-1"))
+        self.assertIn("eval skipped by the owner", self.origin("tag", "-l", "-n20", f"deploy/{TODAY}-1"))
 
     def test_skip_eval_covers_only_soul(self):
         self.f.change({"vps/a.sh": "echo a2\n"})
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "vps/a.sh", answers="y\n"), 2, self.f.out)
+        self.assertEqual(self.f.deploy("--skip-eval", "vps/a.sh", answers="y\n"), 2, self.f.out)
         self.assertIn("covers only SOUL.md", self.f.out)
         self.assertEqual(self.f.host_text("/h/a.sh"), "echo a\n")
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "vps/skills/", answers="y\n"), 2, self.f.out)
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "vps/config.overrides.yaml", answers="y\n"), 2, self.f.out)
+        self.assertEqual(self.f.deploy("--skip-eval", "vps/skills/", answers="y\n"), 2, self.f.out)
+        self.assertEqual(self.f.deploy("--skip-eval", "vps/config.overrides.yaml", answers="y\n"), 2, self.f.out)
 
     def test_skip_eval_with_soul_leaves_the_model_keys_gated_and_the_tag_for_gated_files_only(self):
         self.f.change({"vps/SOUL.md": "You keep {{OWNER_NAME}}'s brain well.\n"})
-        self.assertEqual(self.f.deploy("--skip-eval", "x", "vps/SOUL.md", "vps/config.overrides.yaml",
+        self.assertEqual(self.f.deploy("--skip-eval", "vps/SOUL.md", "vps/config.overrides.yaml",
                                        answers="y\ny\ny\n"), 0, self.f.out)
         self.assertIn("fallback_providers, model: not printed without --eval-run", self.f.out)
         self.f.change({"vps/a.sh": "echo a3\n"})

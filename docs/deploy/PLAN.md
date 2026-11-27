@@ -24,8 +24,8 @@ writes the check's summary into its results.
 - **A job that starts between that check and the swap is accepted.** Closing the window would mean
   holding Hermes's scheduler lock, which is an internal (owner, 2026-11-24).
 - **`SOUL.md`, the skills, the model and the fallback order need `--eval-run` first,** as
-  [AGENTS.md](../../AGENTS.md) requires. The owner can waive it for `SOUL.md` alone, per deploy, with `--skip-eval "<reason>"`
-  (2026-11-27); the reason (one line) is printed and recorded in the deploy's tag. Skills and the model
+  [AGENTS.md](../../AGENTS.md) requires. The owner can waive it for `SOUL.md` alone, per deploy, with `--skip-eval`
+  (2026-11-27); the deploy's tag records that, in fixed words and with no reason (the tag is public). Skills and the model
   keys still need `--eval-run`. Toolsets and the Hermes version are not gated (see Open).
 - **`SOUL.md` is checked as the filled repo copy.** The owner's name comes from a local private values
   file, which is never committed.

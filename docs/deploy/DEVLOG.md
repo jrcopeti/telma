@@ -593,8 +593,8 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
 ## 2026-11-27: `--skip-eval`
 
 The owner chose to deploy the repo's `SOUL.md` (hardening step 12) without the eval, and `deploy.py`
-had no way to say so. Added `--skip-eval "<reason>"`: for `SOUL.md` only, an alternative to
-`--eval-run`, refused with `--deployed`. The reason must be one printable line of at most 80
-characters, because the deploy's tag carries it to a public repo. The skills and the model keys
-stay gated. The tag holds the waiver only when a gated file was in the deploy. Code review's seven
+had no way to say so. Added `--skip-eval`: for `SOUL.md` only, an alternative to `--eval-run`,
+refused with `--deployed`. It takes no reason, because a typed one would go into the deploy's tag
+and so into a public repo; the tag says only "eval skipped by the owner". The skills and the model
+keys stay gated. The tag holds the waiver only when a gated file was in the deploy. Code review's seven
 findings were all fixed in the same PR.

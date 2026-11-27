@@ -131,7 +131,7 @@ change the VPS need the owner's yes first.
 | 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
-| 12 | Docs sweep | todo, the last one (after 16) |
+| 12 | Docs sweep | docs and the repo's `SOUL.md` done 2026-11-27; the eval and the deploy of `SOUL.md` are owed |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
 | 15 | sync-brain in Python | done 2026-11-27 (15a #109, 15b #110, 15c #111, 15d deployed `deploy/2026-11-27-3`) (a capture pushed by a scheduled run seen the same day) |
@@ -198,6 +198,9 @@ change the VPS need the owner's yes first.
     it, the decision of 2026-11-19 forbids host git there, and its refs are stale): it reads the sync
     clone (`~/.local/share/brain-push`, `refs/sync/given`) or uses plain `ls`, `cat` and `diff`.
 - **Needs the owner:** approval of each public doc in its PR; the eval with their yes for `SOUL.md`.
+- **State 2026-11-27:** every item above is done. `vps/hermes/SOUL.md` is edited in the repo (triage
+  hourly, `taste.md` hers, a rule-file change is a proposal). Live, it follows the eval (`--repo-soul`) with
+  the owner's yes, then a deploy; the plan closes when it is live.
 
 #### 13. Leftover temp files anywhere (done)
 

@@ -121,14 +121,16 @@ rebuilt. The walls are permissions, mounts, network rules and hooks, not prompts
 
 - **No network for unattended work.** Triage runs in a Docker sandbox with no network, so a page in
   the inbox has nowhere to send notes.
-- **Rule and skill changes are reviewed.** She can only propose edits to `taste.md`. Her skill
-  edits, from the curator or her own chats, are pulled out of her copy. Sync-brain puts every such
-  change on `telma/proposals` for the owner to merge or reject.
+- **Rule and skill changes are reviewed.** The sandbox mounts `skills/`, `AGENTS.md` and `CLAUDE.md`
+  read-only, but Hermes's own skill editing runs on the host. So an edit to a skill or rule file, from
+  her chats, triage, the self-improvement review or the curator, is pulled out of her copy. Sync-brain
+  puts every such change on `telma/proposals` (`taste.md` too, which she can write) for the owner to
+  merge or reject.
 - **Watched where blocking would cost her.** Chats keep web and browser tools. A tripwire posts to
   `#alerts` when a call off the host carries note text, and a canary in the brain alerts when it
   is opened.
-- **Alerts for what she didn't ask for.** A memory diff after each triage shows what she saved to
-  memory or skills. A cron alert posts every change she makes to a scheduled job, including pauses,
+- **Alerts for what she didn't ask for.** A memory diff, ten minutes after each hourly triage, shows what she saved to
+  memory or skills. It posts only when something changed. A cron alert posts every change she makes to a scheduled job, including pauses,
   runs and removals.
 - **A kill switch.** A written runbook shuts her down when an alert fires.
 - **Tested by attack.** An [injection suite](docs/hardening/injection-suite.md) and probes from

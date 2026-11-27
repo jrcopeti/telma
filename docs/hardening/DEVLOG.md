@@ -2157,3 +2157,19 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
   "unrelated history" check asserts the proposal; the test's environment is a whitelist (no `GIT_*`, no real
   `HOME`); the two lock tests share one function. Two neighbouring checks that overlap keep their bash names.
 - The bash suite is deleted and CI runs only the Python one.
+
+## 2026-11-27: 12, docs sweep
+
+- Greps for "twice a day", "09:00 and 21:00", "read-only", "refuse" and the old `sync-brain.sh` names went
+  through by hand. Fixed: README (the review bullet names all four callers and `taste.md`; the memory diff
+  is hourly and silent when nothing changed), ADR 1, the threat model (triage schedule, rows 5, the
+  memory-diff signal), before/after, `evals/README.md`, `AGENTS.md` ("Finished work"), and
+  `vps/kill-switch.md`, which no longer runs host git in her folder: it reads `refs/sync/given` in the sync
+  clone and lists her recent files with `find`.
+- Left as they are: the dated audits (`audit-before.md`, `audit-after.md`), the postmortem and the injection
+  suite (records of 2026-11-17 to 19), and `vps/brain-skills/` (a skill change goes through the eval).
+  The `:ro` mounts of `skills/`, `AGENTS.md` and `CLAUDE.md` and the refusal of links, gitlinks and `.git*`
+  files are still what the config and `sync-brain.py` do.
+- `vps/hermes/SOUL.md` edited on the owner's word ("do soul too"): triage hourly (always at 09:00), `CLAUDE.md`
+  added to the read-only list, `taste.md` hers with changes arriving as a proposal. Not eval-run and not
+  deployed: the eval needs its own yes (AGENTS.md).

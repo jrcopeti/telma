@@ -47,7 +47,9 @@ sudo -iu agent bash -c 'docker ps -aq --filter name=hermes- | xargs -r docker rm
 
 ```sh
 sudo -iu agent /home/agent/.hermes/scripts/memory-diff.sh             # memory and skills saved since the last check
-sudo -iu agent git -C /home/agent/brain log --stat origin/main..HEAD  # commits not pushed yet
+# Her files changed since the last sync: read the sync clone (host git is fine there), never her folder.
+sudo -iu agent git -C /home/agent/.local/share/brain-push log -1 --format=%cI refs/sync/given   # when sync-brain last gave her copy
+sudo -iu agent find /home/agent/brain -type f -not -path '*/.git/*' -mmin -60 -ls              # files she wrote in the last hour
 sudo -iu agent ls /home/agent/brain-quarantine                        # pushes sync-brain refused, if any
 ```
 

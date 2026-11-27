@@ -56,7 +56,7 @@ instructions in emails" is not a control: on 2026-11-17 a model ignored exactly 
 
 | Session | Untrusted input | Private data | Way out | Legs |
 |---|---|---|---|---|
-| brain-triage (09:00 and 21:00, unattended) | captured pages in the inbox | the brain | none: no network in the sandbox, no web or browser tool | 2 |
+| brain-triage (hourly when the inbox holds something, and at 09:00; unattended) | captured pages in the inbox | the brain | none: no network in the sandbox, no web or browser tool | 2 |
 | Chats with the owner on Discord | pages she opens | the brain | web and browser tools on the host | **3, accepted** |
 | sync-brain, memory-diff, tripwire-health | memory-diff relays what she saved to memory or skills, which an injection can write | the push key (sync-brain); her memory | the brain repo; Discord, the owner's server | no model in the loop |
 
@@ -74,7 +74,7 @@ browser.
 | 2 | An inbox item tells her to push the brain elsewhere or open a gist | no key and no `gh` login in the sandbox; only sync-brain pushes, to one remote | way out | T3: push fails, no SSH key |
 | 3 | An injected run edits a brain skill, which then runs on the local machine | `skills/` and rule files mounted read-only in her sandbox, but her Hermes process on the host can write them: sync-brain pushes notes to `main`, puts rule-file changes on `telma/proposals` for the owner to merge, and writes `main`'s version back into her copy; it refuses links and anything else outside the allowed folders | the path to the local machine | T1, and 61 tests in CI |
 | 4 | A planted symlink, gitlink or git hook makes the host leak the push key or run code | host git never runs in a folder she writes; sync-brain keeps its own clone and copies plain files only | the path to the host | sync-brain tests: links, FIFOs and a planted `HEAD` refused |
-| 5 | An injection saves itself to her memory or a skill and comes back every session | brain-triage has no memory tool, but keeps `skill_manage`, and chats have both, so she can learn; a diff after each triage shows the owner what changed | detection only | [memory-diff](../vps/memory-diff.sh)'s tests; T4 saved nothing, so the diff had nothing to show |
+| 5 | An injection saves itself to her memory or a skill and comes back every session | brain-triage has no memory tool, but keeps `skill_manage`, and chats have both, so she can learn; a diff ten minutes after each hourly triage shows the owner what changed | detection only | [memory-diff](../vps/memory-diff.sh)'s tests; T4 saved nothing, so the diff had nothing to show |
 | 6 | An injection schedules its own cron job | brain-triage has no cronjob tool; chats keep it, the owner's call | the unattended path, for triage only | checked 2026-11-20: a job made in a chat can get web and browser (accepted, see below) |
 | 7 | A shell command reads secrets or dumps the environment | secrets are not in the sandbox. A terminal guard also blocks `printenv` and raw network tools, but it is a regex on one tool, and Python gets past it | private data | step 6 probes found no long-lived secret |
 | 8 | In a chat, a page tells her to put a note in a URL and open it | none: this is the accepted risk; the exfil tripwire posts to `#alerts` | detection only | T5 and T7: the model refused, so the tripwire was not tested; T6: it fired on URLs taken from notes. No case has put note text in a URL past the model |
@@ -114,7 +114,7 @@ The cases T1 to T7 are in [injection-suite.md](hardening/injection-suite.md), th
 | sync-brain proposal | Discord, once per new proposal, with a compare link | she or Hermes changed a skill or rule file; it waits on `telma/proposals` |
 | sync-brain refusal | Discord; nothing is pushed until the paths are gone | she wrote outside the allowed folders, or a link |
 | sync-brain quarantine | Discord; the file moves to a folder on the host | she wrote an instruction file (`AGENTS.md`, `.cursor` and the like) |
-| memory-diff | Discord, after each triage | what she saved to memory or skills |
+| memory-diff | Discord, ten minutes after each hourly triage, only when something changed | what she saved to memory or skills |
 
 Any of these leads to [the kill switch](../vps/kill-switch.md): stop the gateway, cut her
 credentials, look, then turn her back on. A compromised host means both agents' kill switches and a

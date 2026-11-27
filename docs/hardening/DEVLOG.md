@@ -2001,3 +2001,72 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
   stops a run in flight, so 15d checks none is running before the pause. A run still going at the next
   tick is skipped by Hermes (`Job '%s' already running — skipping`, `cron/scheduler.py:4293`), a second
   guard beside sync-brain's own lock. Nothing in the docs changes the port's risks 1 to 11.
+
+## 2026-11-27: 15b, the oracle extended against bash
+
+`vps/test-sync-brain.sh` gains 16 checks, all passing on `sync-brain.sh` (151 before, 167 after) in an
+`ubuntu:24.04` container as a non-root user, under `LANG=C.UTF-8` and under `LC_ALL=C`, with mawk. Two
+more helpers sit with them: a `git` shim in `$T/gitshim` that hangs the next fetch, or kills the run
+at a named git call, whatever the interpreter is (it kills `$PPID`, the script).
+
+- **Lock (risk 1), 4 checks:** the shim turns the next `git fetch` (then, in a second case, the next
+  `python3` call) into a `sleep`; the script is killed with `pkill -9 -f`; the next run does nothing
+  (silent, nothing pushed) while the `sleep` lives, and pushes once it is killed. The `ssh` child is not
+  exercised: the test remote is a local path.
+- **Names (risks 2 and 5), 7 checks:** `index.md\n`, `AGENTS.md\n` and `notes/x\ny.md` are refused (bash refuses them because git quotes such a name, `"index.md\n"`, before `grep -Ev` sees it; a port reading names NUL-separated gets `index.md\n` raw and must refuse it on purpose, with `\Z` or `fullmatch`. Whether bash meant this or got it by accident is not known; the check keeps the behavior);
+  a note named `\377\376.md` is pushed, silent, and the next run pushes nothing; the same name from the
+  local machine reaches her copy; a refused 124-byte name is posted cut at 100 bytes, through the
+  middle of a character (GNU `cut -c` counts bytes).
+- **Case folding (risk 5), 3 checks, pinned `LC_ALL=C`:** bash's `${n,,}` and mawk's `tolower` fold
+  ASCII only there, so a brain skill `Édition` and a local `édition` don't match, and `Édition` and
+  `ÉDITION` do, by the folder name alone too (the third check, local frontmatter name unrelated). A port
+  using `str.lower()` fails the first.
+- **Killed halfway (risk 9), 2 checks:** killed right after main took her merged `index.md` and
+  `refs/sync/index-pushed` was set, before `refs/sync/given` moved: the next runs add nothing twice. Killed right after a proposal push, before
+  `refs/sync/proposals`: the next run pushes no second commit and posts nothing.
+
+**Mutants** (each on a copy of `sync-brain.sh` or `brain-files.py`, the whole suite, containers in
+parallel): `9>&-` on `g()` turns the lock check red; reading the names with `-z | tr '\0' '\n'` turns the
+three newline checks red; a char-based cut turns the cut check red; `quotePath=true` turns the
+non-UTF-8 push and the cut check red; a strict `decode()` for `apply`'s paths in `brain-files.py` turns
+the local-machine non-UTF-8 check red; Unicode lowercasing of the names turns the first case-folding
+check red, removing both folds turns the second red (the folder fold alone: the third); deleting the `index-pushed` guard turns the index check red
+(and an older check); dropping the "same proposal" short-circuit turns the proposal check red (it
+first stayed green: both runs could commit in one second, so it now waits 1.1 s before the next run).
+`if [ -z "$cur" ]` turned to `if true` was caught by older checks only, not by the new one, which is not
+what it pins.
+
+**Found: a bash bug (Open).** A refused root file with a non-UTF-8 name is not refused under a UTF-8
+locale; grep's "binary file matches" goes into the post instead of the name. The check I first wrote
+passed in the C locale and failed in the container's default `C.UTF-8`, so it was dropped, per 15b's
+rule, and the bug went to Open with the unread VPS locale.
+
+**Plan changes:** the oracle now has 11 `bash "$SCRIPT"` calls, not 9; the 15c row and the decisions
+list say so. Nothing else.
+
+**Adversarial round (a fresh agent, 2026-11-27), and what changed.** It confirmed the counts, the Open
+bug and the named mutants, and found:
+
+- The two killed-halfway checks stayed green if the kill never fired (a mistyped git call, a shim
+  without `kill`). Now `killed_at` records whether `kill-at` was consumed and both checks assert it; the
+  index check also asserts `refs/sync/index-pushed` is still set, which pins the kill to the first
+  `given` update and not a later one. Red on mutants of each.
+- Closing fd 9 on the `python3` children kept everything green, as only a git fetch was hung. A
+  `python3` shim now hangs the next call in a second lock case. Red on a mutant of `helper()`.
+- The folder-name fold alone was uncovered (the frontmatter fold rescued the match): the third
+  case-folding check. Red on a mutant that drops only the folder fold.
+- `pkill -f` took the path as a regex: now escaped.
+- **A bash bug in risk 9, to Open:** a kill after `git push ... main` and before `refs/sync/index-pushed`
+  is set (between the push, the `refs/sync/github` update and the `index-pushed` update) makes the next
+  run merge her `index.md` change again: main's `index.md` ends with her changed line twice. Found by
+  killing the run at each of about 67 git calls and running it twice more; the other 65 points
+  converged. No check, by 15b's rule.
+
+
+**Round 2 (a fresh agent):** verdict merge. 167 pass under mawk and gawk, each with `C.UTF-8` and
+`LC_ALL=C`, no flake in extra concurrent runs. A sweep killing the run at each of 67 git calls found
+the same two divergent points as the Open item and none other. Three gaps it named, now in the 15c
+row's brief rather than Open: the lock check misses `9>&-` on `mergelines`, `gitfiles` or `apply`
+alone (only the first `python3` call is hung); the case-folding checks pin `LC_ALL=C`, so they say
+nothing about a UTF-8 locale; the oracle pins 2 of the 67 kill points. Open now holds the two bash
+bugs of 15b, the newline note and the old gap item having moved.

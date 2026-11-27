@@ -7,7 +7,7 @@ trust boundary as the agents.
 - **Start here:** `docs/rename/PLAN.md` (closing), `docs/showcase/PLAN.md` and `docs/evals/PLAN.md`
   (eval-v1 done; how to run the eval), `docs/deploy/PLAN.md` (the drift check and deploy script),
   each with the `DEVLOG.md` beside it. Keep them current.
-  `docs/hardening/` closes when `SOUL.md` is live (steps 0 to 16 are done; `SOUL.md`'s eval and deploy are owed);
+  `docs/hardening/` is closed (steps 0 to 16 done; `SOUL.md` live 2026-11-27, deployed without its eval);
   change its PLAN only for a rename or a fixed link.
   Finished work: `docs/repo-split/`.
 - **Running agents:** ask the owner before resuming, triggering (`hermes cron run`) or switching on

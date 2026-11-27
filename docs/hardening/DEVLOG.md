@@ -2117,3 +2117,24 @@ and three small differences left to the owner, in Open. Two new checks in the or
 a root folder with a trailing blank, and the lock kept with stdin closed. The oracle was not
 checked for `pass_fds` mutants on `gitfiles`, `apply` and `mergelines` alone: all children go through one
 `run()`, so the differential's kills are the cover.
+
+## 2026-11-27: 15d, sync-brain in Python goes live
+
+With the owner's yes at each step, as `agent` over ssh unless noted:
+
+- Paused job `c67444305e03` (every 15m). At rest: no `sync-brain` or `brain-files` process, no
+  `refs/sync/pending`, no `.git/rebase-*` in the sync clone, `flock -n` on the lock succeeded.
+- `deploy.py vps/sync-brain.py vps/brain-files.py` run by the owner (`deploy/2026-11-27-3`); drift read 17 of 18,
+  only the job line left.
+- `hermes cron edit c67444305e03 --script sync-brain.py --interpreter /usr/bin/python3`; `rm
+  ~/.hermes/scripts/sync-brain.sh`. `hermes cron list` shows `Python: /usr/bin/python3`; `ls ~/.hermes/scripts/`
+  holds no `.sh` of it. While paused the job line read "both changed" only because `enabled` was false.
+- Smoke run by hand with nothing to sync: silent, exit 0. Then a real push: a test file in her copy's
+  `inbox/`, one run, a commit `brain: sync …` on main adding only that file, silent, exit 0; the file removed,
+  one run, a second commit deleting it, `inbox/` back to `README.md` (before the 19:00 triage could see it).
+  Both commits stay in the brain's private history.
+- Resumed. `check-drift.py`: 18 of 18 in sync, hermes ok, hooks ok. `hermes cron doctor`: no issues, 4 active jobs.
+- The first scheduled run (18:32, on time) was `ok`. No separate catch-up run showed in `hermes cron list`.
+- The plan's second check, met at 19:04: an item in her inbox was pushed by the scheduled run (commit
+  `brain: sync 2026-11-27T18:04Z`, one file added under `inbox/`), next run 15 minutes later.
+- The brain note for `projects/telma.md` ("sync-brain is Python") went into the brain's inbox as a capture.

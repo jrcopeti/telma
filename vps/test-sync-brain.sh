@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Tests for sync-brain.sh against throwaway repos: a bare "GitHub" remote, a "local machine" clone and the
+# Tests for sync-brain.py against throwaway repos: a bare "GitHub" remote, a "local machine" clone and the
 # "VPS" brain. Each test starts from a fresh copy. Run: bash vps/test-sync-brain.sh (Linux).
 # Telma's read-only mounts are not in play here, so these show what the script itself catches. The
 # "sandbox" below writes what she can: the brain and its .git, apart from the read-only paths.
 # Races run RACE_TRIALS times (default 5).
 set -u
-SCRIPT=$(cd "$(dirname "$0")" && pwd)/sync-brain.sh
+SCRIPT=$(cd "$(dirname "$0")" && pwd)/sync-brain.py
 FILES=$(dirname "$SCRIPT")/brain-files.py
 T=$(mktemp -d)
 cleanup() { [ -n "${loop_pid:-}" ] && kill "$loop_pid" 2>/dev/null; rm -rf "$T"; }
@@ -29,8 +29,8 @@ setup() {
   sync  # deployed and run once: from here on it knows what her copy holds
 }
 run() { HOME=$W/home BRAIN_DIR=$B BRAIN_REMOTE=$W/remote.git BRAIN_QUARANTINE=$W/q "$@"; }
-sync() { out=$(run bash "$SCRIPT" 2>&1); }
-sync_bg() { run bash "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!; }
+sync() { out=$(run python3 "$SCRIPT" 2>&1); }
+sync_bg() { run python3 "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!; }
 in_b() { git -C "$B" "$@"; }
 remote_has() { git -C "$W/remote.git" cat-file -e "main:$1" 2>/dev/null; }
 remote_show() { git -C "$W/remote.git" show "main:$1" 2>/dev/null; }
@@ -94,7 +94,7 @@ check "a real shadow next to empty names lists only the real name" eval 'says "h
 setup; mkdir -p "$W/home/.hermes/skills/.hub/triage" && echo x > "$W/home/.hermes/skills/.hub/triage/SKILL.md"; sync
 check "Hermes's .hub folder is ignored" eval 'silent'
 
-setup; mkdir -p "$W/home/.hermes/skills/x" && mkfifo "$W/home/.hermes/skills/x/SKILL.md"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+setup; mkdir -p "$W/home/.hermes/skills/x" && mkfifo "$W/home/.hermes/skills/x/SKILL.md"; out=$(run timeout 60 python3 "$SCRIPT" 2>&1)
 check "a FIFO named SKILL.md does not hang the run" eval 'silent'
 
 setup; d=$W/home/.hermes/skills/z; mkdir -p "$d" && printf -- '---\r\nname: triage\r\n---\r\n' > "$d/SKILL.md"; sync
@@ -118,10 +118,10 @@ check "a folder name with a newline can't forge a name" eval 'silent'
 setup; shadow real triage; mv "$W/home/.hermes/skills/real" "$W/home/real"; ln -s "$W/home/real" "$W/home/.hermes/skills/linked"; sync
 check "a linked skill folder is found" eval 'says "hides the reviewed one"'
 
-setup; shadow loop other; ln -s .. "$W/home/.hermes/skills/loop/up"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+setup; shadow loop other; ln -s .. "$W/home/.hermes/skills/loop/up"; out=$(run timeout 60 python3 "$SCRIPT" 2>&1)
 check "a link loop in her skills doesn't hang the run" eval 'silent'
 
-setup; d=$W/home/.hermes/skills/big; mkdir -p "$d"; { printf -- '---\nname: triage\n'; head -c 3000000 /dev/zero | tr '\0' 'a'; } > "$d/SKILL.md"; out=$(run timeout 60 bash "$SCRIPT" 2>&1)
+setup; d=$W/home/.hermes/skills/big; mkdir -p "$d"; { printf -- '---\nname: triage\n'; head -c 3000000 /dev/zero | tr '\0' 'a'; } > "$d/SKILL.md"; out=$(run timeout 60 python3 "$SCRIPT" 2>&1)
 check "a huge SKILL.md is read only at its start" eval 'says "triage"'
 
 setup; shadow .hub/triage triage; sync
@@ -211,12 +211,12 @@ setup; printf 'v\n' > "$B/notes/.hermes-tmp.Nt5678"; echo ok > "$B/notes/n.md"; 
 check "a temp file alone under notes/ is not called outside what she may change" eval 'says "refused" && says "A failed edit" && ! says "outside what Telma may change"'
 setup; real=$(command -v git); mkdir "$W/fakebin"
 printf '#!/bin/sh\ncase " $* " in *" --diff-filter=d "*) exit 128;; esac\nexec %s "$@"\n' "$real" > "$W/fakebin/git"; chmod +x "$W/fakebin/git"
-printf 'v\n' > "$B/notes/.hermes-tmp.Nt9999"; echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run bash "$SCRIPT" 2>&1)
+printf 'v\n' > "$B/notes/.hermes-tmp.Nt9999"; echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run python3 "$SCRIPT" 2>&1)
 check "a failure of the temp-file scan's own git diff refuses the run" eval 'says "refused" && says "git diff failed" && [ "$(remote_head)" = "$head" ] && ! remote_has notes/n.md'
 for arg in --raw -z; do
   setup; real=$(command -v git); mkdir "$W/fakebin"
   printf '#!/bin/sh\ncase " $* " in *" %s "*) case " $* " in *" --diff-filter=d "*) ;; *) exit 128;; esac;; esac\nexec %s "$@"\n' "$arg" "$real" > "$W/fakebin/git"; chmod +x "$W/fakebin/git"
-  echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run bash "$SCRIPT" 2>&1)
+  echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run python3 "$SCRIPT" 2>&1)
   check "a failure of the $arg git diff in the refusal check refuses the run" eval 'says "refused" && [ "$(remote_head)" = "$head" ] && ! remote_has notes/n.md'
 done
 setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; echo ok > "$B/notes/n.md"
@@ -463,7 +463,7 @@ REAL_PY=$(command -v python3); mkdir -p "$T/shim"
 printf '#!/bin/sh\nif [ "$2" = apply ] && [ -e "%s/kill-apply" ]; then rm -f "%s/kill-apply"; "%s" "$@" >/dev/null; exit 137; fi\nexec "%s" "$@"\n' \
   "$T" "$T" "$REAL_PY" "$REAL_PY" > "$T/shim/python3" && chmod +x "$T/shim/python3"
 setup; mac status -s; echo "mac note" > "$W/mac/notes/m.md"; mac_commit "add m"
-touch "$T/kill-apply"; out=$(PATH=$T/shim:$PATH run bash "$SCRIPT" 2>&1)
+touch "$T/kill-apply"; out=$(PATH=$T/shim:$PATH run "$REAL_PY" "$SCRIPT" 2>&1)
 mac rm -q notes/m.md; mac_commit "the owner deletes m"; echo ok > "$B/notes/n.md"; sync
 check "after a killed refresh, a note the owner deletes is not re-added" eval 'remote_has notes/n.md && ! remote_has notes/m.md'
 
@@ -490,7 +490,7 @@ kill "$bg_pid" 2>/dev/null; wait "$bg_pid" 2>/dev/null; out=$(cat "$W/bg.out")
 check "a 3G sparse file is refused without being copied" eval '[ "$hung" = no ] && says refused && says notes/sparse.md'
 
 # --- found by the third audit (2026-11-19)
-killed_sync() { touch "$T/kill-apply"; out=$(PATH=$T/shim:$PATH run bash "$SCRIPT" 2>&1); }
+killed_sync() { touch "$T/kill-apply"; out=$(PATH=$T/shim:$PATH run "$REAL_PY" "$SCRIPT" 2>&1); }
 
 setup; mac status -s; echo "mac note" > "$W/mac/notes/m.md"; mac_commit "add m"
 echo v1 > "$B/notes/n.md"; killed_sync; echo v2 > "$B/notes/n.md"; sync; sync
@@ -699,13 +699,13 @@ if [ -e "@T@/hang-python" ]; then rm -f "@T@/hang-python"; echo $$ > "@T@/hung.p
 exec @PY@ "$@"
 EOF
 sed -i "s|@T@|$T|g; s|@GIT@|$(command -v git)|; s|@PY@|$REAL_PY|" "$T/gitshim/git" "$T/gitshim/python3"; chmod +x "$T/gitshim/git" "$T/gitshim/python3"
-killed_at() { echo "$1" > "$T/kill-at"; out=$(PATH=$T/gitshim:$PATH run bash "$SCRIPT" 2>&1); [ ! -s "$T/kill-at" ] && fired=yes || fired=no; }
+killed_at() { echo "$1" > "$T/kill-at"; out=$(PATH=$T/gitshim:$PATH run "$REAL_PY" "$SCRIPT" 2>&1); [ ! -s "$T/kill-at" ] && fired=yes || fired=no; }
 
 # The lock is inherited by git, ssh and python3: a child that outlives its killed parent still holds it.
 lock_case() {  # $1: what hangs ($T/$1 is its marker), $2: its name
   local pat; pat=$(printf '%s' "$SCRIPT" | sed 's/[][\\.*^$+?(){}|]/\\&/g')
   setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/$1"
-  PATH=$T/gitshim:$PATH run bash "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!
+  PATH=$T/gitshim:$PATH run "$REAL_PY" "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!
   for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done
   hung_pid=$(cat "$T/hung.pid" 2>/dev/null); pkill -9 -f "$pat"; wait "$bg_pid" 2>/dev/null
   sync; second=$out; remote_has notes/n.md && pushed=yes || pushed=no
@@ -758,6 +758,19 @@ setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"; kill
 first=$(prop_head); sleep 1.1; sync  # a second later, so a repeated proposal would be a new commit
 check "killed after pushing a proposal, before noting it: the next run neither pushes it again nor posts it again" eval \
   '[ "$fired" = yes ] && [ -n "$first" ] && silent && [ "$(prop_head)" = "$first" ] && [ "$(prop_commits)" = 1 ] && remote_has notes/n.md && ! grep -q evil "$B/skills/triage/SKILL.md"'
+
+# --- 15c adversarial round: two checks that also passed on sync-brain.sh from main (run by hand with bash in place of python3)
+# `IFS= read -r` keeps the blanks in the root names passed to export: a GitHub folder "tools " is exempt, not "tools".
+setup; mac status -s; mkdir "$W/mac/tools "; echo owner > "$W/mac/tools /CLAUDE.md"; mac_commit "a root folder ending in a blank"; sync; sync
+check "a root folder whose name ends in a blank keeps its own CLAUDE.md, unmoved" eval '[ -e "$B/tools /CLAUDE.md" ] && ! says "moved these"'
+# Bash's fd 9 is the lock whatever fd 0 is: with stdin closed, a hung child still keeps it (the port's lock fd is then 0).
+setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/hang-fetch"
+PATH=$T/gitshim:$PATH run python3 "$SCRIPT" <&- >"$W/bg.out" 2>&1 & bg_pid=$!
+for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done
+hung_pid=$(cat "$T/hung.pid" 2>/dev/null); pat=$(printf '%s' "$SCRIPT" | sed 's/[][\\.*^$+?(){}|]/\\&/g'); pkill -9 -f "$pat"; wait "$bg_pid" 2>/dev/null
+sync; second=$out; remote_has notes/n.md && pushed=yes || pushed=no
+[ -z "$hung_pid" ] || kill -9 "$hung_pid" 2>/dev/null; sleep 0.3
+check "a hung git outliving its killed parent keeps the lock even when stdin was closed" eval '[ -n "$hung_pid" ] && [ -z "$second" ] && [ "$pushed" = no ]'
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

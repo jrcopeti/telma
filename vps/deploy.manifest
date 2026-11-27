@@ -5,7 +5,7 @@
 # rebuild-sandbox, or reapprove-hook (Hermes runs a hook fresh each call, but its doctor reads a
 # changed hook as modified since approval until it is re-approved).
 # repo path                       host path                                          mode      owner:group  perm  after
-vps/sync-brain.sh                 /home/agent/.hermes/scripts/sync-brain.sh          exact     agent:agent  755   none
+vps/sync-brain.py                 /home/agent/.hermes/scripts/sync-brain.py          exact     agent:agent  755   none
 vps/brain-files.py                /home/agent/.hermes/scripts/brain-files.py         exact     agent:agent  644   none
 vps/memory-diff.sh                /home/agent/.hermes/scripts/memory-diff.sh         exact     agent:agent  755   none
 vps/triage-gate.sh                /home/agent/.hermes/scripts/triage-gate.sh         exact     agent:agent  755   none

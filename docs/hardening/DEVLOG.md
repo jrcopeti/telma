@@ -2070,3 +2070,50 @@ row's brief rather than Open: the lock check misses `9>&-` on `mergelines`, `git
 alone (only the first `python3` call is hung); the case-folding checks pin `LC_ALL=C`, so they say
 nothing about a UTF-8 locale; the oracle pins 2 of the 67 kill points. Open now holds the two bash
 bugs of 15b, the newline note and the old gap item having moved.
+
+## 2026-11-27: 15c, sync-brain in Python
+
+`vps/sync-brain.py` (stdlib, one file, laid out like the bash) replaces `vps/sync-brain.sh`, deleted in
+the same change. The oracle's diff is the header, `SCRIPT=` and the interpreter on its 11 calls, and
+nothing else, but for one thing: the four calls that put a shim first in `PATH` run `"$REAL_PY"` and not
+`python3`, because the `python3` shim hangs or kills the first `python3` call, which would now be the
+script itself. 167 pass in `ubuntu:24.04` as a non-root user, under `C.UTF-8` and under `LC_ALL=C`.
+`jobs.overrides.yaml` gets `interpreter: /usr/bin/python3` for sync-brain and `interpreter: null` for the
+other jobs (`check-drift.py` compares whole job maps); `check-drift.py` reads the field and a new test
+shows a wrong or missing one is drift. The CI job also asserts the runner's `python3` is 3.12.
+
+**Choices in the port** (each a place where bash had a quirk):
+
+- `$` in the three patterns is `\Z`. Names are read as bytes (`surrogateescape`). Every child gets only the
+  lock fd (`pass_fds`); `GIT_DIR` and the rest are in `os.environ`, so `git init` and `merge-file` see them.
+- The name lists in `refuse_outside` are git's own quoted output, not `-z`, so a name with a newline is
+  quoted and refused on purpose, as bash does by accident.
+- A refused root file whose name is not UTF-8 is refused (the C locale's behaviour); this closes that Open
+  item. Case folding is ASCII only and sorting is by code point, so the port no longer depends on the
+  locale. The VPS locale was not read: it no longer matters for the port.
+- Kept as bash had them: `apply` marking the refresh done when its
+  input `git diff` failed; the `index-pushed` window (Open).
+
+**Differential run** (throwaway, in the job's temp folder, not committed):
+
+- Every oracle scenario, 374 syncs, each run on bash then on Python from the same snapshot: remote refs,
+  her copy, `refs/sync/*`, quarantine and stdout compared. Differences: path order in one post (bash hash
+  order), and the random suffix of quarantine folders. Four checks fail only because snapshot and restore
+  breaks them (a hard link's inode, a lock held by a background process): they pass in the plain oracle.
+- Kills: 13 scenarios (a note, owner plus note, conflict, three `index.md` cases, a new proposal, a proposal
+  with a new file, an updated, merged, deleted and dropped one, a refresh of the owner's changes); each
+  script killed before each of its mutating calls (`update-ref`, `push`, `checkout`, `commit`, `add`,
+  `rebase`, `fetch` and `brain-files.py apply` and `export`), 9 to 20 points per scenario, the same number
+  on bash and on Python; the other script, or the same one, then runs twice and the end state is compared
+  with a clean run. 812 runs, 8 differ, all the known bash window (kill before `index-pushed`) in
+  the four combinations alike: the port keeps it, as decided. The first harness compared commit ids, which
+  carry the minute stamp; trees and commit counts are compared instead.
+
+**Reviews.** `/code-review` found the `read -r` strip (the bash had `IFS=`, so no trim: removed, with its
+Open entry) and an unguarded `skill-find` open (now skipped on `OSError`, as bash's redirect did). The
+adversarial round (a fresh agent; 25 scenarios and 86 git failure points against bash, kills both ways) found
+the same strip, plus a lock lost when stdin is closed (`pass_fds` test was `if lock_fd`, fd 0 is falsy: fixed),
+and three small differences left to the owner, in Open. Two new checks in the oracle, both green on bash:
+a root folder with a trailing blank, and the lock kept with stdin closed. The oracle was not
+checked for `pass_fds` mutants on `gitfiles`, `apply` and `mergelines` alone: all children go through one
+`run()`, so the differential's kills are the cover.

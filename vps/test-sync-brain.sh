@@ -685,7 +685,7 @@ BRAIN_MERGE_SECS=1 sync
 check "and the next run says it again, with her version still there" eval 'says "could not merge index.md" && grep -qx z "$B/index.md"'
 
 # --- 15b: what a port to Python could get wrong (2026-11-27). Each check passes on today's script.
-# A git that hangs on the next fetch (hang-fetch), or kills the run at the git call named in kill-at.
+# A git that hangs on the next fetch (hang-fetch), a python3 that hangs on its next call (hang-python), or a git that kills the run at the git call named in kill-at.
 mkdir -p "$T/gitshim"
 cat > "$T/gitshim/git" <<'EOF'
 #!/bin/sh
@@ -693,18 +693,28 @@ if [ -e "@T@/hang-fetch" ]; then case " $* " in *" fetch "*) rm -f "@T@/hang-fet
 if [ -s "@T@/kill-at" ]; then case " $* " in *" $(cat "@T@/kill-at") "*) rm -f "@T@/kill-at"; kill -9 $PPID; exit 137;; esac; fi
 exec @GIT@ "$@"
 EOF
-sed -i "s|@T@|$T|g; s|@GIT@|$(command -v git)|" "$T/gitshim/git"; chmod +x "$T/gitshim/git"
-killed_at() { echo "$1" > "$T/kill-at"; out=$(PATH=$T/gitshim:$PATH run bash "$SCRIPT" 2>&1); }
+cat > "$T/gitshim/python3" <<'EOF'
+#!/bin/sh
+if [ -e "@T@/hang-python" ]; then rm -f "@T@/hang-python"; echo $$ > "@T@/hung.pid"; exec sleep 300; fi
+exec @PY@ "$@"
+EOF
+sed -i "s|@T@|$T|g; s|@GIT@|$(command -v git)|; s|@PY@|$REAL_PY|" "$T/gitshim/git" "$T/gitshim/python3"; chmod +x "$T/gitshim/git" "$T/gitshim/python3"
+killed_at() { echo "$1" > "$T/kill-at"; out=$(PATH=$T/gitshim:$PATH run bash "$SCRIPT" 2>&1); [ ! -s "$T/kill-at" ] && fired=yes || fired=no; }
 
 # The lock is inherited by git, ssh and python3: a child that outlives its killed parent still holds it.
-setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/hang-fetch"
-PATH=$T/gitshim:$PATH run bash "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!
-for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done
-hung_pid=$(cat "$T/hung.pid" 2>/dev/null); pkill -9 -f "$SCRIPT"; wait "$bg_pid" 2>/dev/null
-sync; second=$out; remote_has notes/n.md && pushed=yes || pushed=no
-[ -z "$hung_pid" ] || kill -9 "$hung_pid" 2>/dev/null; sleep 0.3; sync
-check "a hung git outliving its killed parent keeps the lock: the next run does nothing" eval '[ -n "$hung_pid" ] && [ -z "$second" ] && [ "$pushed" = no ]'
-check "and once that git is gone, the next run pushes" eval 'silent && remote_has notes/n.md'
+lock_case() {  # $1: what hangs ($T/$1 is its marker), $2: its name
+  local pat; pat=$(printf '%s' "$SCRIPT" | sed 's/[][\\.*^$+?(){}|]/\\&/g')
+  setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/$1"
+  PATH=$T/gitshim:$PATH run bash "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!
+  for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done
+  hung_pid=$(cat "$T/hung.pid" 2>/dev/null); pkill -9 -f "$pat"; wait "$bg_pid" 2>/dev/null
+  sync; second=$out; remote_has notes/n.md && pushed=yes || pushed=no
+  [ -z "$hung_pid" ] || kill -9 "$hung_pid" 2>/dev/null; sleep 0.3; sync
+  check "a hung $2 outliving its killed parent keeps the lock: the next run does nothing" eval '[ -n "$hung_pid" ] && [ -z "$second" ] && [ "$pushed" = no ]'
+  check "and once that $2 is gone, the next run pushes" eval 'silent && remote_has notes/n.md'
+}
+lock_case hang-fetch git
+lock_case hang-python python3
 
 # A name that only matches a pattern when its final newline is ignored.
 setup; touch "$B/"$'index.md\n'
@@ -734,17 +744,20 @@ check "a local skill named like a brain skill but for non-ASCII case is silent" 
 setup; skill_in_brain Édition; shadow ÉDITION ÉDITION; LC_ALL=C sync
 check "a local skill with the same non-ASCII letters and another ASCII case is alerted" eval 'says "hides the reviewed one" && says ition'
 
+setup; skill_in_brain Édition; shadow ÉDITION other; LC_ALL=C sync
+check "the folder name alone is folded: ÉDITION matches Édition with no help from the frontmatter" eval 'says "hides the reviewed one" && says ition'
+
 # A run killed halfway is finished by the next.
 idx5; printf 'L1\nL2\nL3 owner\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L3"
 printf 'L1\nL2\nL3 hers\nL4\nL5\n' > "$B/index.md"; killed_at "update-ref refs/sync/given"
-first=$(idx_remote); sync; sync
-check "killed after pushing her index.md, before moving on: the merge is not repeated" eval \
-  '[ "$first" = "L1 L2 L3 owner L3 hers L4 L5 " ] && silent && [ "$(idx_remote)" = "$first" ] && [ "$(idx_hers)" = "$first" ]'
+first=$(idx_remote); held=$(git -C "$W/home/.local/share/brain-push" rev-parse -q --verify refs/sync/index-pushed); sync; sync
+check "killed after her merged index.md was pushed and noted, before the sync state moves on: the merge is not repeated" eval \
+  '[ "$fired" = yes ] && [ -n "$held" ] && [ "$first" = "L1 L2 L3 owner L3 hers L4 L5 " ] && silent && [ "$(idx_remote)" = "$first" ] && [ "$(idx_hers)" = "$first" ]'
 
 setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"; killed_at "update-ref refs/sync/proposals"
 first=$(prop_head); sleep 1.1; sync  # a second later, so a repeated proposal would be a new commit
 check "killed after pushing a proposal, before noting it: the next run neither pushes it again nor posts it again" eval \
-  '[ -n "$first" ] && silent && [ "$(prop_head)" = "$first" ] && [ "$(prop_commits)" = 1 ] && remote_has notes/n.md && ! grep -q evil "$B/skills/triage/SKILL.md"'
+  '[ "$fired" = yes ] && [ -n "$first" ] && silent && [ "$(prop_head)" = "$first" ] && [ "$(prop_commits)" = 1 ] && remote_has notes/n.md && ! grep -q evil "$B/skills/triage/SKILL.md"'
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

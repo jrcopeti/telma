@@ -344,9 +344,17 @@ Done in steps 7 to 9: `vps/sync-brain.sh` and its test, `vps/kill-switch.md`, `v
   fails on bash in CI's locale, so by 15b's rule it is not added. The port decides what to do (refuse,
   as the C locale does). Which locale the job runs under on the VPS is unread: read it before 15c, since
   `${n,,}`, `tolower` and `grep -c .` in the shadow scan and `edit_target` depend on it too.
+- **A kill between the `main` push and `refs/sync/index-pushed` repeats her `index.md` merge (found in
+  15b):** after `git push ... main` the script updates `refs/sync/github`, then `index-pushed`; a run
+  killed before the second leaves no guard, and the next run merges her index.md change again, so her
+  changed line is in main twice. No check (it fails on bash). A port
+  that keeps the window behaves the same; closing it (set `index-pushed` before the push) is a change
+  to decide, not to slip into the port.
 - **Names with a newline are refused in an allowed folder (15b, kept):** `notes/x\ny.md` is refused only
   because git quotes it (`"notes/x\ny.md"`) before `grep` sees it. A port that reads the names
   NUL-separated must refuse it too; a check pins it, and the DEVLOG says why it might be an accident.
+- **15b leaves one gap:** a refused root file with a non-UTF-8 name has no check (see the first item).
+  The `ssh` child's lock is not exercised either: the test remote is a local path.
 - **A stuck `index.md` merge posts every run (step 14):** a merge that keeps failing (a cut at 20 s, or the
   owner deleted `index.md` while she edited it) posts the same warning every 15 minutes until it is fixed by
   hand. Post once per state, like the shadow-skill alert, if it ever happens.

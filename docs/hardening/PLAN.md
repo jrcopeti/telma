@@ -134,7 +134,7 @@ change the VPS need the owner's yes first.
 | 12 | Docs sweep | todo, the last one (after 16) |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
-| 15 | sync-brain in Python | todo, next (15a to 15d) |
+| 15 | sync-brain in Python | in progress: 15a done 2026-11-27 (this PR); 15b to 15d todo |
 | 16 | sync-brain's tests in Python | todo, after 15 |
 
 #### 7. Unblock sync-brain (done)
@@ -268,7 +268,7 @@ plain script, no dependencies, readable top to bottom.
 
 | Sub | Do | Done when | Adversarial brief |
 |---|---|---|---|
-| 15a | Read Hermes's cron script runner on the VPS (read only): how a `script:` is run, by extension or shebang, and what it needs (exec bit, folder). | The DEVLOG says whether the job line is `script: sync-brain.py` or a two-line `sync-brain.sh` doing `exec python3`, with the source lines quoted. | Re-read the runner and try to prove the answer wrong. |
+| 15a (done) | Read Hermes's cron script runner on the VPS (read only): how a `script:` is run, by extension or shebang, and what it needs (exec bit, folder). | The DEVLOG says whether the job line is `script: sync-brain.py` or a two-line `sync-brain.sh` doing `exec python3`, with the source lines quoted. | Re-read the runner and try to prove the answer wrong. |
 | 15b | Extend `vps/test-sync-brain.sh` against today's bash: the lock still held by a hung child after the parent is killed (1), `index.md` plus a newline refused (2), a non-UTF-8 name and a cut through a multibyte name (5), a run killed halfway then finished by the next (9). A check that fails on bash found a bash bug: it is not added (the port keeps the bash behavior), and the bug goes to Open. Own PR, no VPS change. | Every check added passes on `sync-brain.sh` in CI; any bash bug found is in Open. | Mutate `sync-brain.sh` to break each risk; every new check goes red on its mutant. |
 | 15c | Write `vps/sync-brain.py`; point the oracle at it; delete `vps/sync-brain.sh`; change `vps/deploy.manifest`, `vps/hermes/jobs.overrides.yaml` (per 15a) and the CI job. A throwaway differential script (in the job's temp folder, not committed) runs each oracle scenario through both scripts and diffs remote refs, her copy and stdout, and kills each script halfway for the other to finish, both ways. | The oracle passes on Python in CI; the differential run shows no difference but path order, its output in the DEVLOG; the oracle diff is only the header, `SCRIPT=` and the 9 interpreter calls. | Risks 1 to 11, above all 3, 4 and 6: every git call's failure mode and env against the bash line it replaces; a proved port bug gets a check that passes on bash. |
 | 15d | With the owner's yes at each live step: pause `sync-brain`; check the sync clone is at rest (no `refs/sync/pending`, no `.git/rebase-*`, lock free); deploy `sync-brain.py` and `brain-files.py` with `deploy.py`; change the job's script line through Hermes's cron tool (`deploy.py` never writes `jobs.json`); remove `~/.hermes/scripts/sync-brain.sh`; smoke run; resume. | A by-hand run as `agent` with nothing to sync is silent, exit 0, no push; a capture through Telma is pushed by the next scheduled run; `check-drift.py` reads all in sync, the job line included; `ls ~/.hermes/scripts/` shows no `sync-brain.sh` (check-drift reads only manifest files); the job is resumed. | The deploy PR: manifest and job line, removal of the old file, drift check after it, rollback steps, the smoke checklist. |
@@ -291,6 +291,12 @@ line and the smoke run.
   and show the Python suite catches each too.
 - **Done when:** the Python suite holds every check the bash one had, each named the same, CI runs
   only it, and `vps/test-sync-brain.sh` is gone.
+
+**15a's answer (2026-11-27, [devlog](DEVLOG.md#2026-11-27-15a-how-hermes-runs-a-cron-script)):** the job
+line is `script: sync-brain.py` **plus `interpreter: /usr/bin/python3`**, set with
+`hermes cron edit --interpreter`. A bare `.py` runs on Hermes's own Python, which this host doesn't
+provide; the shebang is never read. 15c adds `interpreter` to `check-drift.py`'s job fields and to
+`jobs.overrides.yaml`; 15d sets it with the script line.
 
 #### Evals owed
 

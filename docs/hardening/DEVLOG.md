@@ -1957,3 +1957,28 @@ From a code review of step 11's PR; both were in step 10's merged code.
   bytes against text, shell newline handling, and the live `refs/sync/*` state at cutover.
 - **Open before 15a:** whether a Hermes `script:` job runs a `.py` file; Hermes's source is only on the
   VPS.
+
+## 2026-11-27: 15a, how Hermes runs a cron script
+
+Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script_argv` and
+`_run_job_script`.
+
+- **Chosen by extension, never by shebang or exec bit.** The source says so: "Interpreter by extension
+  — the shebang is deliberately NOT honoured". `.sh` and `.bash` run under `bash`; anything else is
+  Python. The script must resolve inside `~/.hermes/scripts/`.
+- **A bare `.py` runs on Hermes's own Python,** picked by `_posix_cron_script_argv`: on this install
+  `resolve_store_python` finds a managed store, so it asks `project_python` for
+  `hermes-agent/venv/bin/python`. That path does not exist on this host, and the function raises
+  "dependency environment interpreter is missing". I did not run a job to see it fail; the reading is
+  from the source and a `ls` of that path.
+- **A job's `interpreter` field avoids all of that.** `_script_argv` returns `[interpreter, script]`
+  with no overlays. The value must be an absolute path to an executable whose name matches
+  `python`, `python3` or `python3.12` (`_INTERPRETER_IMAGE_RE`). `/usr/bin/python3` is a symlink to
+  `python3.12` and passes. `hermes cron edit --interpreter` sets it.
+- **Same as the `.sh` today:** the env is `build_subprocess_env` (secrets stripped), the cwd is the
+  scripts folder, the script runs in its own session, and a timeout kills the whole process tree. A
+  non-UTF-8 byte in the output is decoded lossily.
+- **Answer:** `script: sync-brain.py` with `interpreter: /usr/bin/python3`, not a two-line `.sh`
+  wrapper. A wrapper would keep a bash file the port is meant to remove. Consequence for 15c and 15d:
+  `check-drift.py` doesn't read `interpreter` yet (it reads `schedule`, `script`, `enabled`,
+  `no_agent`, `deliver` and others); 15c adds it.

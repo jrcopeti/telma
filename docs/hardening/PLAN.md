@@ -197,7 +197,7 @@ change the VPS need the owner's yes first.
   - `vps/kill-switch.md` no longer tells the reader to run `git` in `/home/agent/brain` (her sandbox writes
     it, the decision of 2026-11-19 forbids host git there, and its refs are stale): it reads the sync
     clone (`~/.local/share/brain-push`, `refs/sync/given`) or uses plain `ls`, `cat` and `diff`.
-- **Needs the owner:** approval of each public doc in its PR; the eval with their yes for `SOUL.md`.
+- **Needs the owner:** the eval with their yes for `SOUL.md`.
 - **State 2026-11-27:** every item above is done. `vps/hermes/SOUL.md` is edited in the repo (triage
   hourly, `taste.md` hers, a rule-file change is a proposal). Live, it follows the eval (`--repo-soul`) with
   the owner's yes, then a deploy; the plan closes when it is live.

@@ -2173,3 +2173,7 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
 - `vps/hermes/SOUL.md` edited on the owner's word ("do soul too"): triage hourly (always at 09:00), `CLAUDE.md`
   added to the read-only list, `taste.md` hers with changes arriving as a proposal. Not eval-run and not
   deployed: the eval needs its own yes (AGENTS.md).
+- Code review (7 findings) fixed in the same PR: "hourly" now says 08:00 to midnight (the cron skips 01:00 to 07:00);
+  the `taste.md` rule in `SOUL.md` is its own bullet; `kill-switch.md` diffs her folder against the sync clone's
+  checkout with plain `diff -rq`; the PLAN and `AGENTS.md` say hardening closes when `SOUL.md` is live. The
+  owner removed the public-prose approval line from `AGENTS.md`; PLAN's matching phrase went too.

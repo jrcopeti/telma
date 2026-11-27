@@ -47,9 +47,8 @@ sudo -iu agent bash -c 'docker ps -aq --filter name=hermes- | xargs -r docker rm
 
 ```sh
 sudo -iu agent /home/agent/.hermes/scripts/memory-diff.sh             # memory and skills saved since the last check
-# Her files changed since the last sync: read the sync clone (host git is fine there), never her folder.
-sudo -iu agent git -C /home/agent/.local/share/brain-push log -1 --format=%cI refs/sync/given   # when sync-brain last gave her copy
-sudo -iu agent find /home/agent/brain -type f -not -path '*/.git/*' -mmin -60 -ls              # files she wrote in the last hour
+# Not synced yet: her folder against the sync clone's checkout of what she last had. Plain diff, no git in her folder.
+sudo -iu agent diff -rq --exclude=.git /home/agent/brain /home/agent/.local/share/brain-push
 sudo -iu agent ls /home/agent/brain-quarantine                        # pushes sync-brain refused, if any
 ```
 

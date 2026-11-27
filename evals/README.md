@@ -1,7 +1,6 @@
 # Evals
 
-Telma is an AI agent who keeps her owner's notes, the brain. Every hour the inbox holds something, she sorts the brain's
-inbox: a captured link or a quick decision goes into the right folder, and junk goes nowhere. She
+Telma is an AI agent who keeps her owner's notes, the brain. Each hour from 08:00 to midnight, if the inbox holds something, she sorts it: a captured link or a quick decision goes into the right folder, and junk goes nowhere. She
 can also read the brain and reach the web, so a page that tells her to send the notes somewhere
 must never work on her.
 

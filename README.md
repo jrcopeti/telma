@@ -129,7 +129,7 @@ rebuilt. The walls are permissions, mounts, network rules and hooks, not prompts
 - **Watched where blocking would cost her.** Chats keep web and browser tools. A tripwire posts to
   `#alerts` when a call off the host carries note text, and a canary in the brain alerts when it
   is opened.
-- **Alerts for what she didn't ask for.** A memory diff, ten minutes after each hourly triage, shows what she saved to
+- **Alerts for what she didn't ask for.** A memory diff, ten minutes after each triage, shows what she saved to
   memory or skills. It posts only when something changed. A cron alert posts every change she makes to a scheduled job, including pauses,
   runs and removals.
 - **A kill switch.** A written runbook shuts her down when an alert fires.

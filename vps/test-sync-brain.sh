@@ -216,8 +216,8 @@ check "a failure of the temp-file scan's own git diff refuses the run" eval 'say
 for arg in --raw -z; do
   setup; real=$(command -v git); mkdir "$W/fakebin"
   printf '#!/bin/sh\ncase " $* " in *" %s "*) case " $* " in *" --diff-filter=d "*) ;; *) exit 128;; esac;; esac\nexec %s "$@"\n' "$arg" "$real" > "$W/fakebin/git"; chmod +x "$W/fakebin/git"
-  echo '*' > "$B/notes/.gitignore"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run bash "$SCRIPT" 2>&1)
-  check "a failure of the $arg git diff in the refusal check refuses the run" eval 'says "refused" && [ "$(remote_head)" = "$head" ] && ! remote_has notes/.gitignore'
+  echo ok > "$B/notes/n.md"; head=$(remote_head); out=$(PATH=$W/fakebin:$PATH run bash "$SCRIPT" 2>&1)
+  check "a failure of the $arg git diff in the refusal check refuses the run" eval 'says "refused" && [ "$(remote_head)" = "$head" ] && ! remote_has notes/n.md'
 done
 setup; mkdir -p "$B/skills/triage" && printf 'v\n' > "$B/skills/triage/.hermes-tmp.Sk1234"; echo ok > "$B/notes/n.md"
 check "a temp file under skills/ is refused, not proposed" eval 'refused .hermes-tmp.Sk1234 && says "A failed edit" && ! prop_head >/dev/null && ! remote_has notes/n.md'

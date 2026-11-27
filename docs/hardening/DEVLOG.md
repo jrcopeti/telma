@@ -1876,6 +1876,6 @@ From a code review of step 11's PR; both were in step 10's merged code.
 - Second adversarial round found nothing in the change itself, and one older gap: the other two diffs in
   `refuse_outside` (the link check and the `.git*` check) had no `pipefail`, so a failed `git diff` there
   passed silently (a `.gitignore` went out). Fixed in this PR: `bad` is built under `pipefail` and a failed
-  diff says "(git diff failed)". The `-z` test fails on the old script; the `--raw` test passes on it too,
-  because `brain-files.py export` refuses a link first, so it only guards the line. 129 pass.
+  diff says "(git diff failed)". Both tests plant a plain note, so each fails on the old script (a `.gitignore` is refused by `brain-files.py`
+  whatever the diff does, which made the first `--raw` test pass for the wrong reason; found in round 3). 129 pass.
 - Not deployed: the owner's yes is needed.

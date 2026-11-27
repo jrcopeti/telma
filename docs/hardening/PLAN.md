@@ -132,7 +132,7 @@ change the VPS need the owner's yes first.
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
 | 12 | Docs sweep | todo, after 13 and 14 |
-| 13 | Leftover temp files anywhere | in PR 2026-11-27, not deployed |
+| 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | todo |
 
 #### 7. Unblock sync-brain (done)
@@ -191,16 +191,18 @@ change the VPS need the owner's yes first.
     `AGENTS.md` and `CLAUDE.md` and the refusal of links, gitlinks and `.git*` files stay true;
   - "she can't change a rule file" and "a rule-file change is refused" are gone, since she can write
     `taste.md` (step 9) and the others become proposals;
-  - every doc that names who edits a skill lists all four callers.
+  - every doc that names who edits a skill lists all four callers;
+  - `vps/kill-switch.md` no longer tells the reader to run `git` in `/home/agent/brain` (her sandbox writes
+    it, the decision of 2026-11-19 forbids host git there, and its refs are stale): it reads the sync
+    clone (`~/.local/share/brain-push`, `refs/sync/given`) or uses plain `ls`, `cat` and `diff`.
 - **Needs the owner:** approval of each public doc in its PR; the eval with their yes for `SOUL.md`.
 
-#### 13. Leftover temp files anywhere (in PR, not deployed)
+#### 13. Leftover temp files anywhere (done)
 
 - **Do:** in `vps/sync-brain.sh`, refuse a `.hermes-tmp.*` file wherever it is, before the allowlist
   check. The refusal clears once the temp file is gone, so it never holds a file back for good.
 - **Done when:** a temp file under `notes/` and one under `skills/` each give the failed-write post
   and push nothing; deleting it lets the next run go out.
-- **Needs the owner:** deploy.
 
 #### 14. `index.md` merges by line
 
@@ -232,6 +234,7 @@ owner's decision. The mount (9) and the schedule (11) aren't on AGENTS.md's list
 | `README.md` | "twice a day", "09:00 and 21:00", "skills and rules read-only", "Her edits can't reach the owner's machine" | 12 |
 | `docs/before-after.md` | the brain and sync rows: proposals instead of refusals | 12 |
 | `docs/adr/0001-telma-keeps-the-brain.md` | "twice a day" | 12 |
+| `vps/kill-switch.md` | the "commits not pushed yet" line: no host git in her folder | 12 |
 | `AGENTS.md` | the "Finished work" line | 12 |
 | Brain: the 2026-11-22 decision, `projects/telma.md`, `notes/hermes-agent-setup-gotchas.md`, `notes/telma-lethal-trifecta-and-safety-audit.md` | amended through capture and triage, not edited here | 12 |
 

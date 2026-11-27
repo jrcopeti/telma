@@ -17,6 +17,8 @@ import sys
 import time
 
 UTF8 = {"encoding": "utf-8", "errors": "surrogateescape"}  # a name is bytes, not always UTF-8
+if sys.stdout is None:  # fd 1 closed: say nothing, as the bash did
+    sys.stdout = open(os.devnull, "w")
 sys.stdout.reconfigure(line_buffering=True, **UTF8)
 
 HOME = os.environ["HOME"]
@@ -458,7 +460,7 @@ def fm_name(data):
         lines.pop()
     for n, line in enumerate(lines, 1):
         if n == 1:
-            line = re.sub(r"^﻿", "", line)
+            line = re.sub(r"^\ufeff", "", line)
         line = re.sub(r"\r\Z", "", line)
         if n == 1 and line != "---" or n > 1 and line == "---":
             return None
@@ -737,4 +739,9 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        status = main()
+    except Exception as e:  # the bash had no `set -e`: a failure said what it was and the next run started over
+        say(f"stopped on an error ({type(e).__name__}: {e}); the next run starts over.")
+        status = 0
+    sys.exit(status)

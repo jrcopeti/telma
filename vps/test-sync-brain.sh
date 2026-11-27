@@ -759,12 +759,11 @@ first=$(prop_head); sleep 1.1; sync  # a second later, so a repeated proposal wo
 check "killed after pushing a proposal, before noting it: the next run neither pushes it again nor posts it again" eval \
   '[ "$fired" = yes ] && [ -n "$first" ] && silent && [ "$(prop_head)" = "$first" ] && [ "$(prop_commits)" = 1 ] && remote_has notes/n.md && ! grep -q evil "$B/skills/triage/SKILL.md"'
 
-# --- 15c adversarial round: two checks that pass on sync-brain.sh from main too
+# --- 15c adversarial round: two checks that also passed on sync-brain.sh from main (run by hand with bash in place of python3)
 # `IFS= read -r` keeps the blanks in the root names passed to export: a GitHub folder "tools " is exempt, not "tools".
 setup; mac status -s; mkdir "$W/mac/tools "; echo owner > "$W/mac/tools /CLAUDE.md"; mac_commit "a root folder ending in a blank"; sync; sync
 check "a root folder whose name ends in a blank keeps its own CLAUDE.md, unmoved" eval '[ -e "$B/tools /CLAUDE.md" ] && ! says "moved these"'
 # Bash's fd 9 is the lock whatever fd 0 is: with stdin closed, a hung child still keeps it (the port's lock fd is then 0).
-case $SCRIPT in *.py) QA_INTERP=$REAL_PY;; *) QA_INTERP=bash;; esac
 setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/hang-fetch"
 PATH=$T/gitshim:$PATH run python3 "$SCRIPT" <&- >"$W/bg.out" 2>&1 & bg_pid=$!
 for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done

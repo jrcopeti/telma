@@ -1879,3 +1879,18 @@ From a code review of step 11's PR; both were in step 10's merged code.
   diff says "(git diff failed)". Both tests plant a plain note, so each fails on the old script (a `.gitignore` is refused by `brain-files.py`
   whatever the diff does, which made the first `--raw` test pass for the wrong reason; found in round 3). 129 pass.
 - Not deployed: the owner's yes is needed.
+
+## 2026-11-27: step 13 deployed and checked on the host
+
+- **Deployed:** #103 went out as `deploy/2026-11-27-1`; the drift check read 18 of 18 in sync and `deployed`
+  is at `9fd4bd9`. Only `vps/sync-brain.sh` was copied.
+- **Planted:** `notes/.hermes-tmp.Step13Test` in her brain, run by hand at the owner's yes. The run posted
+  "refused to push. A failed write left a temp file", named the file (`edit to: unknown`, as the two-line file
+  matches no rule file) and pushed nothing; the 01:00 triage changes stayed held back. After the file was
+  deleted, the next run was silent and the held-back changes reached GitHub as one sync commit.
+- **A slip, and a stale doc line:** to look at her copy I ran `git status`, `git log` and `git fetch` in
+  `~/brain` as her user. That is host git in a folder her sandbox writes, which the decision of 2026-11-19
+  forbids. Her `.git/config` and `hooks/` held nothing but the stock entries, and nothing was changed. The fetch
+  failed on host-key checking: her user has no key, and her refs have been stale since 19 November.
+  `vps/kill-switch.md` has the same pattern (`git -C /home/agent/brain log origin/main..HEAD`); fixing it is
+  added to step 12.

@@ -1993,3 +1993,11 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
   job script's timeout defaults to 3600 s, its env is sanitized (no Hermes secrets), and a non-zero exit
   sends an error alert. The docs document no `hermes cron edit --script` flag: 15d checks how the script
   line is changed.
+- **Plan checked against Hermes's docs and source (Context7 and the VPS), same day.** It holds. Gaps
+  closed in 15d: the script line is changed with `hermes cron edit <job_id> --script … --interpreter …`
+  (`--script` exists on `edit`; the docs page shows it only in a mode-flip example); resume fires one
+  catch-up run for a slot that came due while paused (`cron.catch_up_missed: false` skips it);
+  `hermes cron doctor` reports a missing script and joins the smoke checklist; `hermes cron cancel`
+  stops a run in flight, so 15d checks none is running before the pause. A run still going at the next
+  tick is skipped by Hermes (`Job '%s' already running — skipping`, `cron/scheduler.py:4293`), a second
+  guard beside sync-brain's own lock. Nothing in the docs changes the port's risks 1 to 11.

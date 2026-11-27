@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Deploy the named files from this repo to Telma's host, then re-check every line.
 
-Run from the local machine, on main as pushed: python3 vps/deploy.py [--eval-run <results .jsonl>] <repo path>...
+Run from the local machine, on main as pushed: python3 vps/deploy.py [--eval-run <results .jsonl> | --skip-eval] <repo path>...
 (or --deployed alone, below).
 Paths are deploy.manifest's repo paths. Only `exact` and `redacted` lines are copied; for config,
 jobs and skills it prints how they change instead. It shows each file's diff and takes a yes per
@@ -213,6 +213,9 @@ def deploy(args):
     unknown = [p for p in args.paths if p not in rows]
     if unknown:
         raise Stop(f"not in {drift.MANIFEST}: {', '.join(unknown)}")
+    if args.skip_eval and not any(Path(p).name in EVAL_GATED for p in args.paths):
+        raise Stop(f"--skip-eval covers only {', '.join(sorted(EVAL_GATED))}: the skills, the model and the "
+                   "fallback order still need --eval-run")
     head = preflight()
 
     files = []
@@ -257,7 +260,10 @@ def deploy(args):
         raise Stop(f"not in the checkout: {', '.join(missing)}")
     for row in files:
         if Path(row["repo"]).name in EVAL_GATED:
-            print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run, wants[row['repo']])}")
+            if args.skip_eval:
+                print(f"{row['repo']}: eval skipped")
+            else:
+                print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run, wants[row['repo']])}")
     r = remote({"action": "read", "files": [row["host"] for row in files]})
     if r.returncode:
         raise Stop(f"reading the host failed ({r.returncode}): {r.stderr.strip()[-500:]}")
@@ -320,7 +326,8 @@ def deploy(args):
     except KeyboardInterrupt:
         code, summary = None, "summary: the re-check was stopped (Ctrl-C)"
         print("\ndeploy: the re-check was stopped; run check-drift.py", file=sys.stderr)
-    finish(rows, deployed, head, backup, summary, code)
+    skipped = args.skip_eval and any(Path(r["repo"]).name in EVAL_GATED for r in deployed)
+    finish(rows, deployed, head, backup, summary, code, skipped)
     return {0: 0, 1: 1}.get(code, 4)
 
 
@@ -369,12 +376,14 @@ def tag_commands(tag, head, msg):
             f"git push origin {tag}"]
 
 
-def finish(rows, deployed, head, backup, summary, code):
+def finish(rows, deployed, head, backup, summary, code, skipped_eval=None):
     """What each file still needs, then the deploy's tag and `deployed`, each after the owner's yes.
     Runs after every copy, so it never raises: what it can't or isn't allowed to do is printed as the
     commands to run by hand, each step on its own, so one failing doesn't hide the other."""
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
+    if skipped_eval:
+        msg.insert(2, "eval skipped")  # fixed text: the tag is pushed to a public repo
     steps = []
     for row in deployed:
         try:
@@ -435,11 +444,15 @@ def deployed_now():
 def main():
     parser = argparse.ArgumentParser(description="Deploy named files to Telma's host.", allow_abbrev=False)
     parser.add_argument("--eval-run", help="evals/results/<run>.jsonl, needed to deploy SOUL.md")
+    parser.add_argument("--skip-eval", action="store_true", help="the owner's waiver of the eval gate for SOUL.md; "
+                        "the deploy's tag says only that the eval was skipped (it is public: no reason is taken)")
     parser.add_argument("--deployed", action="store_true", help="no deploy: re-check and move `deployed` to HEAD")
     parser.add_argument("paths", nargs="*", help="repo paths as deploy.manifest names them")
     args = parser.parse_args()
-    if bool(args.paths) == args.deployed or (args.deployed and args.eval_run):
+    if bool(args.paths) == args.deployed or (args.deployed and (args.eval_run is not None or args.skip_eval)):
         parser.error("name the files to deploy, or --deployed alone")
+    if args.eval_run is not None and args.skip_eval:
+        parser.error("--eval-run and --skip-eval are alternatives")
     if not sys.stdin.isatty():
         print("deploy: needs a terminal: a deploy, its tag and `deployed` are moved only by the owner's own yes "
               "at the keyboard", file=sys.stderr)

@@ -12,7 +12,7 @@ Telma shares one VPS with ticket-bay-bot. The bot's repo describes the same host
 
 | User | What it runs |
 |---|---|
-| `agent` | Telma: her own Hermes install (`~/.hermes/hermes-agent`), rootless Docker. Her sandbox starts with `--network=none`; web and browser run in her Hermes process on the host. Host-side jobs: [sync-brain](sync-brain.sh), [memory-diff](memory-diff.sh) and [tripwire-health](tripwire-health.sh). Three hooks: the [network guard](guard-network.sh), the [exfil tripwire](exfil-tripwire.py) and the [cron alert](cron-alert.py). |
+| `agent` | Telma: her own Hermes install (`~/.hermes/hermes-agent`), rootless Docker. Her sandbox starts with `--network=none`; web and browser run in her Hermes process on the host. Host-side jobs: [sync-brain](sync-brain.py), [memory-diff](memory-diff.sh) and [tripwire-health](tripwire-health.sh). Three hooks: the [network guard](guard-network.sh), the [exfil tripwire](exfil-tripwire.py) and the [cron alert](cron-alert.py). |
 
 The bot runs as `ticket-bay-bot`, next to `ticket-bay-app` and `skills-sync`. Both agents' homes are
 `750`, so neither can read the other's files.
@@ -24,7 +24,7 @@ owner and mode.
 
 | In this repo | On the VPS |
 |---|---|
-| `sync-brain.sh`, `brain-files.py`, `memory-diff.sh`, `tripwire-health.sh`, `triage-gate.sh` | `~/.hermes/scripts/` |
+| `sync-brain.py`, `brain-files.py`, `memory-diff.sh`, `tripwire-health.sh`, `triage-gate.sh` | `~/.hermes/scripts/` |
 | `guard-network.sh` | `~/.hermes/agent-hooks/` |
 | `exfil-tripwire.py`, `cron-alert.py` | `~/.hermes/agent-hooks/`; their config entries in `*.hooks.yaml` |
 | `hermes/SOUL.md` | `~/.hermes/` |
@@ -135,7 +135,7 @@ hooks once. That is expected. It needs an ssh alias `agents-vps` with root acces
    uncommitted under `vps/`.
 3. Run `python3 vps/check-drift.py` and confirm the files you mean to ship read "repo ahead".
 4. Run `python3 vps/deploy.py <repo path>...`, naming each file, for example
-   `python3 vps/deploy.py vps/sync-brain.sh`. It never deploys "everything that is ahead". It
+   `python3 vps/deploy.py vps/sync-brain.py`. It never deploys "everything that is ahead". It
    needs a terminal and stops in a pipe or an agent's shell.
 5. For each file it shows the diff and asks yes or no. Nothing is copied until every file is answered.
 6. It stops without copying if one of her jobs is running. Wait and run it again.

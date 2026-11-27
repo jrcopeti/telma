@@ -14,9 +14,9 @@ SCRIPT = Path(__file__).resolve().parent / "check-drift.py"
 OWNER = f"{pwd.getpwuid(os.getuid()).pw_name}:{grp.getgrgid(os.getgid()).gr_name}"
 GIT_ENV = {"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t",
            "GIT_AUTHOR_EMAIL": "t@example.com", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com"}
-JOBS = {"job-a": {"schedule": "every 15m", "script": "a.sh", "skills": [], "toolsets": None,
+JOBS = {"job-a": {"schedule": "every 15m", "script": "a.sh", "interpreter": "/usr/bin/python3", "skills": [], "toolsets": None,
                   "enabled": True, "no_agent": True, "deliver": "discord"},
-        "job-b": {"schedule": "0 9 * * *", "script": None, "skills": ["triage"], "toolsets": ["file"],
+        "job-b": {"schedule": "0 9 * * *", "script": None, "interpreter": None, "skills": ["triage"], "toolsets": ["file"],
                   "enabled": True, "no_agent": False, "deliver": "discord", "prompt": "vps/prompt.txt"}}
 
 
@@ -52,7 +52,7 @@ class Fake:
                         "  cwd: /w\n  timeout: 60\n  docker_volumes:\n  - /a:/b\nstreaming: true\n", 0o600)
         self.write_host("/home/agent/.hermes/.env", 'OPENROUTER_API_KEY=sk-secret\nTERMINAL_ENV=docker\n'
                         'TERMINAL_DOCKER_VOLUMES="[\\"/a:/b\\"]"\nTERMINAL_TIMEOUT=60\n', 0o600)
-        self.jobs = [{"name": "job-a", "schedule": {"display": "every 15m"}, "script": "a.sh", "skills": [],
+        self.jobs = [{"name": "job-a", "schedule": {"display": "every 15m"}, "script": "a.sh", "interpreter": "/usr/bin/python3", "skills": [],
                       "enabled_toolsets": None, "prompt": "", "enabled": True, "no_agent": True, "deliver": "discord"},
                      {"name": "job-b", "schedule": {"display": "0 9 * * *"}, "script": None, "skills": ["triage"],
                       "enabled_toolsets": ["file"], "prompt": "Run triage.", "enabled": True, "no_agent": False,
@@ -193,6 +193,17 @@ class CheckDrift(unittest.TestCase):
         self.assertIn("job-b", self.f.out)
         self.assertIn("1 other job(s)", self.f.out)
         self.assertNotIn("dentist", self.f.out)
+
+    def test_a_job_with_a_wrong_or_missing_interpreter_is_drift(self):
+        for value in ("/usr/bin/python3.14", None):
+            with self.subTest(interpreter=value):
+                self.f.jobs[0]["interpreter"] = value
+                self.f.write_jobs()
+                self.assertStatus(self.f.run(), "vps/jobs.overrides.yaml", "differs")
+                self.assertIn("job-a", self.f.out)
+        self.f.jobs[0]["interpreter"] = "/usr/bin/python3"
+        self.f.write_jobs()
+        self.assertStatus(self.f.run(), "vps/jobs.overrides.yaml", "in sync")
 
     def test_a_changed_job_prompt_is_drift(self):
         self.f.write_repo({"vps/prompt.txt": "Run triage, then lint.\n"})

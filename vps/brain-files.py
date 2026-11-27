@@ -10,7 +10,7 @@ Every folder in BRAIN is opened relative to its parent and never through a symli
 swaps for a link mid-run can't send a read or a write outside the brain. Prints only problems, as
 Discord text with her names in a code block. Exit 0 ok, 3 refused or failed something, 1 error.
 ROOT_NAME: names at the brain's root that come from GitHub (the owner's): not quarantined, and nor is
-anything inside them except in Telma's folders (ALLOWED_TOP, sync-brain.sh's ALLOWED).
+anything inside them except in Telma's folders (ALLOWED_TOP, sync-brain.py's ALLOWED).
 """
 import difflib
 import errno

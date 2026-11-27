@@ -16,6 +16,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # The VPS runs sync-brain.py on Python 3.12: the runner's python3 must be that, or the test says little.
+      - name: Check the Python version
+        run: python3 -c 'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
+
       - name: Test Telma's brain push guard
         run: bash vps/test-sync-brain.sh
 

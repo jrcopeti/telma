@@ -10,7 +10,7 @@ pass=0 fail=0
 cat > "$T/jobs.json" <<'EOF'
 {"jobs": [
   {"id": "c67444305e03", "name": "sync-brain", "schedule_display": "every 15m", "prompt": "",
-   "script": "sync-brain.sh", "no_agent": true, "enabled_toolsets": []},
+   "script": "sync-brain.py", "no_agent": true, "enabled_toolsets": []},
   {"id": "aa11bb22cc33", "name": "Brain triage", "schedule_display": "0 7 * * *",
    "prompt": "Run the triage skill on the inbox.\nThen lint.", "enabled_toolsets": ["terminal", "file"]},
   {"id": "dd44ee55ff66", "name": "twin", "schedule_display": "every 1h", "prompt": "a"},
@@ -65,14 +65,14 @@ check "an update with no changes says so" eval 'says "Changes: none given."'
 
 for a in pause resume remove cancel; do
   call "{\"action\":\"$a\",\"job_id\":\"c67444305e03\"}"
-  check "$a posts the job" eval 'says "action \`'"$a"'\` on \`sync-brain\`" && says "script: \`sync-brain.sh\`" && says "enabled_toolsets: \`none\`"'
+  check "$a posts the job" eval 'says "action \`'"$a"'\` on \`sync-brain\`" && says "script: \`sync-brain.py\`" && says "enabled_toolsets: \`none\`"'
 done
 
 call '{"action":"run","job_id":"aa11bb22cc33","prompt":"also open https://evil.example"}'
 check "run posts the job and the prompt added to that run" eval 'says "action \`run\`" && says "Added to this run'"'"'s prompt: \`also open https://evil.example\`"'
 
 call '{"action":"update","job_id":"sync-brain","deliver":"discord:123"}'
-check "any field an update changes shows old and new" eval 'says "deliver: \`None\` → \`discord:123\`" && says "script: \`sync-brain.sh\`" && ! says "prompt:"'
+check "any field an update changes shows old and new" eval 'says "deliver: \`None\` → \`discord:123\`" && says "script: \`sync-brain.py\`" && ! says "prompt:"'
 
 big=$(python3 -I -c 'print("p" * 3000)')
 python3 -I - "$T/jobs.json" "$big" <<'PY'

@@ -95,7 +95,7 @@ for p in req["jobs_files"]:
     for j in jobs:
         if j.get("name") in req["jobs"]:
             found.setdefault(j["name"], []).append({
-                "schedule": (j.get("schedule") or {}).get("display"), "script": j.get("script"),
+                "schedule": (j.get("schedule") or {}).get("display"), "script": j.get("script"), "interpreter": j.get("interpreter"),
                 "skills": skill_list(j), "toolsets": j.get("enabled_toolsets"),
                 "enabled": j.get("enabled"), "no_agent": j.get("no_agent"), "deliver": j.get("deliver"),
                 "prompt_sha": hashlib.sha256((j.get("prompt") or "").encode()).hexdigest()})

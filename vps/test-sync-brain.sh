@@ -580,5 +580,109 @@ check "creating the same new file twice merges with the proposal and keeps the o
 setup; mkdir -p "$B/skills/zz/sub" && echo x > "$B/skills/zz/sub/f"; sync
 check "a proposed new skill folder leaves no empty folders in her copy" eval '[ ! -e "$B/skills/zz" ] && [ -d "$B/skills" ]'
 
+# --- index.md merges by line against the version last synced
+# Five lines on GitHub, in her copy and in the local machine's clone, all synced.
+idx5() {
+  setup; mac status -s >/dev/null
+  printf 'L1\nL2\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "five lines"; sync
+}
+idx_remote() { remote_show index.md | tr '\n' ' '; }
+idx_hers() { tr '\n' ' ' < "$B/index.md"; }
+
+idx5; printf 'L1\nL2 owner\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L2"
+printf 'L1\nL2\nNEW\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "a line she adds right after one the owner changed: both go out, nothing is posted" eval \
+  'silent && [ "$(idx_remote)" = "L1 L2 owner NEW L3 L4 L5 " ] && [ "$(idx_hers)" = "L1 L2 owner NEW L3 L4 L5 " ]'
+
+idx5; printf 'L1\nL2\nL3 owner\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L3"
+printf 'L1\nL2\nL3 hers\nL4\nL5\n' > "$B/index.md"; sync
+check "both rewrite the same line: both versions stay, and the rest is kept" eval \
+  'silent && remote_show index.md | grep -qx "L3 owner" && remote_show index.md | grep -qx "L3 hers" && ! remote_show index.md | grep -qx L3 && [ "$(remote_show index.md | wc -l)" = 6 ]'
+
+idx5; printf 'L1\nL2\nL3\nL5\n' > "$W/mac/index.md"; mac_commit "owner deletes L4"
+printf 'L1\nL2\nL3\nL4\nL5\nNEW\n' > "$B/index.md"; sync
+check "a line the owner deleted and she left alone stays deleted, and her new line goes out" eval \
+  'silent && [ "$(idx_remote)" = "L1 L2 L3 L5 NEW " ] && [ "$(idx_hers)" = "L1 L2 L3 L5 NEW " ]'
+
+idx5; printf 'L1\nL2\nL3\nL4\nL5\nOWNER\n' > "$W/mac/index.md"; mac_commit "owner appends"
+printf 'L1\nL2\nL3\nL4\nL5\nHERS\n' > "$B/index.md"; sync
+check "both append at the end: both lines stay" eval \
+  'silent && remote_show index.md | grep -qx OWNER && remote_show index.md | grep -qx HERS && [ "$(remote_show index.md | wc -l)" = 7 ]'
+
+idx5; printf 'L1\nL2 same\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner edits"
+printf 'L1\nL2 same\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "both make the same edit: it appears once" eval 'silent && [ "$(idx_remote)" = "L1 L2 same L3 L4 L5 " ]'
+
+idx5; echo "n" > "$B/notes/n.md"; printf 'L1 owner\nL2\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner edits"; sync
+check "she changes only a note while the owner edits the index: the owner's index stands" eval \
+  'silent && remote_has notes/n.md && [ "$(idx_remote)" = "L1 owner L2 L3 L4 L5 " ]'
+
+idx5; rm "$B/index.md"; printf 'L1 owner\nL2\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner edits"; sync
+check "she deletes index.md after the owner edited it: the owner's index stays" eval \
+  'silent && remote_has index.md && [ "$(idx_remote)" = "L1 owner L2 L3 L4 L5 " ]'
+
+# A line she added or kept is never lost, and a line the owner deleted that she left alone stays deleted,
+# even when her edit sits next to the deleted lines.
+idx5; printf 'L1\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner deletes L2 and L3"
+printf 'L1\nL2\nNEW\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "her line between two lines the owner deleted: the deleted lines stay deleted" eval 'silent && [ "$(idx_remote)" = "L1 NEW L4 L5 " ]'
+
+idx5; printf 'L1\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner deletes L2 and L3"
+printf 'L1\nL2 hers\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "she rewrites one of two lines the owner deleted: the other stays deleted" eval 'silent && [ "$(idx_remote)" = "L1 L2 hers L4 L5 " ]'
+
+idx5; printf 'L1\nL2\nL5\n' > "$W/mac/index.md"; mac_commit "owner deletes L3 and L4"
+printf 'L1\nL2\nL3\nL4 hers\nL5\n' > "$B/index.md"; sync
+check "she rewrites the second of two lines the owner deleted: the first stays deleted" eval 'silent && [ "$(idx_remote)" = "L1 L2 L4 hers L5 " ]'
+
+idx5; printf 'L1\nL2\nINS\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner inserts before L3"
+printf 'L1\nL2\nL3 hers\nL4\nL5\n' > "$B/index.md"; sync
+check "an insert by the owner next to a line she rewrote: both stay, the old line is gone" eval 'silent && [ "$(idx_remote)" = "L1 L2 INS L3 hers L4 L5 " ]'
+
+idx5; printf 'L1\nL2\nL3\nL4\nL5' > "$W/mac/index.md"; mac_commit "no final newline"; sync
+printf 'L1\nL2 hers\nL3\nL4\nL5' > "$B/index.md"; sync
+check "a missing final newline stays missing when nobody touched that line" eval 'silent && [ "$(remote_show index.md | tail -c 1)" = 5 ] && remote_show index.md | grep -qx "L2 hers"'
+
+# A deletion with the owner's copy untouched goes out, with her note.
+idx5; rm "$B/index.md"; echo n > "$B/notes/n.md"; sync
+check "she deletes index.md and the owner left it alone: the deletion and her note go out" eval 'silent && ! remote_has index.md && remote_has notes/n.md'
+
+# A run that fails after main was pushed repeats without duplicating her line.
+idx5; printf 'L1\nL2 owner\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L2"
+printf 'L1\nL2\nNEW\nL3\nL4\nL5\n' > "$B/index.md"; echo evil >> "$B/skills/triage/SKILL.md"
+printf '#!/bin/sh\nwhile read o n r; do case $r in refs/heads/telma/*) exit 1;; esac; done\n' > "$W/remote.git/hooks/pre-receive"; chmod +x "$W/remote.git/hooks/pre-receive"; sync
+rm "$W/remote.git/hooks/pre-receive"; sync; sync
+check "a retried run does not add her index line twice" eval 'silent && [ "$(idx_remote)" = "L1 L2 owner NEW L3 L4 L5 " ] && [ "$(idx_hers)" = "L1 L2 owner NEW L3 L4 L5 " ]'
+
+# A different edit with the same text as the owner's is not a replay: both lines stay.
+idx5; printf 'L1\nL2 owner\nNEW\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L2 and adds NEW"
+printf 'L1\nL2\nNEW\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "her line with the same text as the owner's new line next to it is kept" eval 'silent && [ "$(idx_remote)" = "L1 L2 owner NEW NEW L3 L4 L5 " ]'
+
+# A lone CR inside a line is not a line break.
+idx5; printf 'L1\nL2\rX\nL3\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "cr"; sync
+printf 'L1\nL2\rX\nL3\nL4 hers\nL5\n' > "$B/index.md"; sync
+check "a lone CR inside a line stays as it was" eval 'silent && [ "$(remote_show index.md | wc -l)" = 5 ] && ! remote_show index.md | grep -q "$(printf "\r")$"'
+
+# The owner deleted index.md while she edited it: it is not rebuilt from her lines alone.
+idx5; mac rm -q index.md; mac_commit "owner deletes index.md"; printf 'L1\nL2 hers\nL3\nL4\nL5\n' > "$B/index.md"; echo n > "$B/notes/n.md"; sync
+check "the owner deletes index.md while she edits it: said, kept deleted, her note and her copy kept" eval \
+  'says "could not merge index.md" && ! remote_has index.md && remote_has notes/n.md && grep -qx "L2 hers" "$B/index.md"'
+
+# Main's index.md is a link: it is never overwritten with her text.
+idx5; mac rm -q index.md; ln -s notes/a.md "$W/mac/index.md"; mac_commit "owner links index.md"; printf 'L1\nL2 hers\nL3\nL4\nL5\n' > "$B/index.md"; sync
+check "main's index.md is a link: said, the link stays on main" eval \
+  'says "could not merge index.md" && git -C "$W/remote.git" ls-tree main index.md | grep -q "^120000"'
+
+# Thousands of identical lines make a line diff crawl: the merge is cut (here after 1 s). Only her index.md
+# change waits; her note goes out, her copy keeps her version, and the next run says it again.
+idx5; yes x | head -30000 > "$W/mac/index.md"; mac_commit "base"; sync
+{ yes x | head -15000; echo y; yes x | head -14999; } > "$W/mac/index.md"; mac_commit "owner"
+{ yes x | head -14000; echo z; yes x | head -15999; } > "$B/index.md"; echo n > "$B/notes/n.md"; BRAIN_MERGE_SECS=1 sync
+check "an index.md too big to merge in time is said; only it waits, and her copy keeps her version" eval \
+  'says "could not merge index.md" && remote_has notes/n.md && ! remote_show index.md | grep -qx z && grep -qx z "$B/index.md"'
+BRAIN_MERGE_SECS=1 sync
+check "and the next run says it again, with her version still there" eval 'says "could not merge index.md" && grep -qx z "$B/index.md"'
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

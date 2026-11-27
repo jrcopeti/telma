@@ -133,7 +133,7 @@ change the VPS need the owner's yes first.
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
 | 12 | Docs sweep | todo, after 13 and 14 |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
-| 14 | `index.md` merges by line | todo |
+| 14 | `index.md` merges by line | done 2026-11-27 (branch `feat/step-14-index-line-merge`; not deployed) |
 
 #### 7. Unblock sync-brain (done)
 
@@ -204,7 +204,7 @@ change the VPS need the owner's yes first.
 - **Done when:** a temp file under `notes/` and one under `skills/` each give the failed-write post
   and push nothing; deleting it lets the next run go out.
 
-#### 14. `index.md` merges by line
+#### 14. `index.md` merges by line (done)
 
 - **Do:** in `vps/sync-brain.sh`, merge `index.md` as a three-way line merge against the version
   last synced. Edits on neighbouring lines merge; when both sides change the same line, both versions
@@ -243,6 +243,11 @@ Done in steps 7 to 9: `vps/sync-brain.sh` and its test, `vps/kill-switch.md`, `v
 
 ## Open
 
+- **A stuck `index.md` merge posts every run (step 14):** a merge that keeps failing (a cut at 20 s, or the
+  owner deleted `index.md` while she edited it) posts the same warning every 15 minutes until it is fixed by
+  hand. Post once per state, like the shadow-skill alert, if it ever happens.
+- **`mergelines` is quadratic on thousands of repeated lines (step 14):** each run spends up to
+  `BRAIN_MERGE_SECS` (20) before the cut. A size or line cap would fail fast. No real `index.md` is near it.
 - **ticket-bay-bot's test gate:** Hermes stopped waiting for a hook after 30 s. Timeout raised to
   300 s on 2026-11-18; check on the next bug-loop run that edits code.
 - **Dependabot on the fork:** `zod` (< 4.6.6) and `source-map-js` alerts stay open.

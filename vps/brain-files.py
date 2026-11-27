@@ -4,6 +4,7 @@
   export BRAIN DEST QUARANTINE [ROOT_NAME...]   copy her files into DEST, move out instruction files
   apply SRC BRAIN < name-status                 write `git diff --name-status -z` changes from SRC
   gitfiles < paths                              print the -z paths that git on the local machine reads as config
+  mergelines BASE OURS THEIRS                   three-way line merge to stdout; where both sides changed the same lines, both stay
 
 Every folder in BRAIN is opened relative to its parent and never through a symlink, so a folder she
 swaps for a link mid-run can't send a read or a write outside the brain. Prints only problems, as
@@ -11,6 +12,7 @@ Discord text with her names in a code block. Exit 0 ok, 3 refused or failed some
 ROOT_NAME: names at the brain's root that come from GitHub (the owner's): not quarantined, and nor is
 anything inside them except in Telma's folders (ALLOWED_TOP, sync-brain.sh's ALLOWED).
 """
+import difflib
 import errno
 import os
 import re
@@ -297,12 +299,41 @@ def apply(src, brain):
     return 0
 
 
+def mergelines(base, ours, theirs):
+    """Three-way merge of byte strings by line (a line ends at \\n only). Each side's changed lines are applied
+    as that side wrote them, and the base lines they replace are dropped, so a line one side deleted and the
+    other left alone stays deleted. Where both sides changed the same lines, or add at the same spot, both
+    versions stay, ours first; an identical edit appears once."""
+    def lines_of(text):
+        return re.findall(rb"[^\n]*\n|[^\n]+", text)
+    b = lines_of(base)
+    hunks = []
+    for n, text in enumerate((ours, theirs)):
+        lines = lines_of(text)
+        ops = difflib.SequenceMatcher(None, b, lines, autojunk=False).get_opcodes()
+        hunks += [(i1, i2, n, lines[j1:j2]) for tag, i1, i2, j1, j2 in ops if tag != "equal"]
+    out, pos, prev = [], 0, None
+    for i1, i2, n, r in sorted(hunks, key=lambda h: h[:3]):
+        out += b[pos:i1]
+        pos = max(pos, i2)
+        if prev and prev[:2] == (i1, i2) and prev[3] == r:
+            continue
+        out += r
+        prev = (i1, i2, n, r)
+    out += b[pos:]
+    # A last line without its newline gets one when something follows it.
+    return b"".join(l if l.endswith(b"\n") or k == len(out) - 1 else l + b"\n" for k, l in enumerate(out))
+
+
 if __name__ == "__main__":
     try:
         if sys.argv[1] == "export":
             sys.exit(export(sys.argv[2], sys.argv[3], sys.argv[4], set(sys.argv[5:])))
         if sys.argv[1] == "apply":
             sys.exit(apply(sys.argv[2], sys.argv[3]))
+        if sys.argv[1] == "mergelines":
+            sys.stdout.buffer.write(mergelines(*(open(f, "rb").read() for f in sys.argv[2:5])))
+            sys.exit(0)
         if sys.argv[1] == "gitfiles":
             for p in sys.stdin.buffer.read().split(b"\0"):
                 if p and folded(os.fsdecode(p).rsplit("/", 1)[-1]) in GIT_FILES:

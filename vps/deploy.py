@@ -261,7 +261,7 @@ def deploy(args):
     for row in files:
         if Path(row["repo"]).name in EVAL_GATED:
             if args.skip_eval:
-                print(f"{row['repo']}: eval skipped by the owner")
+                print(f"{row['repo']}: eval skipped")
             else:
                 print(f"{row['repo']}: eval run on {check_eval_run(row['repo'], args.eval_run, wants[row['repo']])}")
     r = remote({"action": "read", "files": [row["host"] for row in files]})
@@ -383,7 +383,7 @@ def finish(rows, deployed, head, backup, summary, code, skipped_eval=None):
     msg = [f"deploy {head[:7]}", "files: " + ", ".join(r["repo"] for r in deployed),
            f"backup: {backup}/", f"after the copy: {summary}"]
     if skipped_eval:
-        msg.insert(2, "eval skipped by the owner")  # fixed text: the tag is pushed to a public repo
+        msg.insert(2, "eval skipped")  # fixed text: the tag is pushed to a public repo
     steps = []
     for row in deployed:
         try:

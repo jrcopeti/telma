@@ -149,7 +149,7 @@ hooks once. That is expected. It needs an ssh alias `agents-vps` with root acces
 `SOUL.md`, brain skills and the model keys also need `--eval-run <results .jsonl>`, pointing at the
 eval run that passed. For `SOUL.md`, commit it and run `python3 evals/run.py --repo-soul` first.
 Without the flag the deploy stops on those files. The owner can waive the eval for one deploy with
-`--skip-eval` instead, for `SOUL.md` only. The deploy's tag says "eval skipped by the owner" and
+`--skip-eval` instead, for `SOUL.md` only. The deploy's tag says "eval skipped" and
 nothing else, because the tag is public; keep the why in the private brain. Skills and the model
 keys still need a run. The two flags are alternatives.
 

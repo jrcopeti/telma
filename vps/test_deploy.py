@@ -224,9 +224,9 @@ class Deploy(unittest.TestCase):
         for other in (["--eval-run", "r"], ["--eval-run", ""], ["--deployed"]):
             self.assertEqual(self.f.deploy("--skip-eval", *other, "vps/SOUL.md", answers="y\n"), 2, self.f.out)
         self.assertEqual(self.f.deploy("--skip-eval", "vps/SOUL.md", answers="y\ny\ny\n"), 0, self.f.out)
-        self.assertIn("eval skipped by the owner", self.f.out)
+        self.assertIn("eval skipped", self.f.out)
         self.assertEqual(self.f.host_text("/h/SOUL.md"), "You keep Ana's brain well.\n")
-        self.assertIn("eval skipped by the owner", self.origin("tag", "-l", "-n20", f"deploy/{TODAY}-1"))
+        self.assertIn("eval skipped", self.origin("tag", "-l", "-n20", f"deploy/{TODAY}-1"))
 
     def test_skip_eval_covers_only_soul(self):
         self.f.change({"vps/a.sh": "echo a2\n"})

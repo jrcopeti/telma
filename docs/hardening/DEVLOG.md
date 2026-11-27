@@ -1894,3 +1894,33 @@ From a code review of step 11's PR; both were in step 10's merged code.
   failed on host-key checking: her user has no key, and her refs have been stale since 19 November.
   `vps/kill-switch.md` has the same pattern (`git -C /home/agent/brain log origin/main..HEAD`); fixing it is
   added to step 12.
+
+## 2026-11-27: step 14, `index.md` merges by line
+
+- Git's own rebase called a line she added next to a line the owner changed a conflict, so nothing was pushed.
+  `vps/sync-brain.sh` now leaves `index.md` out of that rebase (`subset` takes `FOLDERS`, the allowlist without
+  `index.md`) and `merge_index` merges it afterwards: her copy's version into GitHub's, against the version last
+  synced (`given`), through the new `mergelines` mode of `vps/brain-files.py`.
+- `mergelines` diffs each side against the base and applies each side's changed lines as that side wrote them,
+  dropping the base lines they replace. A line one side deleted and the other left alone stays deleted (a plain
+  union brings it back). Where both sides changed the same lines, or add at the same spot, both versions stay,
+  GitHub's first; an identical edit appears once. Lines end at `\n` only (a lone CR stays inside its line).
+- A run that pushed `main` and then stopped (the proposal push failed) is repeated without adding her line
+  twice: after the push, `refs/sync/index-pushed` holds the `index.md` blob of hers that went out, and a
+  later run that sees the same blob skips the merge. Cleared once `given` moves on. (A first try, skipping a
+  hunk whose text already sat in the owner's, lost a real line of hers that had the same text; the second
+  code review found it.)
+- If she deletes `index.md`, that stands only when the owner didn't change it. Only a plain file is merged, on
+  both sides: a link or gitlink as main's `index.md` is no merge, and neither is the owner deleting it while she
+  edited it (her lines alone would be a truncated index); both take the held-back path below.
+- A failed merge (a cut at 20 s, `BRAIN_MERGE_SECS`; git failing; a link there) holds back only her `index.md`
+  change: the rest goes out, her copy keeps her version, `given` keeps the old `index.md`, and every run says it
+  again until it merges. One edge is left: a crash in the middle of the copy refresh, while a merge is failing
+  and the owner also changed `index.md`, lets the resume write GitHub's `index.md` over hers.
+- Code review (6 findings) and an adversarial round (a fresh agent) found, all fixed here with tests: her plain
+  deletion of `index.md` was rejected by git (`malformed index info`) and stopped every run; a retried run added
+  her line twice; the first merge brought back owner-deleted lines when her edit sat next to them; a failed
+  merge blocked her notes and proposals; the mode was copied unchecked; a missing final newline was added.
+- Second code review (7 findings): 1, 2, 3, 4 and 7 fixed with tests that failed before; 5 and 6 left, in the
+  plan's Open section. 151 pass on Debian.
+- Not deployed: the owner's yes is needed. Step 12 (docs sweep) is the one left.

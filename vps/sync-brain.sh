@@ -12,7 +12,8 @@ Q=${BRAIN_QUARANTINE:-$HOME/brain-quarantine}
 KEYS=$HOME/.config/brain-deploy
 REMOTE=${BRAIN_REMOTE:-$(cat "$KEYS/remote" 2>/dev/null)}
 FILES=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/brain-files.py
-ALLOWED='^(inbox|sources|notes|guidelines|decisions|projects|intents)/|^index\.md$'
+FOLDERS='^(inbox|sources|notes|guidelines|decisions|projects|intents)/'
+ALLOWED="$FOLDERS|^index\\.md\$"
 PROPOSE='^skills/|^(AGENTS|CLAUDE|taste)\.md$'
 PBR=telma/proposals
 
@@ -138,6 +139,45 @@ merge3() {
   local d=$P/.git/sync-merge
   mkdir -p "$d" && g cat-file blob "$1" >"$d/o" && g cat-file blob "$2" >"$d/b" && g cat-file blob "$3" >"$d/t" &&
     git merge-file -p --union "$d/o" "$d/b" "$d/t" >"$d/m" 2>/dev/null && g hash-object -w --stdin <"$d/m"
+}
+# A commit on $1 with index.md set to mode $2 and object $3 (mode 0: gone); $1 itself if that changes nothing.
+set_index() {
+  local idx=$P/.git/sync-index tree zero=0000000000000000000000000000000000000000
+  [ "$2" = 0 ] && set -- "$1" 0 "$zero"
+  rm -f "$idx"
+  { GIT_INDEX_FILE=$idx g read-tree "$1" &&
+    printf '%s %s\t%s\0' "$2" "$3" index.md | GIT_INDEX_FILE=$idx g update-index -z --index-info &&
+    tree=$(GIT_INDEX_FILE=$idx g write-tree); } || return 1
+  if [ "$tree" = "$(g rev-parse "$1^{tree}")" ]; then echo "$1"; else g commit-tree "$tree" -p "$1" -m "brain: sync $(date -u +%FT%H:%MZ)"; fi
+}
+# $1, with index.md as her copy's version merged by line into it, against the one last synced ($given).
+# Git would call neighbouring edits a conflict; here both stay, and where both changed a line, both versions.
+merge_index() {
+  local h om oo bm bo d=$P/.git/sync-merge merged mode sha
+  read -r om oo <<<"$(ent "$hers" index.md)"
+  read -r bm bo <<<"$(ent "$given" index.md)"
+  [ "$om $oo" != "$bm $bo" ] || { echo "$1"; return 0; }
+  read -r h sha <<<"$(ent "$1" index.md)"
+  # Her change is already in $1 when an earlier run pushed it and then stopped before moving `given` on.
+  [ -z "$oo" ] || [ "$oo" != "$(g rev-parse -q --verify refs/sync/index-pushed)" ] || { echo "$1"; return 0; }
+  if [ -z "$om" ]; then
+    # She deleted it: that stands only if the owner left it alone.
+    [ "$h $sha" = "$bm $bo" ] || { echo "$1"; return 0; }
+    mode=0 merged=
+  else
+    # Only a plain file is merged, on both sides: a link or gitlink is no text. The owner deleting it while she
+    # edited it is no merge either: her lines alone would be a truncated index.
+    case $om in 100644 | 100755) ;; *) return 1 ;; esac
+    case $h in 100644 | 100755) ;; *) { [ -z "$h" ] && [ -z "$bo" ]; } || return 1 ;; esac
+    mkdir -p "$d" || return 1
+    { [ -z "$bo" ] && : >"$d/b" || g cat-file blob "$bo" >"$d/b"; } &&
+      { [ -z "$sha" ] && : >"$d/o" || g cat-file blob "$sha" >"$d/o"; } &&
+      g cat-file blob "$oo" >"$d/t" &&
+      timeout "${BRAIN_MERGE_SECS:-20}" python3 "$FILES" mergelines "$d/b" "$d/o" "$d/t" >"$d/m" &&
+      merged=$(g hash-object -w --stdin <"$d/m") || return 1
+    mode=${h:-$om}
+  fi
+  set_index "$1" "$mode" "$merged"
 }
 # final[path]="mode object" unless main already has it that way.
 put() {
@@ -285,8 +325,9 @@ if ! g diff --cached --quiet; then
 fi
 refuse_outside "$given" "$hers" "$ALLOWED|$PROPOSE"
 
-# Her changes under ALLOWED go to main; the rest of what she changed (the rule files) is proposed below.
-mine=$(subset "$given" "$given" "$hers" "$ALLOWED") || { say "git failed in $P"; exit 0; }
+# Her changes under ALLOWED go to main (index.md is merged by line afterwards); the rest of what she changed
+# (the rule files) is proposed below.
+mine=$(subset "$given" "$given" "$hers" "$FOLDERS") || { say "git failed in $P"; exit 0; }
 new=$mine
 if [ "$base" != "$given" ]; then
   if [ "$mine" = "$given" ]; then
@@ -304,11 +345,19 @@ if [ "$base" != "$given" ]; then
     exit 0
   fi
 fi
+# A failed merge holds back only her changes to index.md: the rest goes out, and the next run tries again.
+idxfail=
+idx_src=
+if merged=$(merge_index "$new"); then
+  [ "$merged" = "$new" ] || { read -r _ idx_src <<<"$(ent "$hers" index.md)"; new=$merged; }
+else idxfail=1; say "could not merge index.md (git failed, a version too big to merge in time, the owner deleted it, or it is not a plain file). Her changes to it wait; everything else goes out."; fi
 # A proposal that can't be saved doesn't hold back main (her notes still go out).
 propose; proposed=$?
 if [ "$new" != "$base" ]; then
   out=$(g push -q "$REMOTE" "$new:refs/heads/main" 2>&1) || { say "push failed:"; block <<<"$out"; exit 0; }
   g update-ref refs/sync/github "$new"
+  # Remember whose index.md is in main now, if a run that stops below repeats this one.
+  [ -z "$idx_src" ] || g update-ref refs/sync/index-pushed "$idx_src"
 fi
 
 # Her copy held $hers; it gets what GitHub changed. Pending until it all landed: a failure is finished
@@ -316,9 +365,17 @@ fi
 # A proposal that couldn't be saved stops here, after main: her copy and `given` stay as they were, so the
 # next run finds the same edits, merges them against the same base, and her copy isn't refreshed over them.
 [ "$proposed" = 0 ] || exit 0
+# While her index.md changes wait, `given` keeps the index.md it had, so the next run still sees them, and
+# her copy's index.md is not written over.
+done_new=$new
+if [ -n "$idxfail" ]; then
+  read -r gm gs <<<"$(ent "$given" index.md)"
+  hers=$(set_index "$hers" "${gm:-0}" "$gs") && done_new=$(set_index "$new" "${gm:-0}" "$gs") || { say "git failed in $P"; exit 0; }
+fi
 g update-ref refs/sync/given "$hers"
-[ "$new" = "$hers" ] && exit 0
-g update-ref refs/sync/pending "$new"
-g checkout -q -f --detach "$new" || { say "checkout failed in $P"; exit 0; }
-g diff --name-status --no-renames -z "$hers" "$new" -- | helper apply "$P" "$B" || exit 0
-g update-ref refs/sync/given "$new" && g update-ref -d refs/sync/pending
+g update-ref -d refs/sync/index-pushed
+[ "$done_new" = "$hers" ] && exit 0
+g update-ref refs/sync/pending "$done_new"
+g checkout -q -f --detach "$done_new" || { say "checkout failed in $P"; exit 0; }
+g diff --name-status --no-renames -z "$hers" "$done_new" -- | helper apply "$P" "$B" || exit 0
+g update-ref refs/sync/given "$done_new" && g update-ref -d refs/sync/pending

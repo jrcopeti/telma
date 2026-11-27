@@ -1858,3 +1858,24 @@ From a code review of step 11's PR; both were in step 10's merged code.
   hour (`memory-diff` at `10 0,8-23`) ran twice with nothing to post.
 - The eval for the new schedule was not run (the owner's call). `SOUL.md` and `docs/threat-model.md` still
   say "twice a day"; that is step 12.
+
+## 2026-11-27: step 13, a temp file is refused wherever it is
+
+- `refuse_outside` in `vps/sync-brain.sh` now collects every `.hermes-tmp.*` file in the diff (deletions
+  excluded) before the allowlist check, so a temp file under `notes/` or `skills/` gives the failed-write
+  post and stops the push, like one at the root. Before, `notes/` let it through to `main` and `skills/`
+  turned it into a proposal (the old "known gap" test). Deleting the file lifts the refusal on the next run.
+- Tests in `test-sync-brain.sh`: the two gap cases, each with a note beside the temp file held back and then
+  released once the temp file is deleted. 124 pass on Debian, 0 fail.
+- Code-review fixes: a file inside a `.hermes-tmp.*` folder is refused too, and a failed `git diff` in the
+  scan refuses the run instead of passing it. 125 pass.
+- Adversarial round: the failed-diff guard was dead code (a failure of only the scan's diff let the temp
+  file out); it now sets a flag that refuses the run, with a test using a `git` that fails on that diff alone.
+  The refusal header no longer says "outside what Telma may change" when a temp file under an allowed path
+  is the only offender. A name holding the byte `\001` still shows truncated in the post (cosmetic, left). 127 pass.
+- Second adversarial round found nothing in the change itself, and one older gap: the other two diffs in
+  `refuse_outside` (the link check and the `.git*` check) had no `pipefail`, so a failed `git diff` there
+  passed silently (a `.gitignore` went out). Fixed in this PR: `bad` is built under `pipefail` and a failed
+  diff says "(git diff failed)". Both tests plant a plain note, so each fails on the old script (a `.gitignore` is refused by `brain-files.py`
+  whatever the diff does, which made the first `--raw` test pass for the wrong reason; found in round 3). 129 pass.
+- Not deployed: the owner's yes is needed.

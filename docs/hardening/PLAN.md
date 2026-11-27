@@ -132,7 +132,7 @@ change the VPS need the owner's yes first.
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
 | 12 | Docs sweep | todo, after 13 and 14 |
-| 13 | Leftover temp files anywhere | todo |
+| 13 | Leftover temp files anywhere | in PR 2026-11-27, not deployed |
 | 14 | `index.md` merges by line | todo |
 
 #### 7. Unblock sync-brain (done)
@@ -194,12 +194,13 @@ change the VPS need the owner's yes first.
   - every doc that names who edits a skill lists all four callers.
 - **Needs the owner:** approval of each public doc in its PR; the eval with their yes for `SOUL.md`.
 
-#### 13. Leftover temp files anywhere
+#### 13. Leftover temp files anywhere (in PR, not deployed)
 
 - **Do:** in `vps/sync-brain.sh`, refuse a `.hermes-tmp.*` file wherever it is, before the allowlist
   check. The refusal clears once the temp file is gone, so it never holds a file back for good.
 - **Done when:** a temp file under `notes/` and one under `skills/` each give the failed-write post
   and push nothing; deleting it lets the next run go out.
+- **Needs the owner:** deploy.
 
 #### 14. `index.md` merges by line
 

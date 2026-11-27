@@ -23,6 +23,9 @@ jobs:
       - name: Test Telma's brain push guard
         run: bash vps/test-sync-brain.sh
 
+      - name: Test Telma's brain push guard (Python)
+        run: python3 -m unittest vps/test_sync_brain.py
+
   memory-diff:
     runs-on: ubuntu-24.04
     steps:

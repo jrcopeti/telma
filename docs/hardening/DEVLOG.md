@@ -2138,3 +2138,22 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
 - The plan's second check, met at 19:04: an item in her inbox was pushed by the scheduled run (commit
   `brain: sync 2026-11-27T18:04Z`, one file added under `inbox/`), next run 15 minutes later.
 - The brain note for `projects/telma.md` ("sync-brain is Python") went into the brain's inbox as a capture.
+
+## 2026-11-27: 16, sync-brain's tests in Python
+
+- `vps/test_sync_brain.py` (`python3 -m unittest vps/test_sync_brain.py`) holds the 169 checks of
+  `vps/test-sync-brain.sh`, each under the same name (a `subTest`); the names were diffed against the
+  bash run's `ok` lines, none missing, none extra. Same throwaway repos, same command-line-only checks.
+  Differences: the two chmod checks are skipped as root (own tests); the races use threads; a hang is a
+  failed test (the bash `timeout 60` checks passed on a killed run); the 105 MB file is sparse.
+- Run on Ubuntu 24.04 (Python 3.12, git 2.43) as a non-root user in Docker: 31 tests, 169 checks, 52 s
+  (bash: about four minutes). The bash suite passed there too before it was deleted: 169 of 169.
+- Adversarial round: 120 mutants of `sync-brain.py` (statement deleted, comparison flipped, and/or
+  swapped, `not` dropped, condition negated, integer plus one; AST-made, fixed seed). The Python suite
+  killed 94. The bash suite, run on the other 26, killed none of them: no mutant the bash suite
+  catches escapes the Python one. The 26 are equivalent or untested in both; not looked at one by one.
+- `/code-review` findings fixed: the two race checks now also assert that her swap landed while the run was
+  still going (two new checks, 171 in all); a condition that can raise runs inside its `subTest`; the
+  "unrelated history" check asserts the proposal; the test's environment is a whitelist (no `GIT_*`, no real
+  `HOME`); the two lock tests share one function. Two neighbouring checks that overlap keep their bash names.
+- The bash suite is deleted and CI runs only the Python one.

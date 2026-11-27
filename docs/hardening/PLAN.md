@@ -135,7 +135,7 @@ change the VPS need the owner's yes first.
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
 | 15 | sync-brain in Python | done 2026-11-27 (15a #109, 15b #110, 15c #111, 15d deployed `deploy/2026-11-27-3`) (a capture pushed by a scheduled run seen the same day) |
-| 16 | sync-brain's tests in Python | todo, after 15 |
+| 16 | sync-brain's tests in Python | done 2026-11-27 |
 
 #### 7. Unblock sync-brain (done)
 
@@ -327,7 +327,7 @@ owner's decision. The mount (9) and the schedule (11) aren't on AGENTS.md's list
 | `vps/README.md` | the scripts table, the `deploy.py vps/sync-brain.sh` example | 15c |
 | `docs/hardening/PLAN.md` | steps 8, 10, 13, 14 and "Done in steps 7 to 9" name `sync-brain.sh`: left as history, step 15 says it became `.py` | 15c |
 | `docs/deploy/PLAN.md` | if it names `sync-brain.sh` or its tests | 15c, 16 |
-| `vps/test_sync_brain.py` (new), `vps/test-sync-brain.sh` (deleted), `.github/workflows/tests.yml`, `vps/README.md` | the tests in Python, how to run them | 16 |
+| `vps/test_sync_brain.py` (new), `vps/test-sync-brain.sh` (deleted), `.github/workflows/tests.yml` | the tests in Python (the run command is in the test's header; `vps/README.md` names no test) | 16 |
 | Brain: `projects/telma.md` | sync-brain is Python | 15d, through capture |
 | Brain: the 2026-11-22 decision, `projects/telma.md`, `notes/hermes-agent-setup-gotchas.md`, `notes/telma-lethal-trifecta-and-safety-audit.md` | amended through capture and triage, not edited here | 12 |
 

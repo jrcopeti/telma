@@ -16,7 +16,9 @@ trust boundary as the agents.
 - **Eval before a change:** before changing Telma's model or fallback order, `SOUL.md`, a brain
   skill, her toolsets or the Hermes version, run the eval (`docs/evals/PLAN.md`; `--repo-soul` for `SOUL.md`) with the owner's
   yes. A task that newly fails against the last full run (`evals/results/`) blocks the change.
-  Tasks that already failed there don't block it, but say which ones still fail.
+  Tasks that already failed there don't block it, but say which ones still fail. The owner can waive
+  the eval for one `SOUL.md` deploy with `deploy.py --skip-eval "<reason>"` (`docs/deploy/PLAN.md`);
+  only the owner decides that, and nothing else is waivable.
 - **Hermes docs:** Context7 library `/nousresearch/hermes-agent` (architecture: `/cclank/hermes-wiki`).
   The running source on the VPS wins when they differ.
 - **Hook setup, once per clone:** `git config core.hooksPath .githooks`. The pre-commit hook runs

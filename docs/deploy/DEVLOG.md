@@ -589,3 +589,12 @@ vps/hermes/SOUL.md   /home/agent/.hermes/SOUL.md    redacted  …            …
   `host.md`, now `vps/README.md`). The check catches them differing; it doesn't say which one wins. Hermes's code at
   `ae2a81c` (`apply_terminal_config_to_env`) says `config.yaml` wins for the keys set in its
   `terminal:` section; untested.
+
+## 2026-11-27: `--skip-eval`
+
+The owner chose to deploy the repo's `SOUL.md` (hardening step 12) without the eval, and `deploy.py`
+had no way to say so. Added `--skip-eval "<reason>"`: for `SOUL.md` only, an alternative to
+`--eval-run`, refused with `--deployed`. The reason must be one printable line of at most 80
+characters, because the deploy's tag carries it to a public repo. The skills and the model keys
+stay gated. The tag holds the waiver only when a gated file was in the deploy. Code review's seven
+findings were all fixed in the same PR.

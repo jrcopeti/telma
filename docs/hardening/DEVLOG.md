@@ -1939,3 +1939,21 @@ From a code review of step 11's PR; both were in step 10's merged code.
   travelled down to her copy without a post, which also showed an owner-side delete reaching her.
 - **Not seen live:** the "both rewrite the same line" case and a failed merge (a cut at 20 s, a link, an
   owner-deleted file); those are proved by the tests only. Step 12 (docs sweep) is the last one left.
+
+## 2026-11-27: steps 15 and 16 planned (the owner grilled in a Claude Code session)
+
+- **Why:** `vps/sync-brain.sh` has grown since step 2 to 381 lines. The owner asked for a plan to port it
+  to Python, features exactly the same, with `vps/test-sync-brain.sh` as the source of truth, before
+  step 12.
+- **Decided, one question at a time:** the bash test stays the frozen oracle (a Python port of it is
+  step 16, later); `brain-files.py` untouched and called as a subprocess, as today; one file,
+  `vps/sync-brain.py`, no line cap; pause the job, deploy, delete the `.sh` from repo and host, no
+  parallel run, rollback by revert; 15b extends the oracle against bash before the port, and the
+  differential run in 15c is a throwaway script with its output kept here; comment-only edits to
+  `brain-files.py`, and to the oracle's header, `SCRIPT=` and the interpreter on its 9 calls, are allowed; an adversarial round in every sub-step; order
+  15, 16, then 12.
+- **Risks named before the port** (listed in step 15): the lock fd that bash hands to its children,
+  Python's `$` matching before a final newline, bash going on after most failures, the exported git env,
+  bytes against text, shell newline handling, and the live `refs/sync/*` state at cutover.
+- **Open before 15a:** whether a Hermes `script:` job runs a `.py` file; Hermes's source is only on the
+  VPS.

@@ -13,7 +13,7 @@ injection test suite passes against both agents. (Met by step 6.)
 
 **State:** steps 0 to 6 are done and were split at tag `pre-split` (2026-11-19): ticket-bay-bot moved
 to [jrcopeti/ticket-bay-bot](https://github.com/jrcopeti/ticket-bay-bot), see
-[the repo split](../repo-split/PLAN.md). Steps 7 to 14 were
+[the repo split](../repo-split/PLAN.md). Steps 7 to 16 were
 [reopened 2026-11-25](#reopened-2026-11-25-brain-rule-files-and-hourly-triage), Telma's side only:
 step 2's "Telma can't change `skills/`" held for her sandbox, not for her Hermes process on the host.
 The full text of steps 0 to 6 and their decisions is in the [devlog](DEVLOG.md).
@@ -88,7 +88,7 @@ never as a push to `main`. Triage runs hourly, only when the inbox holds somethi
 write `skills/`. sync-brain refused those edits and held back her inbox pushes. The story is in the
 [devlog](DEVLOG.md#2026-11-25-reopened-for-steps-7-to-12-the-owner-grilled-in-a-claude-code-session).
 
-**Done when:** steps 7 to 14 are done and the docs match what runs (step 12).
+**Done when:** steps 7 to 16 are done and the docs match what runs (step 12, the last).
 
 ### Decisions (the owner, 2026-11-25)
 
@@ -131,9 +131,11 @@ change the VPS need the owner's yes first.
 | 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
-| 12 | Docs sweep | todo, the last one |
+| 12 | Docs sweep | todo, the last one (after 16) |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
+| 15 | sync-brain in Python | todo, next (15a to 15d) |
+| 16 | sync-brain's tests in Python | todo, after 15 |
 
 #### 7. Unblock sync-brain (done)
 
@@ -183,7 +185,7 @@ change the VPS need the owner's yes first.
 
 #### 12. Docs sweep
 
-- **Do:** after 13 and 14, make every doc in the table below match what runs. Set `AGENTS.md`'s
+- **Do:** after 13 to 16, make every doc in the table below match what runs. Set `AGENTS.md`'s
   "Finished work" line to say hardening is closed again.
 - **Done when:**
   - a grep for "twice a day" and "09:00 and 21:00" finds nothing stale;
@@ -214,6 +216,82 @@ change the VPS need the owner's yes first.
   posts nothing; the owner rewrites a line she also touched, and both versions show; the owner
   deletes a line she left alone, and it stays deleted.
 
+#### 15. sync-brain in Python
+
+**Why:** `vps/sync-brain.sh` has grown since step 2 to 381 lines of bash, with Python helpers shelled
+out from it. The repo's language is Python; the brain's own `sync.mjs` shows the shape to aim for: one
+plain script, no dependencies, readable top to bottom.
+
+**Decisions (the owner, 2026-11-27):**
+
+- **Features exactly the same.** Nothing is fixed or added on the way, step 14's Open items included.
+  A bash bug found while porting goes to Open, not into the port.
+- **`vps/test-sync-brain.sh` is the oracle**, extended in 15b and frozen from 15c: only its header
+  comment, `SCRIPT=`, and the interpreter on its 9 `bash "$SCRIPT"` calls change. Every check passes on the Python script; the
+  posts match the bash ones except for the order of paths in a list. The one exception: a port bug the
+  adversarial round proves gets a new check, which must also pass on the bash script.
+- **One file, `vps/sync-brain.py`,** stdlib only, Python 3.12 (the VPS's). Laid out like the bash so
+  the two read side by side; one `git()` wrapper where each call says whether a failure stops the
+  run, is ignored, or falls back. No line cap, but clear over short.
+- **`vps/brain-files.py` is untouched**, called as a subprocess for `export`, `apply`, `gitfiles` and
+  `mergelines` as today (same exit codes, same text, `mergelines` under `BRAIN_MERGE_SECS`). Only its
+  comment naming `sync-brain.sh` changes.
+- **The shadow-skill scan still runs `find -L` under `timeout`;** only the awk is ported.
+- **No parallel run, no shadow mode.** The job is paused, the Python script deployed, `sync-brain.sh`
+  deleted from the repo and the VPS in the same change. Rollback is a revert PR, a redeploy and the
+  job's script line set back (both scripts read the same `refs/sync/*`).
+- **No eval:** sync-brain is not on AGENTS.md's list (model, fallback order, `SOUL.md`, brain skills,
+  toolsets, Hermes version).
+- **Every sub-step gets `/code-review` and an adversarial round** (a fresh agent, the
+  `adversarial-tester` skill), with the brief named in its row.
+
+**Risks the port carries** (what 15b checks and the adversarial rounds hunt):
+
+1. The lock: bash's fd 9 is inherited by git, ssh and python3, so a hung child keeps the lock. Python
+   opens files close-on-exec and `subprocess` closes every fd above 2 by default: every child call
+   passes `pass_fds=(lock_fd,)`.
+2. Python's `$` also matches before a final newline: `ALLOWED`, `FOLDERS` and `PROPOSE` need `\Z` or
+   `fullmatch`, or `index.md\n` passes.
+3. `set -u` without `-e`: some failures stop the run, many are ignored or fall back. Each git call's
+   failure mode is copied one by one.
+4. `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` and the ssh and prompt variables reach every git call,
+   `git init` and `git merge-file` included.
+5. Bytes: non-UTF-8 paths, GNU `cut -c` counting bytes, and `${n,,}`/`tolower` versus `str.lower()`.
+6. Shell details: `$(...)` drops trailing newlines and `<<<` adds one (the shadow alert compares
+   them), `grep -c .`, `grep -cxFf`, and `a || b && c` on the rebase-abort line.
+7. `find -L` loops, FIFOs and the 20 s cut, if the scan were rewritten (it is not).
+8. Path order in a post (bash hash order against insertion order); harmless, stated above.
+9. State left by bash at cutover: `refs/sync/given`, `pending`, `proposed`, `index-pushed`, a
+   half-done refresh.
+10. Whether a Hermes `script:` job runs a `.py` file (15a).
+11. What the oracle doesn't cover: the differential run (15c), the review and the adversarial round.
+
+| Sub | Do | Done when | Adversarial brief |
+|---|---|---|---|
+| 15a | Read Hermes's cron script runner on the VPS (read only): how a `script:` is run, by extension or shebang, and what it needs (exec bit, folder). | The DEVLOG says whether the job line is `script: sync-brain.py` or a two-line `sync-brain.sh` doing `exec python3`, with the source lines quoted. | Re-read the runner and try to prove the answer wrong. |
+| 15b | Extend `vps/test-sync-brain.sh` against today's bash: the lock still held by a hung child after the parent is killed (1), `index.md` plus a newline refused (2), a non-UTF-8 name and a cut through a multibyte name (5), a run killed halfway then finished by the next (9). A check that fails on bash found a bash bug: it is not added (the port keeps the bash behavior), and the bug goes to Open. Own PR, no VPS change. | Every check added passes on `sync-brain.sh` in CI; any bash bug found is in Open. | Mutate `sync-brain.sh` to break each risk; every new check goes red on its mutant. |
+| 15c | Write `vps/sync-brain.py`; point the oracle at it; delete `vps/sync-brain.sh`; change `vps/deploy.manifest`, `vps/hermes/jobs.overrides.yaml` (per 15a) and the CI job. A throwaway differential script (in the job's temp folder, not committed) runs each oracle scenario through both scripts and diffs remote refs, her copy and stdout, and kills each script halfway for the other to finish, both ways. | The oracle passes on Python in CI; the differential run shows no difference but path order, its output in the DEVLOG; the oracle diff is only the header, `SCRIPT=` and the 9 interpreter calls. | Risks 1 to 11, above all 3, 4 and 6: every git call's failure mode and env against the bash line it replaces; a proved port bug gets a check that passes on bash. |
+| 15d | With the owner's yes at each live step: pause `sync-brain`; check the sync clone is at rest (no `refs/sync/pending`, no `.git/rebase-*`, lock free); deploy `sync-brain.py` and `brain-files.py` with `deploy.py`; change the job's script line through Hermes's cron tool (`deploy.py` never writes `jobs.json`); remove `~/.hermes/scripts/sync-brain.sh`; smoke run; resume. | A by-hand run as `agent` with nothing to sync is silent, exit 0, no push; a capture through Telma is pushed by the next scheduled run; `check-drift.py` reads all in sync, the job line included; `ls ~/.hermes/scripts/` shows no `sync-brain.sh` (check-drift reads only manifest files); the job is resumed. | The deploy PR: manifest and job line, removal of the old file, drift check after it, rollback steps, the smoke checklist. |
+
+**Rollback:** with the job paused, revert 15c's PR (and 16's, if merged: its tests target the Python
+script and the bash ones are gone); deploy `vps/sync-brain.sh` from the revert with `deploy.py` (it is
+the one at `deploy/2026-11-27-2`); set the job's script line back through Hermes's cron tool; remove
+`~/.hermes/scripts/sync-brain.py`; resume. Not from `deploy.py`'s backups: none holds the current
+`.sh`, since 15d adds a new file and never overwrites the old one.
+
+**Needs the owner:** each PR's merge; pausing and resuming the job; the deploy, the job's script
+line and the smoke run.
+
+#### 16. sync-brain's tests in Python
+
+- **Do:** port `vps/test-sync-brain.sh` to `python3 -m unittest` (`vps/test_sync_brain.py`, in the
+  style of `vps/test_deploy.py`): the same throwaway repos, the same checks through the command line
+  only (test behavior, not implementation). Both suites run in CI in that PR; the bash one is deleted
+  in it once both are green. Adversarial round: break `sync-brain.py` the ways the bash suite catches
+  and show the Python suite catches each too.
+- **Done when:** the Python suite holds every check the bash one had, each named the same, CI runs
+  only it, and `vps/test-sync-brain.sh` is gone.
+
 #### Evals owed
 
 Merging a skill change into the brain, or changing `SOUL.md` (step 12), needs the eval with the
@@ -236,6 +314,15 @@ owner's decision. The mount (9) and the schedule (11) aren't on AGENTS.md's list
 | `docs/adr/0001-telma-keeps-the-brain.md` | "twice a day" | 12 |
 | `vps/kill-switch.md` | the "commits not pushed yet" line: no host git in her folder | 12 |
 | `AGENTS.md` | the "Finished work" line | 12 |
+| `vps/test-sync-brain.sh` | the port's checks against bash; then frozen but for the header, `SCRIPT=` and interpreter | 15b, 15c |
+| `vps/sync-brain.py` (new), `vps/sync-brain.sh` (deleted), `vps/brain-files.py` (comment only) | the port | 15c |
+| `vps/deploy.manifest`, `vps/hermes/jobs.overrides.yaml`, `.github/workflows/tests.yml` | the new file, the job's script line, the CI job | 15c |
+| `vps/test-cron-alert.sh` | its fixture job's `script: sync-brain.sh` (lines 13, 68, 75) matches the real job | 15c |
+| `vps/README.md` | the scripts table, the `deploy.py vps/sync-brain.sh` example | 15c |
+| `docs/hardening/PLAN.md` | steps 8, 10, 13, 14 and "Done in steps 7 to 9" name `sync-brain.sh`: left as history, step 15 says it became `.py` | 15c |
+| `docs/deploy/PLAN.md` | if it names `sync-brain.sh` or its tests | 15c, 16 |
+| `vps/test_sync_brain.py` (new), `vps/test-sync-brain.sh` (deleted), `.github/workflows/tests.yml`, `vps/README.md` | the tests in Python, how to run them | 16 |
+| Brain: `projects/telma.md` | sync-brain is Python | 15d, through capture |
 | Brain: the 2026-11-22 decision, `projects/telma.md`, `notes/hermes-agent-setup-gotchas.md`, `notes/telma-lethal-trifecta-and-safety-audit.md` | amended through capture and triage, not edited here | 12 |
 
 Done in steps 7 to 9: `vps/sync-brain.sh` and its test, `vps/kill-switch.md`, `vps/brain-skills/`,

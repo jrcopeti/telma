@@ -2062,3 +2062,11 @@ bug and the named mutants, and found:
   killing the run at each of about 67 git calls and running it twice more; the other 65 points
   converged. No check, by 15b's rule.
 
+
+**Round 2 (a fresh agent):** verdict merge. 167 pass under mawk and gawk, each with `C.UTF-8` and
+`LC_ALL=C`, no flake in extra concurrent runs. A sweep killing the run at each of 67 git calls found
+the same two divergent points as the Open item and none other. Three gaps it named, now in the 15c
+row's brief rather than Open: the lock check misses `9>&-` on `mergelines`, `gitfiles` or `apply`
+alone (only the first `python3` call is hung); the case-folding checks pin `LC_ALL=C`, so they say
+nothing about a UTF-8 locale; the oracle pins 2 of the 67 kill points. Open now holds the two bash
+bugs of 15b, the newline note and the old gap item having moved.

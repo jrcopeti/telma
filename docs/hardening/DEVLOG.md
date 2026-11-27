@@ -2152,4 +2152,8 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
   swapped, `not` dropped, condition negated, integer plus one; AST-made, fixed seed). The Python suite
   killed 94. The bash suite, run on the other 26, killed none of them: no mutant the bash suite
   catches escapes the Python one. The 26 are equivalent or untested in both; not looked at one by one.
+- `/code-review` findings fixed: the two race checks now also assert that her swap landed while the run was
+  still going (two new checks, 171 in all); a condition that can raise runs inside its `subTest`; the
+  "unrelated history" check asserts the proposal; the test's environment is a whitelist (no `GIT_*`, no real
+  `HOME`); the two lock tests share one function. Two neighbouring checks that overlap keep their bash names.
 - The bash suite is deleted and CI runs only the Python one.

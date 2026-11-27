@@ -23,7 +23,7 @@ SCRIPT = HERE / "sync-brain.py"
 FILES = HERE / "brain-files.py"
 GIT_ENV = {"GIT_AUTHOR_NAME": "test", "GIT_AUTHOR_EMAIL": "test@localhost", "GIT_COMMITTER_NAME": "test",
            "GIT_COMMITTER_EMAIL": "test@localhost", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
-ENV = {**os.environ, **GIT_ENV}
+ENV = {"PATH": os.environ["PATH"], "HOME": "/nonexistent", **GIT_ENV}  # nothing of the developer's: no GIT_DIR, no global ignore file
 UTF8 = {"encoding": "utf-8", "errors": "surrogateescape"}  # a name is bytes, not always UTF-8
 TRIALS = int(os.environ.get("RACE_TRIALS", 5))
 BAD = b"\xff\xfe".decode(**UTF8)  # a file name that is not UTF-8
@@ -175,7 +175,7 @@ class Case(unittest.TestCase):
     def check(self, name, *conds):
         with self.subTest(name):
             for i, c in enumerate(conds, 1):
-                self.assertTrue(c, f"condition {i} of {len(conds)} is false; output: {self.out or '<none>'!r}")
+                self.assertTrue(c() if callable(c) else c, f"condition {i} of {len(conds)} is false; output: {self.out or '<none>'!r}")
 
     def lines(self):
         return self.out.split("\n")
@@ -297,12 +297,12 @@ exec "{sys.executable}" "$@"
         return {"PATH": f"{d}:{os.environ['PATH']}"}
 
     # --- the lock is inherited by git, ssh and python3: a child that outlives its killed parent still holds it
-    def lock_case(self, marker, what, **kw):
+    def lock_case(self, marker, what, argv=None, name=None):
         self.setup()
         self.put(self.B / "notes/n.md", "ok\n")
         (self.T / "hung.pid").unlink(missing_ok=True)
         (self.T / marker).touch()
-        p = self.start(env=self.shimmed(), **kw)
+        p = self.start(argv=argv, env=self.shimmed())
         for _ in range(100):
             if (self.T / "hung.pid").exists() and (self.T / "hung.pid").stat().st_size:
                 break
@@ -317,9 +317,10 @@ exec "{sys.executable}" "$@"
             os.kill(int(hung), signal.SIGKILL)
         time.sleep(0.3)
         self.sync()
-        self.check(f"a hung {what} outliving its killed parent keeps the lock: the next run does nothing",
+        self.check(name or f"a hung {what} outliving its killed parent keeps the lock: the next run does nothing",
                    bool(hung), second == "", not pushed)
-        self.check(f"and once that {what} is gone, the next run pushes", self.silent(), self.remote_has("notes/n.md"))
+        if not name:
+            self.check(f"and once that {what} is gone, the next run pushes", self.silent(), self.remote_has("notes/n.md"))
 
     # === a local skill shadowing a brain skill
     def test_shadow_skills(self):
@@ -344,9 +345,9 @@ exec "{sys.executable}" "$@"
         self.check("two empty frontmatter names are silent", self.silent())
 
         # A comment where the name should be is no name either: two such skills must not match.
-        for v in ("# fill in",):
-            self.setup(); self.brain_skill("c", f"name: {v}"); self.skill(self.W / "home/.hermes/skills", "d", f"name: {v}"); self.sync()
-            self.check(f"two skills named '{v}' in place of a name are silent", self.silent())
+        v = "# fill in"
+        self.setup(); self.brain_skill("c", f"name: {v}"); self.skill(self.W / "home/.hermes/skills", "d", f"name: {v}"); self.sync()
+        self.check(f"two skills named '{v}' in place of a name are silent", self.silent())
 
         self.setup(); self.brain_skill("empty", "name:"); self.skill(self.W / "home/.hermes/skills", "mine", "name:")
         self.shadow("triage", "triage"); self.sync()
@@ -622,7 +623,8 @@ exec "{sys.executable}" "$@"
         self.git(self.seed, "add", "x"); self.git(self.seed, "commit", "-qm", "unrelated")
         self.git(self.seed, "push", "-q", self.remote, "unrelated:telma/proposals")
         self.app(self.B / "skills/triage/SKILL.md", "again\n"); self.sync()
-        self.check("a proposals branch with unrelated history does not break the run", self.says("telma/proposals") or not self.says("failed"))
+        self.check("a proposals branch with unrelated history does not break the run", not self.says("failed"),
+                   "again" in self.prop_show("skills/triage/SKILL.md"), "evil" not in self.read(self.B / "skills/triage/SKILL.md"))
 
     # === links, FIFOs and nested repos are not plain files
     def test_not_plain_files(self):
@@ -671,7 +673,7 @@ exec "{sys.executable}" "$@"
         self.put(B / "notes/n.md", "ok\n"); hung = self.run_for(LOOP_WAIT)
         self.check("a hostile .git: no hang, nothing run or written on the host, only her note pushed, the local machine's pulled",
                    not hung, self.silent(), not (W / "ran").exists(), self.read(W / "home/.bashrc") == "# host rc\n",
-                   os.listdir(W / "home/elsewhere") == [], self.remote_has("notes/n.md"), not self.remote_leaks(),
+                   lambda: os.listdir(W / "home/elsewhere") == [], self.remote_has("notes/n.md"), not self.remote_leaks(),
                    (B / "notes/m.md").exists(),
                    self.git(self.remote, "rev-list", "--count", "main", "--", "skills", "AGENTS.md").out.strip() == "1",
                    self.git(W / "evil.git", "for-each-ref").out == "", "evil" not in self.read(B / "skills/triage/SKILL.md"),
@@ -704,33 +706,46 @@ exec "{sys.executable}" "$@"
 
     # She swaps notes/x for a link to the host home while the quarantine works through decoys.
     def test_quarantine_race(self):
-        won = 0
+        won, landed, errors = 0, 0, []
         for _ in range(TRIALS):
             self.setup(); W, B = self.W, self.B
             self.put(W / "home/.hermes/config.yaml", "host config\n")
             for d in range(1, 21):
                 self.put(B / f"inbox/d{d}/AGENTS.md", "x\n")
             (B / "notes/x/.hermes").mkdir(parents=True)
+            running = threading.Event()
+            running.set()
+            hits = []
 
             def swap(stop):
                 first, last = B / "inbox/d1/AGENTS.md", B / "inbox/d20/AGENTS.md"
-                while not stop.is_set() and first.exists() and last.exists():
-                    pass
-                os.rename(B / "notes/x", B / "notes/x-real")
-                os.symlink(W / "home", B / "notes/x")
+                while first.exists() and last.exists():
+                    if stop.is_set():
+                        return
+                try:
+                    os.rename(B / "notes/x", B / "notes/x-real")
+                    os.symlink(W / "home", B / "notes/x")
+                    hits.append(running.is_set())
+                except OSError as e:
+                    errors.append(e)
             self.loop(swap)
-            self.sync(); self.stop_loop()
+            self.sync(); running.clear(); self.stop_loop()
+            landed += any(hits)
             won += not (W / "home/.hermes/config.yaml").exists()
         self.check("the quarantine never moves a host folder outside the brain", won == 0)
+        self.check("the quarantine race: her swap landed while the run was still going", errors == [], landed > 0)
 
     # She keeps swapping notes/ and a link to the host home while the host copies her files.
     def test_export_race(self):
-        won = 0
+        won, linked = 0, 0
         for _ in range(TRIALS):
             self.setup(); W, B = self.W, self.B
             for d in range(1, 201):
                 self.put(B / f"notes/n{d}.md", f"n{d}\n")
             shutil.copy(W / "home/secret", W / "home/a.md")
+            running = threading.Event()
+            running.set()
+            hits = [0]
 
             def swap(stop):
                 notes, real = B / "notes", B / "notes-real"
@@ -741,10 +756,13 @@ exec "{sys.executable}" "$@"
                             step()
                         except OSError:
                             pass
+                    hits[0] += running.is_set()
             self.loop(swap)
-            self.sync(); self.stop_loop()
+            self.sync(); running.clear(); self.stop_loop()
+            linked += hits[0]
             won += self.remote_leaks()
         self.check("swapping notes/ for a link mid-copy never pushes a host file", won == 0)
+        self.check("the export race: her swap cycled while the run was still going", linked > 0)
 
     # === the host's writes into her copy never go through her links
     def apply(self, *items):
@@ -921,11 +939,11 @@ exec "{sys.executable}" "$@"
             self.setup(); self.put(self.B / gf, "*\n")
             self.check(f"{gf} (the local machine's git would read it) is refused", self.refused(gf))
 
-        for mf in ("AGENTS.md",):
-            self.setup(); (self.B / mf).touch(); i = os.stat(self.B / mf).st_ino
-            self.mac_ready(); self.app(self.W / "mac" / mf, "new rules\n"); self.mac_commit("rules"); self.sync()
-            self.check(f"an edit on the local machine to {mf} keeps its inode (her sandbox may mount the file)", self.silent(),
-                       "new rules" in self.read(self.B / mf), os.stat(self.B / mf).st_ino == i)
+        mf = "AGENTS.md"
+        self.setup(); (self.B / mf).touch(); i = os.stat(self.B / mf).st_ino
+        self.mac_ready(); self.app(self.W / "mac" / mf, "new rules\n"); self.mac_commit("rules"); self.sync()
+        self.check(f"an edit on the local machine to {mf} keeps its inode (her sandbox may mount the file)", self.silent(),
+                   "new rules" in self.read(self.B / mf), lambda: os.stat(self.B / mf).st_ino == i)
 
         self.setup(); os.link(self.B / "notes/a.md", self.B / "inbox/linked.md"); self.sync()
         self.mac_ready(); self.app(self.W / "mac/notes/a.md", "mac\n"); self.mac_commit("mac"); self.sync()
@@ -966,7 +984,7 @@ exec "{sys.executable}" "$@"
         os.chmod(B / "skills/triage/SKILL.md", 0o755); self.sync()
         self.check("an exec-bit change to a skill is proposed",
                    self.git(self.remote, "ls-tree", "telma/proposals", "skills/triage/SKILL.md").out.startswith("100755"),
-                   not os.access(B / "skills/triage/SKILL.md", os.X_OK))
+                   lambda: not os.access(B / "skills/triage/SKILL.md", os.X_OK))
 
         self.setup(); B, W = self.B, self.W
         self.put(B / "skills/new/SKILL.md", "v1\n"); self.sync()
@@ -1179,23 +1197,8 @@ exec "{sys.executable}" "$@"
                    not self.says("moved these"))
 
         # Bash's fd 9 is the lock whatever fd 0 is: with stdin closed, a hung child still keeps it (the port's lock fd is then 0).
-        self.lock_case_stdin_closed()
-
-    def lock_case_stdin_closed(self):
-        self.setup(); self.put(self.B / "notes/n.md", "ok\n")
-        (self.T / "hung.pid").unlink(missing_ok=True); (self.T / "hang-fetch").touch()
-        p = self.start(argv=["sh", "-c", 'exec "$@" <&-', "sh", sys.executable, SCRIPT], env=self.shimmed())
-        for _ in range(100):
-            if (self.T / "hung.pid").exists() and (self.T / "hung.pid").stat().st_size:
-                break
-            time.sleep(0.1)
-        hung = self.read(self.T / "hung.pid").strip()
-        p.kill(); p.communicate()
-        self.sync(); second = self.out; pushed = self.remote_has("notes/n.md")
-        if hung:
-            os.kill(int(hung), signal.SIGKILL)
-        time.sleep(0.3)
-        self.check("a hung git outliving its killed parent keeps the lock even when stdin was closed", bool(hung), second == "", not pushed)
+        self.lock_case("hang-fetch", "git", argv=["sh", "-c", 'exec "$@" <&-', "sh", sys.executable, SCRIPT],
+                       name="a hung git outliving its killed parent keeps the lock even when stdin was closed")
 
 
 if __name__ == "__main__":

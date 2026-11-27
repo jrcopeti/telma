@@ -16,6 +16,8 @@ trust boundary as the agents.
   skill, her toolsets or the Hermes version, run the eval (`docs/evals/PLAN.md`; `--repo-soul` for `SOUL.md`) with the owner's
   yes. A task that newly fails against the last full run (`evals/results/`) blocks the change.
   Tasks that already failed there don't block it, but say which ones still fail.
+- **Hermes docs:** Context7 library `/nousresearch/hermes-agent` (architecture: `/cclank/hermes-wiki`).
+  The running source on the VPS wins when they differ.
 - **Hook setup, once per clone:** `git config core.hooksPath .githooks`. The pre-commit hook runs
   gitleaks on staged changes; CI runs it on the full history.
 - **No secrets or personal data:** no keys, webhook URLs, inbox address, Discord IDs, IP addresses,

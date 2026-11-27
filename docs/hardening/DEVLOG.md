@@ -1969,13 +1969,16 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
 - **A bare `.py` runs on Hermes's own Python,** picked by `_posix_cron_script_argv` through
   `project_python`, which reads the install's recorded venv (`installs/<id>/facts.json`) and falls back
   to `hermes-agent/venv`. The fallback path doesn't exist here, but the recorded venv does (Python 3.14).
-  So a bare `.py` would run, on 3.14 and not the VPS's 3.12, and its working depends on Hermes's
+  So by my reading of the source a bare `.py` would run, on 3.14 and not the VPS's 3.12, and its working depends on Hermes's
   install state. My first reading, "the venv is missing", was wrong; the adversarial round caught it.
   I did not run a job.
 - **A job's `interpreter` field is the robust choice.** It drops the dependency on Hermes's install state and pins 3.12. `_script_argv` returns `[interpreter, script]`
   with no overlays. The value must be an absolute path to an executable whose name matches
   `python`, `python3` or `python3.12` (`_INTERPRETER_IMAGE_RE`), and it applies to `no_agent` jobs too. `/usr/bin/python3` is a symlink to
-  `python3.12` and passes. `hermes cron edit --interpreter` sets it.
+  `python3.12`; the check reads both the given name and the symlink target's name, and `stat` follows the
+  link, so it passes. `hermes cron edit --interpreter` sets it (`hermes_cli/subcommands/cron.py:112,193`,
+  `tools/cronjob_tools.py:912` writes `updates["interpreter"]`, `cron/jobs.py:1742` normalizes it, then
+  `save_jobs`; read, not run).
 - **Same as the `.sh` today:** the env is `build_subprocess_env` (secrets stripped), the cwd is the
   scripts folder, the script runs in its own session, and a timeout kills the whole process tree. A
   non-UTF-8 byte in the output is decoded lossily.
@@ -1983,3 +1986,10 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
   wrapper. A wrapper would keep a bash file the port is meant to remove. Consequence for 15c and 15d:
   `check-drift.py` doesn't read `interpreter` yet (it reads `schedule`, `script`, `enabled`,
   `no_agent`, `deliver` and others); 15c adds it.
+- **Cross-checked against Hermes's docs** (cron page, cron-script-only guide, via Context7
+  `/nousresearch/hermes-agent`): same rules. Also: `--interpreter` is "a user-owned setting: set it with
+  `hermes cron create/edit`; the agent's `cronjob` tool can't", so 15d sets it from the shell. It is
+  checked at run time, not at creation, and `hermes cron edit <job_id> --interpreter ""` clears it. A
+  job script's timeout defaults to 3600 s, its env is sanitized (no Hermes secrets), and a non-zero exit
+  sends an error alert. The docs document no `hermes cron edit --script` flag: 15d checks how the script
+  line is changed.

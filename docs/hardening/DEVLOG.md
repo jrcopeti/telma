@@ -1957,3 +1957,47 @@ From a code review of step 11's PR; both were in step 10's merged code.
   bytes against text, shell newline handling, and the live `refs/sync/*` state at cutover.
 - **Open before 15a:** whether a Hermes `script:` job runs a `.py` file; Hermes's source is only on the
   VPS.
+
+## 2026-11-27: 15a, how Hermes runs a cron script
+
+Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script_argv` and
+`_run_job_script`.
+
+- **Chosen by extension, never by shebang or exec bit.** The source says so: "Interpreter by extension
+  — the shebang is deliberately NOT honoured". `.sh` and `.bash` run under `bash`; anything else is
+  Python. The script must resolve inside `~/.hermes/scripts/`.
+- **A bare `.py` runs on Hermes's own Python,** picked by `_posix_cron_script_argv` through
+  `project_python`, which reads the install's recorded venv (`installs/<id>/facts.json`) and falls back
+  to `hermes-agent/venv`. The fallback path doesn't exist here, but the recorded venv does (Python 3.14).
+  So by my reading of the source a bare `.py` would run, on 3.14 and not the VPS's 3.12, and its working depends on Hermes's
+  install state. My first reading, "the venv is missing", was wrong; the adversarial round caught it.
+  I did not run a job.
+- **A job's `interpreter` field is the robust choice.** It drops the dependency on Hermes's install state and pins 3.12. `_script_argv` returns `[interpreter, script]`
+  with no overlays. The value must be an absolute path to an executable whose name matches
+  `python`, `python3` or `python3.12` (`_INTERPRETER_IMAGE_RE`), and it applies to `no_agent` jobs too. `/usr/bin/python3` is a symlink to
+  `python3.12`; the check reads both the given name and the symlink target's name, and `stat` follows the
+  link, so it passes. `hermes cron edit --interpreter` sets it (`hermes_cli/subcommands/cron.py:112,193`,
+  `tools/cronjob_tools.py:912` writes `updates["interpreter"]`, `cron/jobs.py:1742` normalizes it, then
+  `save_jobs`; read, not run).
+- **Same as the `.sh` today:** the env is `build_subprocess_env` (secrets stripped), the cwd is the
+  scripts folder, the script runs in its own session, and a timeout kills the whole process tree. A
+  non-UTF-8 byte in the output is decoded lossily.
+- **Answer:** `script: sync-brain.py` with `interpreter: /usr/bin/python3`, not a two-line `.sh`
+  wrapper. A wrapper would keep a bash file the port is meant to remove. Consequence for 15c and 15d:
+  `check-drift.py` doesn't read `interpreter` yet (it reads `schedule`, `script`, `enabled`,
+  `no_agent`, `deliver` and others); 15c adds it.
+- **Cross-checked against Hermes's docs** (cron page, cron-script-only guide, via Context7
+  `/nousresearch/hermes-agent`): same rules. Also: `--interpreter` is "a user-owned setting: set it with
+  `hermes cron create/edit`; the agent's `cronjob` tool can't", so 15d sets it from the shell. It is
+  checked at run time, not at creation, and `hermes cron edit <job_id> --interpreter ""` clears it. A
+  job script's timeout defaults to 3600 s, its env is sanitized (no Hermes secrets), and a non-zero exit
+  sends an error alert. The docs document no `hermes cron edit --script` flag: 15d checks how the script
+  line is changed.
+- **Plan checked against Hermes's docs and source (Context7 and the VPS), same day.** It holds. Gaps
+  closed in 15d: the script line is changed with `hermes cron edit <job_id> --script … --interpreter …`
+  (`--script` exists on `edit`; the docs page shows it only in a mode-flip example); resume fires one
+  catch-up run for a slot that came due while paused (`cron.catch_up_missed: false` skips it);
+  `hermes cron doctor` reports a missing script and joins the smoke checklist; `hermes cron cancel`
+  stops a run in flight, so 15d checks none is running before the pause. A run still going at the next
+  tick is skipped by Hermes (`Job '%s' already running — skipping`, `cron/scheduler.py:4293`), a second
+  guard beside sync-brain's own lock. Nothing in the docs changes the port's risks 1 to 11.

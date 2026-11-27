@@ -2177,3 +2177,13 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
   the `taste.md` rule in `SOUL.md` is its own bullet; `kill-switch.md` diffs her folder against the sync clone's
   checkout with plain `diff -rq`; the PLAN and `AGENTS.md` say hardening closes when `SOUL.md` is live. The
   owner removed the public-prose approval line from `AGENTS.md`; PLAN's matching phrase went too.
+
+## 2026-11-27: 12, `SOUL.md` deployed, hardening closed
+
+- The owner chose to skip the eval for the new `SOUL.md`. `deploy.py` had no way to record that, so
+  `--skip-eval` was added first (#115, [deploy devlog](../deploy/DEVLOG.md)): `SOUL.md` only, no reason
+  taken, the tag says "eval skipped".
+- Deployed from `main` at `bcd7732` as `deploy/2026-11-27-4`: the check read 18 of 18 in sync, hermes ok,
+  hooks ok, and `deployed` moved to the same commit. It takes effect in her next chat.
+- Not measured: the eval's task results for this `SOUL.md`. The last full run (`evals/results/`) is the
+  baseline, and a regression would show only in the next run. Hardening is closed.

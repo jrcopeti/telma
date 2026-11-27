@@ -131,9 +131,9 @@ change the VPS need the owner's yes first.
 | 9 | `taste.md` writable | done 2026-11-26 (#87, brain PRs #5, #7) |
 | 10 | Watch brain skills | done 2026-11-26 (#92; deployed `deploy/2026-11-26-1`) |
 | 11 | Hourly gated triage | done 2026-11-27 (#99, #101; deployed `deploy/2026-11-26-2` and `-3`) |
-| 12 | Docs sweep | todo, after 13 and 14 |
+| 12 | Docs sweep | todo, the last one |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
-| 14 | `index.md` merges by line | done 2026-11-27 (branch `feat/step-14-index-line-merge`; not deployed) |
+| 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
 
 #### 7. Unblock sync-brain (done)
 

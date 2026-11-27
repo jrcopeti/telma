@@ -1924,3 +1924,18 @@ From a code review of step 11's PR; both were in step 10's merged code.
 - Second code review (7 findings): 1, 2, 3, 4 and 7 fixed with tests that failed before; 5 and 6 left, in the
   plan's Open section. 151 pass on Debian.
 - Not deployed: the owner's yes is needed. Step 12 (docs sweep) is the one left.
+
+## 2026-11-27: step 14 deployed and proved live
+
+- **Deployed:** #105 went out as `deploy/2026-11-27-2`; the drift check read 18 of 18 in sync and `deployed` is at
+  `e5ff099`. `vps/sync-brain.sh` and `vps/brain-files.py` were copied.
+- **Smoke test (the owner's yes to a live edit):** right after a scheduled run, the owner's side rewrote line 46
+  of the real `index.md` on GitHub (a marker at its end), and a line was inserted directly under line 46 in her
+  copy. A by-hand run of sync-brain (as her user) was silent, exit 0; GitHub then held both the marked line and
+  her line under it (91 lines, one more than before), with no stale copy, and her copy was byte-identical to
+  GitHub's. Before the change this is the shape that stopped the runs of 21:02 to 21:34 on 2026-11-25.
+- **Cleanup:** the owner's side removed both test edits and pushed; two by-hand runs were silent, her copy again
+  equalled GitHub, and `index.md` is byte-identical to its content before the test (`d31cf48`). Her removed line
+  travelled down to her copy without a post, which also showed an owner-side delete reaching her.
+- **Not seen live:** the "both rewrite the same line" case and a failed merge (a cut at 20 s, a link, an
+  owner-deleted file); those are proved by the tests only. Step 12 (docs sweep) is the last one left.

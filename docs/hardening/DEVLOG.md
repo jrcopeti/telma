@@ -2001,3 +2001,44 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
   stops a run in flight, so 15d checks none is running before the pause. A run still going at the next
   tick is skipped by Hermes (`Job '%s' already running — skipping`, `cron/scheduler.py:4293`), a second
   guard beside sync-brain's own lock. Nothing in the docs changes the port's risks 1 to 11.
+
+## 2026-11-27: 15b, the oracle extended against bash
+
+`vps/test-sync-brain.sh` gains 13 checks, all passing on `sync-brain.sh` (151 before, 164 after) in an
+`ubuntu:24.04` container as a non-root user, under `LANG=C.UTF-8` and under `LC_ALL=C`, with mawk. Two
+more helpers sit with them: a `git` shim in `$T/gitshim` that hangs the next fetch, or kills the run
+at a named git call, whatever the interpreter is (it kills `$PPID`, the script).
+
+- **Lock (risk 1), 2 checks:** the shim turns the next `git fetch` into a `sleep`; the script is
+  killed with `pkill -9 -f "$SCRIPT"`; the next run does nothing (silent, nothing pushed) while the
+  `sleep` lives, and pushes once it is killed.
+- **Names (risks 2 and 5), 7 checks:** `index.md\n`, `AGENTS.md\n` and `notes/x\ny.md` are refused;
+  a note named `\377\376.md` is pushed, silent, and the next run pushes nothing; the same name from the
+  local machine reaches her copy; a refused 124-byte name is posted cut at 100 bytes, through the
+  middle of a character (GNU `cut -c` counts bytes).
+- **Case folding (risk 5), 2 checks, pinned `LC_ALL=C`:** bash's `${n,,}` and mawk's `tolower` fold
+  ASCII only there, so a brain skill `Édition` and a local `édition` don't match, and `Édition` and
+  `ÉDITION` do. A port using `str.lower()` fails the first.
+- **Killed halfway (risk 9), 2 checks:** killed right after main took her merged `index.md`, before
+  `refs/sync/given` moved: the next runs add nothing twice. Killed right after a proposal push, before
+  `refs/sync/proposals`: the next run pushes no second commit and posts nothing.
+
+**Mutants** (each on a copy of `sync-brain.sh` or `brain-files.py`, the whole suite, containers in
+parallel): `9>&-` on `g()` turns the lock check red; reading the names with `-z | tr '\0' '\n'` turns the
+three newline checks red; a char-based cut turns the cut check red; `quotePath=true` turns the
+non-UTF-8 push and the cut check red; a strict `decode()` for `apply`'s paths in `brain-files.py` turns
+the local-machine non-UTF-8 check red; Unicode lowercasing of the names turns the first case-folding
+check red, no folding turns the second red; deleting the `index-pushed` guard turns the index check red
+(and an older check); dropping the "same proposal" short-circuit turns the proposal check red (it
+first stayed green: both runs could commit in one second, so it now waits 1.1 s before the next run).
+`if [ -z "$cur" ]` turned to `if true` was caught by older checks only, not by the new one, which is not
+what it pins.
+
+**Found: a bash bug (Open).** A refused root file with a non-UTF-8 name is not refused under a UTF-8
+locale; grep's "binary file matches" goes into the post instead of the name. The check I first wrote
+passed in the C locale and failed in the container's default `C.UTF-8`, so it was dropped, per 15b's
+rule, and the bug went to Open with the unread VPS locale.
+
+**Plan changes:** the oracle now has 11 `bash "$SCRIPT"` calls, not 9; the 15c row and the decisions
+list say so. Nothing else.
+

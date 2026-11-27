@@ -684,5 +684,67 @@ check "an index.md too big to merge in time is said; only it waits, and her copy
 BRAIN_MERGE_SECS=1 sync
 check "and the next run says it again, with her version still there" eval 'says "could not merge index.md" && grep -qx z "$B/index.md"'
 
+# --- 15b: what a port to Python could get wrong (2026-11-27). Each check passes on today's script.
+# A git that hangs on the next fetch (hang-fetch), or kills the run at the git call named in kill-at.
+mkdir -p "$T/gitshim"
+cat > "$T/gitshim/git" <<'EOF'
+#!/bin/sh
+if [ -e "@T@/hang-fetch" ]; then case " $* " in *" fetch "*) rm -f "@T@/hang-fetch"; echo $$ > "@T@/hung.pid"; exec sleep 300;; esac; fi
+if [ -s "@T@/kill-at" ]; then case " $* " in *" $(cat "@T@/kill-at") "*) rm -f "@T@/kill-at"; kill -9 $PPID; exit 137;; esac; fi
+exec @GIT@ "$@"
+EOF
+sed -i "s|@T@|$T|g; s|@GIT@|$(command -v git)|" "$T/gitshim/git"; chmod +x "$T/gitshim/git"
+killed_at() { echo "$1" > "$T/kill-at"; out=$(PATH=$T/gitshim:$PATH run bash "$SCRIPT" 2>&1); }
+
+# The lock is inherited by git, ssh and python3: a child that outlives its killed parent still holds it.
+setup; echo ok > "$B/notes/n.md"; rm -f "$T/hung.pid"; touch "$T/hang-fetch"
+PATH=$T/gitshim:$PATH run bash "$SCRIPT" >"$W/bg.out" 2>&1 & bg_pid=$!
+for _ in $(seq 100); do [ -s "$T/hung.pid" ] && break; sleep 0.1; done
+hung_pid=$(cat "$T/hung.pid" 2>/dev/null); pkill -9 -f "$SCRIPT"; wait "$bg_pid" 2>/dev/null
+sync; second=$out; remote_has notes/n.md && pushed=yes || pushed=no
+[ -z "$hung_pid" ] || kill -9 "$hung_pid" 2>/dev/null; sleep 0.3; sync
+check "a hung git outliving its killed parent keeps the lock: the next run does nothing" eval '[ -n "$hung_pid" ] && [ -z "$second" ] && [ "$pushed" = no ]'
+check "and once that git is gone, the next run pushes" eval 'silent && remote_has notes/n.md'
+
+# A name that only matches a pattern when its final newline is ignored.
+setup; touch "$B/"$'index.md\n'
+check "index.md plus a newline is refused, not taken for index.md" refused index.md
+setup; touch "$B/"$'AGENTS.md\n'
+check "AGENTS.md plus a newline is refused, not proposed" eval 'refused AGENTS.md && [ -z "$(prop_head)" ]'
+setup; touch "$B/notes/"$'x\ny.md'
+check "a name with a newline in an allowed folder is refused" refused 'notes/x'
+
+# Names are bytes: not UTF-8, and cut at 100 bytes in a post, through a character if that is where 100 falls.
+# (A refused root file whose name is not UTF-8 has no check: in a UTF-8 locale bash does not refuse it, see Open.)
+bad=$(printf '\377\376')
+setup; touch "$B/notes/$bad.md"; sync
+check "a note whose name is not UTF-8 is pushed, silently" eval 'silent && remote_has "notes/$bad.md" && [ -e "$B/notes/$bad.md" ]'
+sync
+check "and the next run pushes nothing and says nothing" eval 'silent'
+setup; mac status -s; touch "$W/mac/notes/$bad.md"; mac_commit "a name that is not UTF-8"; sync
+check "a note from the local machine whose name is not UTF-8 reaches her copy" eval 'silent && [ -e "$B/notes/$bad.md" ]'
+setup; touch "$B/a$(for _ in $(seq 60); do printf 'é'; done).md"; sync
+cut=$(printf a; for _ in $(seq 49); do printf 'é'; done; printf '\303')
+check "a refused name is cut at 100 bytes, even through a character" eval 'says refused && LC_ALL=C grep -qaxF -- "$cut" <<<"$out"'
+
+# Lowercasing a skill's name folds ASCII only (in the C locale; mawk's tolower never goes further).
+skill_in_brain() { mac status -s; mkdir -p "$W/mac/skills/$1"; printf -- '---\nname: %s\n---\n' "$1" > "$W/mac/skills/$1/SKILL.md"; mac_commit "skill $1"; sync; }
+setup; skill_in_brain Édition; shadow édition édition; LC_ALL=C sync
+check "a local skill named like a brain skill but for non-ASCII case is silent" eval 'silent'
+setup; skill_in_brain Édition; shadow ÉDITION ÉDITION; LC_ALL=C sync
+check "a local skill with the same non-ASCII letters and another ASCII case is alerted" eval 'says "hides the reviewed one" && says ition'
+
+# A run killed halfway is finished by the next.
+idx5; printf 'L1\nL2\nL3 owner\nL4\nL5\n' > "$W/mac/index.md"; mac_commit "owner rewrites L3"
+printf 'L1\nL2\nL3 hers\nL4\nL5\n' > "$B/index.md"; killed_at "update-ref refs/sync/given"
+first=$(idx_remote); sync; sync
+check "killed after pushing her index.md, before moving on: the merge is not repeated" eval \
+  '[ "$first" = "L1 L2 L3 owner L3 hers L4 L5 " ] && silent && [ "$(idx_remote)" = "$first" ] && [ "$(idx_hers)" = "$first" ]'
+
+setup; echo evil >> "$B/skills/triage/SKILL.md"; echo ok > "$B/notes/n.md"; killed_at "update-ref refs/sync/proposals"
+first=$(prop_head); sleep 1.1; sync  # a second later, so a repeated proposal would be a new commit
+check "killed after pushing a proposal, before noting it: the next run neither pushes it again nor posts it again" eval \
+  '[ -n "$first" ] && silent && [ "$(prop_head)" = "$first" ] && [ "$(prop_commits)" = 1 ] && remote_has notes/n.md && ! grep -q evil "$B/skills/triage/SKILL.md"'
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

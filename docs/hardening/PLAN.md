@@ -134,7 +134,7 @@ change the VPS need the owner's yes first.
 | 12 | Docs sweep | todo, the last one (after 16) |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
-| 15 | sync-brain in Python | in progress: 15a done 2026-11-27 (#109); 15b to 15d todo |
+| 15 | sync-brain in Python | in progress: 15a done 2026-11-27 (#109), 15b done 2026-11-27; 15c and 15d todo |
 | 16 | sync-brain's tests in Python | todo, after 15 |
 
 #### 7. Unblock sync-brain (done)
@@ -227,7 +227,7 @@ plain script, no dependencies, readable top to bottom.
 - **Features exactly the same.** Nothing is fixed or added on the way, step 14's Open items included.
   A bash bug found while porting goes to Open, not into the port.
 - **`vps/test-sync-brain.sh` is the oracle**, extended in 15b and frozen from 15c: only its header
-  comment, `SCRIPT=`, and the interpreter on its 9 `bash "$SCRIPT"` calls change. Every check passes on the Python script; the
+  comment, `SCRIPT=`, and the interpreter on its 11 `bash "$SCRIPT"` calls change. Every check passes on the Python script; the
   posts match the bash ones except for the order of paths in a list. The one exception: a port bug the
   adversarial round proves gets a new check, which must also pass on the bash script.
 - **One file, `vps/sync-brain.py`,** stdlib only, Python 3.12 (the VPS's). Laid out like the bash so
@@ -269,8 +269,8 @@ plain script, no dependencies, readable top to bottom.
 | Sub | Do | Done when | Adversarial brief |
 |---|---|---|---|
 | 15a (done) | Read Hermes's cron script runner on the VPS (read only): how a `script:` is run, by extension or shebang, and what it needs (exec bit, folder). | The DEVLOG says whether the job line is `script: sync-brain.py` or a two-line `sync-brain.sh` doing `exec python3`, with the source lines quoted. | Re-read the runner and try to prove the answer wrong. |
-| 15b | Extend `vps/test-sync-brain.sh` against today's bash: the lock still held by a hung child after the parent is killed (1), `index.md` plus a newline refused (2), a non-UTF-8 name and a cut through a multibyte name (5), a run killed halfway then finished by the next (9). A check that fails on bash found a bash bug: it is not added (the port keeps the bash behavior), and the bug goes to Open. Own PR, no VPS change. | Every check added passes on `sync-brain.sh` in CI; any bash bug found is in Open. | Mutate `sync-brain.sh` to break each risk; every new check goes red on its mutant. |
-| 15c | Write `vps/sync-brain.py`; point the oracle at it; delete `vps/sync-brain.sh`; change `vps/deploy.manifest`, `vps/hermes/jobs.overrides.yaml` (per 15a) and the CI job. A throwaway differential script (in the job's temp folder, not committed) runs each oracle scenario through both scripts and diffs remote refs, her copy and stdout, and kills each script halfway for the other to finish, both ways. | The oracle passes on Python in CI; the differential run shows no difference but path order, its output in the DEVLOG; the oracle diff is only the header, `SCRIPT=` and the 9 interpreter calls; `check-drift.py` flags a job with a wrong or missing `interpreter`. | Risks 1 to 11, above all 3, 4 and 6: every git call's failure mode and env against the bash line it replaces; a proved port bug gets a check that passes on bash. |
+| 15b (done) | Extend `vps/test-sync-brain.sh` against today's bash: the lock still held by a hung child after the parent is killed (1), `index.md` plus a newline refused (2), a non-UTF-8 name and a cut through a multibyte name (5), a run killed halfway then finished by the next (9). A check that fails on bash found a bash bug: it is not added (the port keeps the bash behavior), and the bug goes to Open. Own PR, no VPS change. | Every check added passes on `sync-brain.sh` in CI; any bash bug found is in Open. | Mutate `sync-brain.sh` to break each risk; every new check goes red on its mutant. |
+| 15c | Write `vps/sync-brain.py`; point the oracle at it; delete `vps/sync-brain.sh`; change `vps/deploy.manifest`, `vps/hermes/jobs.overrides.yaml` (per 15a) and the CI job. A throwaway differential script (in the job's temp folder, not committed) runs each oracle scenario through both scripts and diffs remote refs, her copy and stdout, and kills each script halfway for the other to finish, both ways. | The oracle passes on Python in CI; the differential run shows no difference but path order, its output in the DEVLOG; the oracle diff is only the header, `SCRIPT=` and the 11 interpreter calls; `check-drift.py` flags a job with a wrong or missing `interpreter`. | Risks 1 to 11, above all 3, 4 and 6: every git call's failure mode and env against the bash line it replaces; a proved port bug gets a check that passes on bash. |
 | 15d | With the owner's yes at each live step: pause `sync-brain`; check no run is in flight (`hermes cron cancel` stops one) and the sync clone is at rest (no `refs/sync/pending`, no `.git/rebase-*`, lock free); deploy `sync-brain.py` and `brain-files.py` with `deploy.py`; change the job from the shell as `agent`: `hermes cron edit <job_id> --script sync-brain.py --interpreter /usr/bin/python3` (`--interpreter` is a user-owned setting: Telma's `cronjob` tool can't set it; `deploy.py` never writes `jobs.json`); remove `~/.hermes/scripts/sync-brain.sh`; smoke run; resume (a slot that came due while paused fires one catch-up run on the next tick, unless `cron.catch_up_missed` is false). | A by-hand run as `agent` with nothing to sync is silent, exit 0, no push; a capture through Telma is pushed by the next scheduled run; `check-drift.py` reads all in sync, the job line included; `ls ~/.hermes/scripts/` shows no `sync-brain.sh` (check-drift reads only manifest files) and `hermes cron doctor` reports no missing script; the job is resumed. | The deploy PR: manifest and job line, removal of the old file, drift check after it, rollback steps, the smoke checklist. |
 
 **Rollback:** with the job paused, revert 15c's PR (and 16's, if merged: its tests target the Python
@@ -336,6 +336,17 @@ Done in steps 7 to 9: `vps/sync-brain.sh` and its test, `vps/kill-switch.md`, `v
 
 ## Open
 
+- **A refused root file with a non-UTF-8 name is not refused in a UTF-8 locale (found in 15b):**
+  `refuse_outside` pipes the names through `grep -Ev`; there GNU grep calls a line with an invalid byte
+  "binary" and prints `grep: (standard input): binary file matches` (on stderr, so into the post) in
+  place of the name. `bad` stays empty, the run is not refused, and her other changes are pushed.
+  The odd file itself is not pushed. In the C locale the run refuses it as it should. No check: it
+  fails on bash in CI's locale, so by 15b's rule it is not added. The port decides what to do (refuse,
+  as the C locale does). Which locale the job runs under on the VPS is unread: read it before 15c, since
+  `${n,,}`, `tolower` and `grep -c .` in the shadow scan and `edit_target` depend on it too.
+- **Names with a newline are refused in an allowed folder (15b, kept):** `notes/x\ny.md` is refused only
+  because git quotes it (`"notes/x\ny.md"`) before `grep` sees it. A port that reads the names
+  NUL-separated must refuse it too; a check pins it, and the DEVLOG says why it might be an accident.
 - **A stuck `index.md` merge posts every run (step 14):** a merge that keeps failing (a cut at 20 s, or the
   owner deleted `index.md` while she edited it) posts the same warning every 15 minutes until it is fixed by
   hand. Post once per state, like the shadow-skill alert, if it ever happens.

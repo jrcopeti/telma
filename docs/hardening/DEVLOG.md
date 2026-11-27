@@ -2135,6 +2135,6 @@ With the owner's yes at each step, as `agent` over ssh unless noted:
   Both commits stay in the brain's private history.
 - Resumed. `check-drift.py`: 18 of 18 in sync, hermes ok, hooks ok. `hermes cron doctor`: no issues, 4 active jobs.
 - The first scheduled run (18:32, on time) was `ok`. No separate catch-up run showed in `hermes cron list`.
-- Not yet seen: a capture made through Telma and pushed by a scheduled run (the plan's second check). It stays
-  open in the step 15 row until the owner has Telma capture something.
+- The plan's second check, met at 19:04: an item in her inbox was pushed by the scheduled run (commit
+  `brain: sync 2026-11-27T18:04Z`, one file added under `inbox/`), next run 15 minutes later.
 - The brain note for `projects/telma.md` ("sync-brain is Python") went into the brain's inbox as a capture.

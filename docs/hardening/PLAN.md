@@ -134,7 +134,7 @@ change the VPS need the owner's yes first.
 | 12 | Docs sweep | todo, the last one (after 16) |
 | 13 | Leftover temp files anywhere | done 2026-11-27 (#103; deployed `deploy/2026-11-27-1`) |
 | 14 | `index.md` merges by line | done 2026-11-27 (#105; deployed `deploy/2026-11-27-2`) |
-| 15 | sync-brain in Python | done 2026-11-27 (15a #109, 15b #110, 15c #111, 15d deployed `deploy/2026-11-27-3`); one check left: a capture through Telma, pushed by a scheduled run |
+| 15 | sync-brain in Python | done 2026-11-27 (15a #109, 15b #110, 15c #111, 15d deployed `deploy/2026-11-27-3`) (a capture pushed by a scheduled run seen the same day) |
 | 16 | sync-brain's tests in Python | todo, after 15 |
 
 #### 7. Unblock sync-brain (done)

@@ -1966,14 +1966,15 @@ Read only, on the VPS: `cron/scheduler_script.py` in Hermes's checkout, `_script
 - **Chosen by extension, never by shebang or exec bit.** The source says so: "Interpreter by extension
   — the shebang is deliberately NOT honoured". `.sh` and `.bash` run under `bash`; anything else is
   Python. The script must resolve inside `~/.hermes/scripts/`.
-- **A bare `.py` runs on Hermes's own Python,** picked by `_posix_cron_script_argv`: on this install
-  `resolve_store_python` finds a managed store, so it asks `project_python` for
-  `hermes-agent/venv/bin/python`. That path does not exist on this host, and the function raises
-  "dependency environment interpreter is missing". I did not run a job to see it fail; the reading is
-  from the source and a `ls` of that path.
-- **A job's `interpreter` field avoids all of that.** `_script_argv` returns `[interpreter, script]`
+- **A bare `.py` runs on Hermes's own Python,** picked by `_posix_cron_script_argv` through
+  `project_python`, which reads the install's recorded venv (`installs/<id>/facts.json`) and falls back
+  to `hermes-agent/venv`. The fallback path doesn't exist here, but the recorded venv does (Python 3.14).
+  So a bare `.py` would run, on 3.14 and not the VPS's 3.12, and its working depends on Hermes's
+  install state. My first reading, "the venv is missing", was wrong; the adversarial round caught it.
+  I did not run a job.
+- **A job's `interpreter` field is the robust choice.** It drops the dependency on Hermes's install state and pins 3.12. `_script_argv` returns `[interpreter, script]`
   with no overlays. The value must be an absolute path to an executable whose name matches
-  `python`, `python3` or `python3.12` (`_INTERPRETER_IMAGE_RE`). `/usr/bin/python3` is a symlink to
+  `python`, `python3` or `python3.12` (`_INTERPRETER_IMAGE_RE`), and it applies to `no_agent` jobs too. `/usr/bin/python3` is a symlink to
   `python3.12` and passes. `hermes cron edit --interpreter` sets it.
 - **Same as the `.sh` today:** the env is `build_subprocess_env` (secrets stripped), the cwd is the
   scripts folder, the script runs in its own session, and a timeout kills the whole process tree. A

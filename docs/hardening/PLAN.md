@@ -294,8 +294,8 @@ line and the smoke run.
 
 **15a's answer (2026-11-27, [devlog](DEVLOG.md#2026-11-27-15a-how-hermes-runs-a-cron-script)):** the job
 line is `script: sync-brain.py` **plus `interpreter: /usr/bin/python3`**, set with
-`hermes cron edit --interpreter`. A bare `.py` runs on Hermes's own Python, which this host doesn't
-provide; the shebang is never read. 15c adds `interpreter` to `check-drift.py`'s job fields and to
+`hermes cron edit --interpreter`. A bare `.py` would run on Hermes's own Python (3.14), tied to its install
+state; the shebang is never read. An explicit interpreter pins the VPS's 3.12. 15c adds `interpreter` to `check-drift.py`'s job fields and to
 `jobs.overrides.yaml`; 15d sets it with the script line.
 
 #### Evals owed

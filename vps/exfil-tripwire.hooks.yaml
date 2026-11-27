@@ -1,4 +1,4 @@
-/# Telma's ~/.hermes/config.yaml, under hooks.pre_tool_call, after the guard-network entry.
+# Telma's ~/.hermes/config.yaml, under hooks.pre_tool_call, after the guard-network entry.
 # Every tool that sends data off the host. Not fail_closed: the tripwire detects, it never blocks.
 # Approve once: hermes chat --accept-hooks -q "reply with: ok"; then restart the gateway.
 - matcher: "web_.*|browser_.*|vision_analyze|video_analyze|image_generate|text_to_speech|manage_connections|computer_use|x_search"

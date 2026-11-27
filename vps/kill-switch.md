@@ -47,7 +47,8 @@ sudo -iu agent bash -c 'docker ps -aq --filter name=hermes- | xargs -r docker rm
 
 ```sh
 sudo -iu agent /home/agent/.hermes/scripts/memory-diff.sh             # memory and skills saved since the last check
-sudo -iu agent git -C /home/agent/brain log --stat origin/main..HEAD  # commits not pushed yet
+# Not synced yet: her folder against the sync clone's checkout of what she last had. Plain diff, no git in her folder.
+sudo -iu agent diff -rq --exclude=.git /home/agent/brain /home/agent/.local/share/brain-push
 sudo -iu agent ls /home/agent/brain-quarantine                        # pushes sync-brain refused, if any
 ```
 

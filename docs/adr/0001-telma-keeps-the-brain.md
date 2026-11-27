@@ -17,8 +17,8 @@ and Telma kept the brain.
 ## Decision
 
 An always-on agent named Telma keeps the brain. She captures what the owner sends her in Discord,
-answers "what does my brain say about X?" with links to the notes, triages the inbox twice a day
-and posts what she filed.
+answers "what does my brain say about X?" with links to the notes, triages the inbox hourly (08:00 to midnight) when it holds
+something, and posts what she filed.
 
 She runs on Hermes Agent on a VPS:
 

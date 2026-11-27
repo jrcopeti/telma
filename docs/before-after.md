@@ -87,7 +87,7 @@ never reaches `main`: `sync-brain` puts it on a branch, `telma/proposals`, and h
 |---|---|---|
 | Brain canary | none | a link in the brain that alerts `#alerts` when anything opens it |
 | Exfil tripwire | none | a hook on Telma's outbound tools that alerts when a call carries brain text |
-| Memory and skill changes | none | a diff of Telma's memory and skills to Discord after each triage |
+| Memory and skill changes | none | a diff of Telma's memory and skills to Discord ten minutes after each triage, when something changed |
 | Tripwire health | none | alerts when the tripwire can't alert or its hook is gone |
 | sync-brain | pushed silently | alerts on a refused push, and on instruction files it moves to quarantine |
 | Kill switch | none | a runbook per agent; `hermes gateway stop --yes`, since without `--yes` it refuses while a session runs |

@@ -21,9 +21,6 @@ jobs:
         run: python3 -c 'import sys; assert sys.version_info[:2] >= (3, 12), sys.version'
 
       - name: Test Telma's brain push guard
-        run: bash vps/test-sync-brain.sh
-
-      - name: Test Telma's brain push guard (Python)
         run: python3 -m unittest vps/test_sync_brain.py
 
   memory-diff:
